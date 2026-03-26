@@ -89,7 +89,7 @@ export function Home() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative min-h-screen bg-gradient-to-br from-sky-500 via-indigo-600 to-fuchsia-600 overflow-hidden">
+      <section className="relative min-h-screen bg-gradient-to-br from-sky-600 via-indigo-600 to-fuchsia-600 overflow-hidden">
         {/* Background Image Overlay */}
         <div
           className="absolute inset-0 opacity-40"
@@ -144,7 +144,7 @@ export function Home() {
       </section>
 
       {/* Featured Packages */}
-      <section className="py-20 bg-light-bg-primary dark:bg-dark-bg-primary">
+      <section className="py-20 bg-gradient-to-b from-light-bg-primary to-light-bg-secondary/40 dark:from-dark-bg-primary dark:to-dark-bg-secondary/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">
@@ -229,7 +229,7 @@ export function Home() {
       </section>
 
       {/* Why TravelSphere */}
-      <section className="py-20 bg-light-bg-primary dark:bg-dark-bg-primary">
+      <section className="py-20 bg-gradient-to-b from-light-bg-primary to-light-bg-secondary/40 dark:from-dark-bg-primary dark:to-dark-bg-secondary/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">

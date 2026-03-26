@@ -13,6 +13,12 @@ export function Discover() {
   const [items, setItems] = useState([]);
 
   const categories = ['All', 'Beach', 'Mountains', 'Adventure', 'Luxury'];
+  const previewImages = [
+    'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1528127269322-539801943592?w=1000&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=1000&auto=format&fit=crop',
+  ];
 
   useEffect(() => {
     (async () => {
@@ -98,10 +104,20 @@ export function Discover() {
         <Card variant="elevated" className="p-8 text-center text-light-text-secondary dark:text-dark-text-secondary">No destinations found for the selected filters.</Card>
       ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {data.map((pkg) => (
+          {data.map((pkg, index) => (
             <Card key={pkg.id} variant="elevated" hover className="p-5 flex flex-col gap-3">
+              <div className="relative rounded-xl overflow-hidden h-40">
+                <img
+                  src={previewImages[index % previewImages.length]}
+                  alt={pkg.title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                <div className="absolute bottom-2 left-2">
+                  <Badge variant="neutral" className="bg-white/90 text-gray-800">{pkg.category}</Badge>
+                </div>
+              </div>
               <div className="flex items-center justify-between">
-                <Badge variant="primary">{pkg.category}</Badge>
                 <Badge variant="success">{Math.min(99, 82 + (pkg.durationDays || 1))}% match</Badge>
               </div>
               <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary">{pkg.title}</h3>

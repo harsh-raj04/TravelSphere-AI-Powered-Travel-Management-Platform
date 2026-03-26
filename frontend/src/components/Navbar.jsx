@@ -27,21 +27,21 @@ export function Navbar() {
   };
 
   return (
-    <nav className="bg-white/80 dark:bg-dark-bg-secondary/90 backdrop-blur-lg border-b border-light-border dark:border-dark-border shadow-sm sticky top-0 z-50">
+    <nav className="bg-white/85 dark:bg-dark-bg-secondary/90 backdrop-blur-lg border-b border-light-border dark:border-dark-border shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-[70px]">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-brand rounded-lg flex items-center justify-center">
+            <div className="w-9 h-9 bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600 rounded-lg flex items-center justify-center shadow-md">
               <span className="text-white font-bold">T</span>
             </div>
-            <span className="font-bold text-xl text-light-text-primary dark:text-dark-text-primary hidden sm:inline">
+            <span className="font-bold text-xl bg-gradient-to-r from-sky-700 via-indigo-700 to-fuchsia-700 dark:from-sky-400 dark:via-indigo-400 dark:to-fuchsia-400 bg-clip-text text-transparent hidden sm:inline">
               TravelSphere
             </span>
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-2">
             {user ? (
               <>
                 {navItems.map((item) => {
@@ -101,7 +101,7 @@ export function Navbar() {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary"
+              className="lg:hidden p-2 rounded-lg hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary"
             >
               {isOpen ? (
                 <X className="w-5 h-5" />
@@ -114,7 +114,7 @@ export function Navbar() {
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden pb-4 flex flex-col gap-3">
+          <div className="lg:hidden pb-4 flex flex-col gap-2">
             {user ? (
               <>
                 {navItems.map((item) => {
