@@ -1,55 +1,63 @@
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './theme/ThemeProvider';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Navbar } from './components/Navbar';
+import { Footer } from './components/Footer';
+
+import { Home } from './pages/Home';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { PackageListing } from './pages/PackageListing';
-import './AppRouter.css';
+import { PackageDetail } from './pages/PackageDetail';
 
-function Nav() {
-  const { user, logout } = useAuth();
-
+function AppLayout({ children }) {
   return (
-    <nav className="navbar">
-      <div className="nav-brand">
-        <Link to="/">TravelSphere</Link>
-      </div>
-      <div className="nav-links">
-        {user ? (
-          <>
-            <span className="user-email">{user.email}</span>
-            <Link to="/packages">Packages</Link>
-            <button onClick={logout} className="logout-btn">
-              Logout
-            </button>
-          </>
-        ) : (
-          <Link to="/login">Login</Link>
-        )}
-      </div>
-    </nav>
+    <div className="min-h-screen flex flex-col bg-light-bg-primary dark:bg-dark-bg-primary">
+      <Navbar />
+      <main className="flex-1">
+        {children}
+      </main>
+      <Footer />
+    </div>
   );
 }
 
-function App() {
+function AppRoutes() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Nav />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/packages"
-            element={
-              <ProtectedRoute>
-                <PackageListing />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<Navigate to="/packages" />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+    <Routes>
+      <Route path="/" element={<AppLayout><Home /></AppLayout>} />
+      <Route path="/login" element={<AppLayout><Login /></AppLayout>} />
+      <Route path="/register" element={<AppLayout><Register /></AppLayout>} />
+      <Route
+        path="/packages"
+        element={
+          <ProtectedRoute>
+            <AppLayout><PackageListing /></AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/packages/:id"
+        element={
+          <ProtectedRoute>
+            <AppLayout><PackageDetail /></AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" />} />
+    </Routes>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
+  );
+}
