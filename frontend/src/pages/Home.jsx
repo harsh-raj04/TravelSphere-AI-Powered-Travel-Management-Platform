@@ -89,7 +89,7 @@ export function Home() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative min-h-screen bg-gradient-to-br from-blue-400 via-blue-500 to-purple-600 overflow-hidden">
+      <section className="relative min-h-screen bg-gradient-to-br from-sky-500 via-indigo-600 to-fuchsia-600 overflow-hidden">
         {/* Background Image Overlay */}
         <div
           className="absolute inset-0 opacity-40"
@@ -106,7 +106,7 @@ export function Home() {
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
               Explore the world your way
             </h1>
-            <p className="text-xl sm:text-2xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            <p className="text-xl sm:text-2xl text-sky-100 mb-8 max-w-2xl mx-auto">
               Discover verified travel experiences and book with confidence
             </p>
           </div>
@@ -246,7 +246,7 @@ export function Home() {
               return (
                 <Card key={feature.title} variant="elevated" className="text-center">
                   <div className="flex justify-center mb-4">
-                    <div className="p-3 bg-gradient-brand rounded-lg">
+                    <div className="p-3 bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600 rounded-lg">
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                   </div>
@@ -264,7 +264,7 @@ export function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-brand dark:bg-gradient-brand-dark text-white">
+      <section className="py-20 bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600 text-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold mb-4">Ready for your next adventure?</h2>
           <p className="text-xl mb-8 text-blue-100">
