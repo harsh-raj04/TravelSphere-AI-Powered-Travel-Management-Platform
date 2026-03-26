@@ -1,15 +1,20 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
-import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { Mail, Lock, User, AlertCircle, Check } from 'lucide-react';
 
-export function Login() {
-  const [form, setForm] = useState({ email: '', password: '' });
+export function Register() {
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
@@ -18,10 +23,12 @@ export function Login() {
 
   const validate = () => {
     const newErrors = {};
+    if (!form.name) newErrors.name = 'Name is required';
     if (!form.email) newErrors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Invalid email';
     if (!form.password) newErrors.password = 'Password is required';
     else if (form.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (form.password !== form.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
     return newErrors;
   };
 
@@ -38,12 +45,17 @@ export function Login() {
     setApiError('');
 
     try {
-      const res = await authAPI.login(form);
+      const res = await authAPI.register({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        role: 'customer',
+      });
       login(res.data.data.token, res.data.data.user);
       navigate('/packages');
     } catch (err) {
       setApiError(
-        err.response?.data?.message || 'Login failed. Please check your credentials.'
+        err.response?.data?.message || 'Registration failed. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -58,10 +70,10 @@ export function Login() {
             <span className="text-white text-2xl font-bold">T</span>
           </div>
           <h1 className="text-3xl font-bold text-light-text-primary dark:text-dark-text-primary mb-2">
-            Welcome Back
+            Create Account
           </h1>
           <p className="text-light-text-secondary dark:text-dark-text-secondary">
-            Continue your travel journey
+            Start exploring amazing travel packages
           </p>
         </div>
 
@@ -75,6 +87,31 @@ export function Login() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+                Full Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 w-5 h-5 text-light-text-tertiary dark:text-dark-text-tertiary" />
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => {
+                    setForm({ ...form, name: e.target.value });
+                    setErrors({ ...errors, name: '' });
+                  }}
+                  placeholder="John Doe"
+                  className={`w-full pl-10 pr-4 py-2.5 rounded-lg border-2 bg-light-bg-tertiary dark:bg-dark-bg-secondary text-light-text-primary dark:text-dark-text-primary placeholder-light-text-tertiary dark:placeholder-dark-text-tertiary transition ${
+                    errors.name
+                      ? 'border-red-500 focus:ring-red-500/20'
+                      : 'border-light-border dark:border-dark-border focus:border-brand-primary focus:ring-brand-primary/20'
+                  } focus:outline-none focus:ring-2`}
+                />
+              </div>
+              {errors.name && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{errors.name}</p>}
+            </div>
+
             {/* Email */}
             <div>
               <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
@@ -125,6 +162,31 @@ export function Login() {
               {errors.password && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{errors.password}</p>}
             </div>
 
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 w-5 h-5 text-light-text-tertiary dark:text-dark-text-tertiary" />
+                <input
+                  type="password"
+                  value={form.confirmPassword}
+                  onChange={(e) => {
+                    setForm({ ...form, confirmPassword: e.target.value });
+                    setErrors({ ...errors, confirmPassword: '' });
+                  }}
+                  placeholder="••••••"
+                  className={`w-full pl-10 pr-4 py-2.5 rounded-lg border-2 bg-light-bg-tertiary dark:bg-dark-bg-secondary text-light-text-primary dark:text-dark-text-primary placeholder-light-text-tertiary dark:placeholder-dark-text-tertiary transition ${
+                    errors.confirmPassword
+                      ? 'border-red-500 focus:ring-red-500/20'
+                      : 'border-light-border dark:border-dark-border focus:border-brand-primary focus:ring-brand-primary/20'
+                  } focus:outline-none focus:ring-2`}
+                />
+              </div>
+              {errors.confirmPassword && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{errors.confirmPassword}</p>}
+            </div>
+
             {/* Submit */}
             <Button
               type="submit"
@@ -134,26 +196,15 @@ export function Login() {
               disabled={loading}
               className="mt-6"
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? 'Creating Account...' : 'Sign Up'}
             </Button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">Demo Credentials</p>
-            <p className="text-xs text-blue-800 dark:text-blue-200 font-mono">
-              customer@travelsphere.dev
-            </p>
-            <p className="text-xs text-blue-800 dark:text-blue-200 font-mono">
-              Password123
-            </p>
-          </div>
-
-          {/* Sign Up Link */}
+          {/* Login Link */}
           <div className="text-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
-            Don't have an account?{' '}
-            <a href="/register" className="font-semibold text-brand-primary hover:text-brand-secondary transition">
-              Sign up here
+            Already have an account?{' '}
+            <a href="/login" className="font-semibold text-brand-primary hover:text-brand-secondary transition">
+              Login here
             </a>
           </div>
         </Card>
