@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  customer
+  agent
+  admin
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+  completed
+}
+
+enum TransactionStatus {
+  initiated
+  success
+  failed
+  refunded
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  agentProfile AgentProfile?
+  bookings     Booking[]
+
+  @@map("users")
+}
+
+model AgentProfile {
+  id            String          @id @default(cuid())
+  userId        String          @unique
+  agencyName    String
+  bio           String?
+  contactNumber String?
+  isVerified    Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packages      TravelPackage[]
+
+  @@map("agent_profiles")
+}
+
+model TravelPackage {
+  id           String    @id @default(cuid())
+  agentId      String
+  title        String
+  destination  String
+  durationDays Int
+  price        Decimal   @db.Decimal(10, 2)
+  description  String
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  agent        AgentProfile @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  bookings     Booking[]
+
+  @@index([agentId])
+  @@index([destination])
+  @@map("travel_packages")
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  customerId    String
+  packageId     String
+  bookingDate   DateTime      @default(now())
+  travelDate    DateTime
+  travelersCount Int
+  status        BookingStatus @default(pending)
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  customer      User          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  package       TravelPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  transaction   Transaction?
+
+  @@index([customerId])
+  @@index([packageId])
+  @@index([status])
+  @@map("bookings")
+}
+
+model Transaction {
+  id                   String            @id @default(cuid())
+  bookingId            String            @unique
+  amount               Decimal           @db.Decimal(10, 2)
+  paymentMethod        String
+  status               TransactionStatus
+  transactionReference String
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  booking              Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}

@@ -77,59 +77,35 @@ The platform is built on a microservice-friendly monorepo architecture, with a R
 
 ## 🏗️ System Architecture
 
+### Current Synopsis Architecture Diagram
+
+```mermaid
+flowchart TB
+  C[Customer UI] --> API[Backend API\nNode.js + Express]
+  A[Agent UI] --> API
+  AD[Admin Panel] --> API
+
+  API --> AUTH[Auth Service\nJWT + Role-Based Access]
+  API --> PKG[Package Service]
+  API --> BKG[Booking Service]
+  API --> RPT[Admin Reporting Service]
+
+  PKG --> DB[(PostgreSQL)]
+  BKG --> DB
+  RPT --> DB
+  AUTH --> DB
+
+  API --> S3[(AWS S3\nOptional File Storage)]
+  API --> EXT[External APIs\nMaps/Weather/Payments]
+
+  subgraph AWS_Ready_Deployment
+    API
+    DB
+    S3
+  end
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         TravelSphere Platform                               │
-│                                                                             │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐  │
-│  │   Traveller UI   │  │   Agent Portal   │  │     Community Hub        │  │
-│  │  (Next.js / PWA) │  │   (React + TS)   │  │     (Next.js + WS)       │  │
-│  └────────┬─────────┘  └────────┬─────────┘  └───────────┬──────────────┘  │
-│           │                     │                         │                 │
-│           └─────────────────────┼─────────────────────────┘                 │
-│                                 ▼                                           │
-│              ┌──────────────────────────────────────┐                       │
-│              │           API Gateway / Load Balancer │                       │
-│              │         (Nginx / AWS API Gateway)     │                       │
-│              └──────────────────┬───────────────────┘                       │
-│                                 │                                           │
-│         ┌───────────────────────┼──────────────────────┐                   │
-│         ▼                       ▼                       ▼                   │
-│  ┌─────────────┐      ┌──────────────────┐    ┌──────────────────┐         │
-│  │  Auth       │      │  Core REST API   │    │  WebSocket       │         │
-│  │  Service    │      │  (Node/Express)  │    │  Server          │         │
-│  │  (JWT/OAuth)│      │                  │    │  (Socket.io)     │         │
-│  └─────────────┘      └────────┬─────────┘    └────────┬─────────┘         │
-│                                │                        │                   │
-│                    ┌───────────┴──────────┐             │                   │
-│                    ▼                      ▼             ▼                   │
-│           ┌──────────────┐      ┌───────────────┐  ┌───────────┐           │
-│           │  AI Engine   │      │  Background   │  │  Redis    │           │
-│           │  Service     │      │  Job Queue    │  │  Cache    │           │
-│           │ (Python/     │      │  (Bull/Redis) │  │  + PubSub │           │
-│           │  LangChain)  │      └───────────────┘  └───────────┘           │
-│           └──────┬───────┘                                                  │
-│                  │                                                          │
-│     ┌────────────┼───────────────────┐                                     │
-│     ▼            ▼                   ▼                                     │
-│  ┌───────┐  ┌──────────┐     ┌───────────────┐                            │
-│  │ OpenAI│  │ Google   │     │ External APIs │                            │
-│  │  API  │  │ Maps API │     │ (Flights,     │                            │
-│  │       │  │          │     │  Hotels,      │                            │
-│  └───────┘  └──────────┘     │  Weather)     │                            │
-│                               └───────────────┘                            │
-│                                                                             │
-│  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                        Data Layer                                    │  │
-│  │  ┌────────────────┐  ┌─────────────────┐  ┌──────────────────────┐  │  │
-│  │  │  PostgreSQL     │  │    MongoDB      │  │     AWS S3 /         │  │  │
-│  │  │  (Core Data:   │  │  (Itineraries,  │  │     Cloudinary       │  │  │
-│  │  │  Users, Book.) │  │   Chat Logs,    │  │   (Media Storage)    │  │  │
-│  │  │                │  │   Reviews)      │  │                      │  │  │
-│  │  └────────────────┘  └─────────────────┘  └──────────────────────┘  │  │
-│  └──────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+
+This is the current high-level architecture for the project synopsis. It is intentionally simple and can be expanded as new modules are implemented.
 
 ---
 
