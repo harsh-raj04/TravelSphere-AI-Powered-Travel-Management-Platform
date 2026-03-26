@@ -3,10 +3,15 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../contexts/AuthContext';
-import { Compass, Calendar, Plane, Sparkles, TrendingUp, MapPin, ArrowRight } from 'lucide-react';
+import { Compass, Calendar, Plane, Sparkles, TrendingUp, MapPin, ArrowRight, Clock } from 'lucide-react';
 
 export function Dashboard() {
   const { user } = useAuth();
+
+  const upcomingTrips = [
+    { id: 'seed-package-1', destination: 'Himachal Pradesh', date: '2030-03-15', progress: 72 },
+    { id: 'seed-package-2', destination: 'Goa', date: '2030-06-10', progress: 41 },
+  ];
 
   const stats = [
     { label: 'Trips Planned', value: '12', icon: Plane, tone: 'text-blue-600 dark:text-blue-400' },
@@ -83,6 +88,37 @@ export function Dashboard() {
               </div>
               <Link to={`/packages/${rec.id}`}>
                 <Button size="sm">View Package</Button>
+              </Link>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-light-text-primary dark:text-dark-text-primary">Upcoming Trips</h2>
+          <Link to="/trips" className="text-sm font-semibold text-brand-primary dark:text-brand-secondary inline-flex items-center gap-1">
+            Manage trips <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-5">
+          {upcomingTrips.map((trip) => (
+            <Card key={trip.id} variant="elevated" className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-light-text-primary dark:text-dark-text-primary inline-flex items-center gap-2">
+                  <MapPin className="w-4 h-4" /> {trip.destination}
+                </h3>
+                <Badge variant="primary">{trip.progress}% planned</Badge>
+              </div>
+              <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary inline-flex items-center gap-2 mb-3">
+                <Clock className="w-4 h-4" /> {new Date(trip.date).toLocaleDateString()}
+              </p>
+              <div className="w-full bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-full h-2 mb-4">
+                <div className="h-2 rounded-full bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600" style={{ width: `${trip.progress}%` }} />
+              </div>
+              <Link to={`/packages/${trip.id}`}>
+                <Button size="sm" variant="secondary">Open Itinerary</Button>
               </Link>
             </Card>
           ))}
