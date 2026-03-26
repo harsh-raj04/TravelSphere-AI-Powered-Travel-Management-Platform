@@ -52,7 +52,7 @@ export function Register() {
         role: 'customer',
       });
       login(res.data.data.token, res.data.data.user);
-      navigate('/packages');
+      navigate('/dashboard');
     } catch (err) {
       setApiError(
         err.response?.data?.message || 'Registration failed. Please try again.'

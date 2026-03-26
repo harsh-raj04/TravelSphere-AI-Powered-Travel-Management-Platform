@@ -40,7 +40,7 @@ export function Login() {
     try {
       const res = await authAPI.login(form);
       login(res.data.data.token, res.data.data.user);
-      navigate('/packages');
+      navigate('/dashboard');
     } catch (err) {
       setApiError(
         err.response?.data?.message || 'Login failed. Please check your credentials.'

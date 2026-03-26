@@ -19,3 +19,6 @@ coverage/
 # OS/editor
 .DS_Store
 .vscode/
+
+# Private design reference
+My UI/
