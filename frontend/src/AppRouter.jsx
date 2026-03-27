@@ -8,6 +8,7 @@ import { Footer } from './components/Footer';
 
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
+import { AgentLogin } from './pages/AgentLogin';
 import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { Discover } from './pages/Discover';
@@ -39,6 +40,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<AppLayout><Home /></AppLayout>} />
       <Route path="/login" element={<AppLayout><Login /></AppLayout>} />
+      <Route path="/agent/login" element={<AppLayout><AgentLogin /></AppLayout>} />
       <Route path="/register" element={<AppLayout><Register /></AppLayout>} />
       <Route
         path="/dashboard"
