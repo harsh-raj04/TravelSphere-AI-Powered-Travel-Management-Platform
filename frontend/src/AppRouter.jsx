@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { RoleRoute } from './components/RoleRoute';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 
@@ -16,6 +17,10 @@ import { Bookings } from './pages/Bookings';
 import { Profile } from './pages/Profile';
 import { PackageListing } from './pages/PackageListing';
 import { PackageDetail } from './pages/PackageDetail';
+import { AgentDashboard } from './pages/agent/AgentDashboard';
+import { AgentPackages } from './pages/agent/AgentPackages';
+import { AgentPackageForm } from './pages/agent/AgentPackageForm';
+import { AgentBookings } from './pages/agent/AgentBookings';
 
 function AppLayout({ children }) {
   return (
@@ -38,49 +43,89 @@ function AppRoutes() {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowedRoles={['customer']}>
             <AppLayout><Dashboard /></AppLayout>
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/discover"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowedRoles={['customer']}>
             <AppLayout><Discover /></AppLayout>
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/trips"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowedRoles={['customer']}>
             <AppLayout><MyTrips /></AppLayout>
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/plan"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowedRoles={['customer']}>
             <AppLayout><PlanTrip /></AppLayout>
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/bookings"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowedRoles={['customer']}>
             <AppLayout><Bookings /></AppLayout>
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/profile"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowedRoles={['customer']}>
             <AppLayout><Profile /></AppLayout>
-          </ProtectedRoute>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/dashboard"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AppLayout><AgentDashboard /></AppLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/packages"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AppLayout><AgentPackages /></AppLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/packages/new"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AppLayout><AgentPackageForm /></AppLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/packages/:id/edit"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AppLayout><AgentPackageForm /></AppLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/bookings"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AppLayout><AgentBookings /></AppLayout>
+          </RoleRoute>
         }
       />
       <Route
