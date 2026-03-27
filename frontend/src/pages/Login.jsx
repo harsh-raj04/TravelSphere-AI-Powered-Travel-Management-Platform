@@ -39,8 +39,9 @@ export function Login() {
 
     try {
       const res = await authAPI.login(form);
-      login(res.data.data.token, res.data.data.user);
-      navigate('/dashboard');
+      const nextUser = res.data.data.user;
+      login(res.data.data.token, nextUser);
+      navigate(nextUser?.role === 'agent' ? '/agent/dashboard' : '/dashboard');
     } catch (err) {
       setApiError(
         err.response?.data?.message || 'Login failed. Please check your credentials.'

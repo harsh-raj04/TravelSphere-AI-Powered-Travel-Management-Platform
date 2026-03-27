@@ -12,7 +12,7 @@ export function Navbar() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
-  const navItems = [
+  const customerNavItems = [
     { path: '/dashboard', label: 'Dashboard', icon: Sparkles },
     { path: '/discover', label: 'Discover', icon: Compass },
     { path: '/trips', label: 'My Trips', icon: Calendar },
@@ -20,6 +20,15 @@ export function Navbar() {
     { path: '/bookings', label: 'Bookings', icon: CreditCard },
     { path: '/profile', label: 'Profile', icon: User },
   ];
+
+  const agentNavItems = [
+    { path: '/agent/dashboard', label: 'Dashboard', icon: Sparkles },
+    { path: '/agent/packages', label: 'Packages', icon: Compass },
+    { path: '/agent/packages/new', label: 'Create', icon: MapPin },
+    { path: '/agent/bookings', label: 'Bookings', icon: CreditCard },
+  ];
+
+  const navItems = user?.role === 'agent' ? agentNavItems : customerNavItems;
 
   const handleLogout = () => {
     logout();

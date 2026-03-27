@@ -25,6 +25,9 @@ export const authAPI = {
 export const packagesAPI = {
   list: (params) => apiClient.get('/packages', { params }),
   getById: (id) => apiClient.get(`/packages/${id}`),
+  create: (data) => apiClient.post('/packages', data),
+  update: (id, data) => apiClient.put(`/packages/${id}`, data),
+  remove: (id) => apiClient.delete(`/packages/${id}`),
 };
 
 export const bookingsAPI = {
@@ -34,6 +37,11 @@ export const bookingsAPI = {
 
 export const transactionsAPI = {
   getByBooking: (bookingId) => apiClient.get(`/transactions/${bookingId}`),
+};
+
+export const agentAPI = {
+  bookings: () => apiClient.get('/bookings/agent'),
+  updateBookingStatus: (id, status) => apiClient.patch(`/bookings/${id}/status`, { status }),
 };
 
 export default apiClient;
