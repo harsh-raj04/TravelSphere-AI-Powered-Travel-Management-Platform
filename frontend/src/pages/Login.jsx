@@ -157,6 +157,13 @@ export function Login() {
               Sign up here
             </a>
           </div>
+
+          <div className="text-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
+            Agent account?{' '}
+            <a href="/agent/login" className="font-semibold text-brand-primary hover:text-brand-secondary transition">
+              Open Agent Login
+            </a>
+          </div>
         </Card>
       </div>
     </div>

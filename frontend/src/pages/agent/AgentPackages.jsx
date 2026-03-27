@@ -13,13 +13,16 @@ export function AgentPackages() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [deletingId, setDeletingId] = useState('');
+  const [error, setError] = useState('');
 
   const loadData = async () => {
     setLoading(true);
+    setError('');
     try {
       const res = await packagesAPI.list({ page: 1, limit: 100 });
       setItems(res.data?.data?.items || []);
-    } catch {
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to load packages.');
       setItems([]);
     } finally {
       setLoading(false);
@@ -41,10 +44,11 @@ export function AgentPackages() {
 
     try {
       setDeletingId(id);
+      setError('');
       await packagesAPI.remove(id);
       await loadData();
-    } catch {
-      window.alert('Failed to delete package.');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to delete package.');
     } finally {
       setDeletingId('');
     }
@@ -59,6 +63,12 @@ export function AgentPackages() {
         </div>
         <Link to="/agent/packages/new"><Button><Plus className="w-4 h-4 mr-2" /> New Package</Button></Link>
       </div>
+
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <p className="text-light-text-secondary dark:text-dark-text-secondary">Loading packages...</p>

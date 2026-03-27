@@ -45,8 +45,8 @@ export function AgentPackageForm() {
           price: Number(pkg.price || 0),
           description: pkg.description || '',
         });
-      } catch {
-        setError('Unable to load package.');
+      } catch (err) {
+        setError(err?.response?.data?.message || 'Unable to load package.');
       } finally {
         setLoading(false);
       }
