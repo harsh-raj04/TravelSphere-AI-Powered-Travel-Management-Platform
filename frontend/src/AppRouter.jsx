@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { RoleRoute } from './components/RoleRoute';
@@ -9,6 +10,8 @@ import { AgentLayout } from './components/agent/AgentLayout';
 import { AdminLayout } from './components/admin/AdminLayout';
 
 import { Home } from './pages/Home';
+import { AgentHome } from './pages/AgentHome';
+import { AdminHome } from './pages/AdminHome';
 import { Login } from './pages/Login';
 import { AgentLogin } from './pages/AgentLogin';
 import { Register } from './pages/Register';
@@ -27,6 +30,13 @@ import { AgentBookings } from './pages/agent/AgentBookings';
 import { AgentAnalytics } from './pages/agent/AgentAnalytics';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminBookings } from './pages/admin/AdminBookings';
+import { AdminPackages } from './pages/admin/AdminPackages';
+import { AdminAgents } from './pages/admin/AdminAgents';
+import { AdminCustomers } from './pages/admin/AdminCustomers';
+import { AdminPayments } from './pages/admin/AdminPayments';
+import { AdminAnalytics } from './pages/admin/AdminAnalytics';
+import { AdminSupport } from './pages/admin/AdminSupport';
+import { AdminSettings } from './pages/admin/AdminSettings';
 
 function AppLayout({ children }) {
   return (
@@ -41,9 +51,30 @@ function AppLayout({ children }) {
 }
 
 function AppRoutes() {
+  const { user, loading } = useAuth();
+  const variant = (import.meta.env.VITE_APP_VARIANT || 'customer').toLowerCase();
+
+  const RootHome = () => {
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-light-bg-primary dark:bg-dark-bg-primary">
+          <div className="w-8 h-8 border-4 border-light-border dark:border-dark-border border-t-brand-primary dark:border-t-brand-secondary rounded-full animate-spin" />
+        </div>
+      );
+    }
+
+    if (user?.role === 'agent') return <Navigate to="/agent/dashboard" replace />;
+    if (user?.role === 'admin') return <Navigate to="/admin/dashboard" replace />;
+    if (user?.role === 'customer') return <Navigate to="/dashboard" replace />;
+
+    if (variant === 'agent') return <AgentHome />;
+    if (variant === 'admin') return <AdminHome />;
+    return <AppLayout><Home /></AppLayout>;
+  };
+
   return (
     <Routes>
-      <Route path="/" element={<AppLayout><Home /></AppLayout>} />
+      <Route path="/" element={<RootHome />} />
       <Route path="/login" element={<AppLayout><Login /></AppLayout>} />
       <Route path="/agent/login" element={<AppLayout><AgentLogin /></AppLayout>} />
       <Route path="/register" element={<AppLayout><Register /></AppLayout>} />
@@ -156,6 +187,62 @@ function AppRoutes() {
         element={
           <RoleRoute allowedRoles={['admin']}>
             <AdminLayout><AdminBookings /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/packages"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminPackages /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/agents"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminAgents /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/customers"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminCustomers /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/payments"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminPayments /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/analytics"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminAnalytics /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/support"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminSupport /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminSettings /></AdminLayout>
           </RoleRoute>
         }
       />

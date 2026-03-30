@@ -4,8 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:agent": "vite --port 5174",
+    "dev": "VITE_APP_VARIANT=customer vite --port 5100",
+    "dev:customer": "VITE_APP_VARIANT=customer vite --port 5100",
+    "dev:agent": "VITE_APP_VARIANT=agent vite --port 5200",
+    "dev:admin": "VITE_APP_VARIANT=admin vite --port 5300",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

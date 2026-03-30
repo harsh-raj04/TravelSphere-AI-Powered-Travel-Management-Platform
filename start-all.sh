@@ -6,11 +6,6 @@ BACKEND_DIR="$ROOT_DIR/backend"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 COMPOSE_FILE="$BACKEND_DIR/docker-compose.yml"
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "Docker is not installed or not in PATH."
-  exit 1
-fi
-
 if ! command -v npm >/dev/null 2>&1; then
   echo "npm is not installed or not in PATH."
   exit 1
@@ -21,8 +16,14 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   exit 1
 fi
 
-echo "Starting database..."
-docker compose -f "$COMPOSE_FILE" up -d
+DB_AVAILABLE=true
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  echo "Starting database..."
+  docker compose -f "$COMPOSE_FILE" up -d
+else
+  DB_AVAILABLE=false
+  echo "Docker daemon is not running; skipping database startup."
+fi
 
 # Install dependencies if missing.
 if [[ ! -d "$BACKEND_DIR/node_modules" ]]; then
@@ -42,30 +43,43 @@ echo "Starting backend (http://localhost:5000)..."
   echo $! > "$ROOT_DIR/.backend.pid"
 )
 
-echo "Starting frontend main app (http://localhost:5173)..."
+if [[ "$DB_AVAILABLE" == false ]]; then
+  echo "Note: backend may not function correctly until Docker/Postgres is running."
+fi
+
+echo "Starting customer UI (http://localhost:5100)..."
 (
   cd "$FRONTEND_DIR"
-  nohup npm run dev > "$ROOT_DIR/.frontend.log" 2>&1 &
-  echo $! > "$ROOT_DIR/.frontend.pid"
+  nohup npm run dev:customer -- --host 0.0.0.0 > "$ROOT_DIR/.customer.log" 2>&1 &
+  echo $! > "$ROOT_DIR/.customer.pid"
 )
 
-echo "Starting agent app (http://localhost:5174)..."
+echo "Starting agent UI (http://localhost:5200)..."
 (
   cd "$FRONTEND_DIR"
-  nohup npm run dev:agent > "$ROOT_DIR/.agent.log" 2>&1 &
+  nohup npm run dev:agent -- --host 0.0.0.0 > "$ROOT_DIR/.agent.log" 2>&1 &
   echo $! > "$ROOT_DIR/.agent.pid"
+)
+
+echo "Starting admin UI (http://localhost:5300)..."
+(
+  cd "$FRONTEND_DIR"
+  nohup npm run dev:admin -- --host 0.0.0.0 > "$ROOT_DIR/.admin.log" 2>&1 &
+  echo $! > "$ROOT_DIR/.admin.pid"
 )
 
 echo ""
 echo "TravelSphere services started."
-echo "Main app:   http://localhost:5173"
+echo "Customer:   http://localhost:5100"
 echo "Backend:    http://localhost:5000"
-echo "Agent app:  http://localhost:5174"
+echo "Agent:      http://localhost:5200"
+echo "Admin:      http://localhost:5300"
 
 echo ""
 echo "Logs:"
 echo "  tail -f .backend.log"
-echo "  tail -f .frontend.log"
+echo "  tail -f .customer.log"
 echo "  tail -f .agent.log"
+echo "  tail -f .admin.log"
 echo ""
 echo "To stop all services: ./stop-all.sh"

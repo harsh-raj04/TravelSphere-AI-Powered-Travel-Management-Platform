@@ -1,273 +1,162 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-react';
-import { adminAPI } from '../../services/api';
-
-const PAGE_SIZE = 12;
-
-const formatINR = (amount) =>
-  `₹${Number(amount || 0).toLocaleString('en-IN', {
-    maximumFractionDigits: 0,
-  })}`;
-
-function statusTone(status) {
-  const value = String(status || '').toLowerCase();
-  if (value === 'confirmed' || value === 'success') return 'bg-emerald-100 text-emerald-700';
-  if (value === 'pending' || value === 'initiated') return 'bg-amber-100 text-amber-700';
-  if (value === 'cancelled' || value === 'failed') return 'bg-rose-100 text-rose-700';
-  return 'bg-gray-100 text-gray-700';
-}
+import { useState } from 'react';
+import { Download, X } from 'lucide-react';
+import { mockBookings, mockAgents } from './mockData';
 
 export function AdminBookings() {
-  const [loading, setLoading] = useState(true);
-  const [bookings, setBookings] = useState([]);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [search, setSearch] = useState('');
-  const [bookingStatus, setBookingStatus] = useState('');
-  const [transactionStatus, setTransactionStatus] = useState('');
+  const [bookings, setBookings] = useState(mockBookings);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [agentFilter, setAgentFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const params = useMemo(() => {
-    const next = { page, limit: PAGE_SIZE };
+  const filteredBookings = bookings.filter((booking) => {
+    const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
+    const matchesAgent = agentFilter === 'all' || booking.agentId === agentFilter;
+    const matchesSearch =
+      booking.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      booking.packageName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      booking.id.toLowerCase().includes(searchQuery.toLowerCase());
 
-    if (search.trim()) {
-      next.search = search.trim();
-    }
+    return matchesStatus && matchesAgent && matchesSearch;
+  });
 
-    if (bookingStatus) {
-      next.booking_status = bookingStatus;
-    }
-
-    if (transactionStatus) {
-      next.transaction_status = transactionStatus;
-    }
-
-    return next;
-  }, [page, search, bookingStatus, transactionStatus]);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await adminAPI.bookings(params);
-        const data = res.data?.data;
-        setBookings(data?.items || []);
-        setTotal(data?.pagination?.total || 0);
-      } catch {
-        setBookings([]);
-        setTotal(0);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [params]);
-
-  const onChangeFilter = (setter) => (event) => {
-    setPage(1);
-    setter(event.target.value);
+  const handleAssignAgent = (bookingId, agentId) => {
+    setBookings((prev) =>
+      prev.map((booking) => {
+        if (booking.id === bookingId) {
+          const agent = mockAgents.find((a) => a.id === agentId);
+          return {
+            ...booking,
+            agentId,
+            agentName: agent?.name || null,
+          };
+        }
+        return booking;
+      })
+    );
   };
 
-  const handleExport = () => {
-    if (bookings.length === 0) return;
-
-    const rows = [
-      [
-        'Booking ID',
-        'Booked By',
-        'Customer Email',
-        'Package',
-        'Destination',
-        'Agent',
-        'Booking Date',
-        'Amount',
-        'Booking Status',
-        'Transaction Status',
-      ],
-      ...bookings.map((booking) => [
-        booking.id,
-        booking.customer?.name || '',
-        booking.customer?.email || '',
-        booking.package?.title || '',
-        booking.package?.destination || '',
-        booking.package?.agent?.user?.name || '',
-        booking.bookingDate ? new Date(booking.bookingDate).toISOString() : '',
-        Number(booking.totalAmount || 0),
-        booking.status || '',
-        booking.transaction?.status || '',
-      ]),
-    ];
-
-    const csv = rows
-      .map((row) =>
-        row
-          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
-          .join(',')
-      )
-      .join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `admin-bookings-page-${page}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleStatusChange = (bookingId, newStatus) => {
+    setBookings((prev) =>
+      prev.map((booking) => (booking.id === bookingId ? { ...booking, status: newStatus } : booking))
+    );
   };
-
-  const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">All Bookings</h2>
-        <p className="text-gray-600">Track customer bookings, package ownership, and transaction health.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold text-gray-900 dark:text-white mb-2">Bookings Management</h1>
+          <p className="text-gray-600 dark:text-gray-400">Manage and assign bookings to agents</p>
+        </div>
+        <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium">
+          <Download className="w-4 h-4" />
+          Export
+        </button>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <label className="md:col-span-2 flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg">
-            <Search className="h-4 w-4 text-gray-400" />
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Search</label>
             <input
               type="text"
-              value={search}
-              onChange={onChangeFilter(setSearch)}
-              placeholder="Search customer, package, destination, or agent"
-              className="w-full bg-transparent outline-none text-sm text-gray-700"
+              placeholder="Search by customer, package, or ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
             />
-          </label>
+          </div>
 
-          <select
-            value={bookingStatus}
-            onChange={onChangeFilter(setBookingStatus)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700"
-          >
-            <option value="">All booking statuses</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
 
-          <select
-            value={transactionStatus}
-            onChange={onChangeFilter(setTransactionStatus)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700"
-          >
-            <option value="">All transaction statuses</option>
-            <option value="initiated">Initiated</option>
-            <option value="success">Success</option>
-            <option value="failed">Failed</option>
-            <option value="refunded">Refunded</option>
-          </select>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Agent</label>
+            <select
+              value={agentFilter}
+              onChange={(e) => setAgentFilter(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+            >
+              <option value="all">All Agents</option>
+              {mockAgents.filter((a) => a.status === 'active').map((agent) => (
+                <option key={agent.id} value={agent.id}>{agent.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between">
-          <p className="text-xs text-gray-500">Showing results with current filters and pagination.</p>
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={bookings.length === 0}
-            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 disabled:opacity-50 hover:bg-gray-50"
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </button>
-        </div>
+        {(statusFilter !== 'all' || agentFilter !== 'all' || searchQuery) && (
+          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex-wrap">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+            {statusFilter !== 'all' && (
+              <button onClick={() => setStatusFilter('all')} className="flex items-center gap-1 px-3 py-1 bg-blue-500/10 text-blue-500 rounded-full text-sm">
+                Status: {statusFilter}
+                <X className="w-3 h-3" />
+              </button>
+            )}
+            {agentFilter !== 'all' && (
+              <button onClick={() => setAgentFilter('all')} className="flex items-center gap-1 px-3 py-1 bg-blue-500/10 text-blue-500 rounded-full text-sm">
+                Agent
+                <X className="w-3 h-3" />
+              </button>
+            )}
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="flex items-center gap-1 px-3 py-1 bg-blue-500/10 text-blue-500 rounded-full text-sm">
+                Search: {searchQuery}
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Booked By</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Package</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Agent</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Booking Date</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Amount</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Booking Status</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Transaction</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Booking ID</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Customer</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Package</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Assigned Agent</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {!loading && bookings.length === 0 && (
-                <tr>
-                  <td colSpan="7" className="px-4 py-6 text-center text-gray-500">
-                    No bookings found.
-                  </td>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {filteredBookings.map((booking) => (
+                <tr key={booking.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap"><span className="font-mono text-sm font-medium text-gray-900 dark:text-white">{booking.id}</span></td>
+                  <td className="px-6 py-4 whitespace-nowrap"><div><p className="font-medium text-gray-900 dark:text-white">{booking.customerName}</p><p className="text-sm text-gray-500 dark:text-gray-400">{booking.travelers} travelers</p></div></td>
+                  <td className="px-6 py-4"><div><p className="font-medium text-gray-900 dark:text-white">{booking.packageName}</p><p className="text-sm text-gray-500 dark:text-gray-400">{booking.destination}</p></div></td>
+                  <td className="px-6 py-4"><select value={booking.agentId || ''} onChange={(e) => handleAssignAgent(booking.id, e.target.value)} className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="">Unassigned</option>{mockAgents.filter((a) => a.status === 'active').map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}</select></td>
+                  <td className="px-6 py-4 whitespace-nowrap"><select value={booking.status} onChange={(e) => handleStatusChange(booking.id, e.target.value)} className="px-3 py-1.5 rounded-lg text-sm font-medium border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white"><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{booking.date}</td>
+                  <td className="px-6 py-4 whitespace-nowrap"><span className="font-semibold text-gray-900 dark:text-white">₹{booking.amount.toLocaleString('en-IN')}</span></td>
+                  <td className="px-6 py-4 whitespace-nowrap"><button className="text-blue-500 hover:text-blue-600 font-medium text-sm">View Details</button></td>
                 </tr>
-              )}
-
-              {loading && (
-                <tr>
-                  <td colSpan="7" className="px-4 py-6 text-center text-gray-500">
-                    Loading bookings...
-                  </td>
-                </tr>
-              )}
-
-              {!loading &&
-                bookings.map((booking) => (
-                  <tr key={booking.id} className="border-b border-gray-100 last:border-b-0">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{booking.customer?.name || 'Unknown'}</p>
-                      <p className="text-xs text-gray-500">{booking.customer?.email || '-'}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900">{booking.package?.title || '-'}</p>
-                      <p className="text-xs text-gray-500">{booking.package?.destination || '-'}</p>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">{booking.package?.agent?.user?.name || '-'}</td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {booking.bookingDate ? new Date(booking.bookingDate).toLocaleDateString('en-IN') : '-'}
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-gray-900">{formatINR(booking.totalAmount)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-1 rounded-md text-xs font-medium ${statusTone(booking.status)}`}>
-                        {booking.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex px-2 py-1 rounded-md text-xs font-medium ${statusTone(
-                          booking.transaction?.status
-                        )}`}
-                      >
-                        {booking.transaction?.status || 'N/A'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+              ))}
             </tbody>
           </table>
         </div>
-
-        <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            Page {page} of {totalPages} ({total} total)
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-              disabled={page <= 1}
-              className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Prev
-            </button>
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={page >= totalPages}
-              className="inline-flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-gray-50"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+        {filteredBookings.length === 0 && <div className="text-center py-12"><p className="text-gray-500 dark:text-gray-400">No bookings found matching your filters</p></div>}
       </div>
+
+      <div className="text-sm text-gray-600 dark:text-gray-400">Showing {filteredBookings.length} of {bookings.length} bookings</div>
     </div>
   );
 }
