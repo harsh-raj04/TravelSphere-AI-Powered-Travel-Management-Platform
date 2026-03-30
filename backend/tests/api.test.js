@@ -127,4 +127,118 @@ describe("TravelSphere API", () => {
     expect(response.body.success).toBe(true);
     expect(response.body.data.pagination.total).toBe(0);
   });
+
+  test("POST /api/v1/transactions creates transaction for booking owner", async () => {
+    prisma.booking.findUnique.mockResolvedValue({
+      id: "booking-1",
+      customerId: "customer-1",
+      package: { agentId: "agent-profile-1" },
+    });
+
+    prisma.transaction.upsert.mockResolvedValue({
+      id: "txn-1",
+      bookingId: "booking-1",
+      amount: 1000,
+      paymentMethod: "card",
+      status: "success",
+    });
+
+    const customerToken = tokenFor({
+      id: "customer-1",
+      email: "customer@travelsphere.dev",
+      role: "customer",
+    });
+
+    const response = await request(app)
+      .post("/api/v1/transactions")
+      .set("Authorization", `Bearer ${customerToken}`)
+      .send({
+        booking_id: "booking-1",
+        amount: 1000,
+        method: "card",
+        status: "success",
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.bookingId).toBe("booking-1");
+  });
+
+  test("POST /api/v1/transactions rejects non-owner customer", async () => {
+    prisma.booking.findUnique.mockResolvedValue({
+      id: "booking-2",
+      customerId: "customer-2",
+      package: { agentId: "agent-profile-1" },
+    });
+
+    const customerToken = tokenFor({
+      id: "customer-1",
+      email: "customer@travelsphere.dev",
+      role: "customer",
+    });
+
+    const response = await request(app)
+      .post("/api/v1/transactions")
+      .set("Authorization", `Bearer ${customerToken}`)
+      .send({
+        booking_id: "booking-2",
+        amount: 500,
+        method: "upi",
+        status: "failed",
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body.success).toBe(false);
+  });
+
+  test("GET /api/v1/transactions/:bookingId returns transaction for admin", async () => {
+    prisma.booking.findUnique.mockResolvedValue({
+      id: "booking-3",
+      customerId: "customer-3",
+      package: { agentId: "agent-profile-3" },
+    });
+    prisma.transaction.findUnique.mockResolvedValue({
+      id: "txn-3",
+      bookingId: "booking-3",
+      amount: 3000,
+      paymentMethod: "netbanking",
+      status: "refunded",
+    });
+
+    const adminToken = tokenFor({
+      id: "admin-1",
+      email: "admin@travelsphere.dev",
+      role: "admin",
+    });
+
+    const response = await request(app)
+      .get("/api/v1/transactions/booking-3")
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.bookingId).toBe("booking-3");
+  });
+
+  test("GET /api/v1/transactions/:bookingId returns 404 when transaction missing", async () => {
+    prisma.booking.findUnique.mockResolvedValue({
+      id: "booking-4",
+      customerId: "customer-4",
+      package: { agentId: "agent-profile-4" },
+    });
+    prisma.transaction.findUnique.mockResolvedValue(null);
+
+    const adminToken = tokenFor({
+      id: "admin-1",
+      email: "admin@travelsphere.dev",
+      role: "admin",
+    });
+
+    const response = await request(app)
+      .get("/api/v1/transactions/booking-4")
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(404);
+    expect(response.body.success).toBe(false);
+  });
 });
