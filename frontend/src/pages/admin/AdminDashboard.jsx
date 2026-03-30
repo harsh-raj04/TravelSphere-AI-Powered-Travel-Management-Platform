@@ -51,7 +51,7 @@ export function AdminDashboard() {
   }, []);
 
   // Auto-refetch data every 5 seconds when tab is visible
-  useAutoRefetch(fetchData, [], 5000);
+  useAutoRefetch(fetchData, 5000);
 
   const revenueData = useMemo(() => {
     const trend = overview?.revenue_trend || [];

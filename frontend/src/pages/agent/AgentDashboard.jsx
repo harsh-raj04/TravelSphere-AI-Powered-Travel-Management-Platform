@@ -81,7 +81,7 @@ export function AgentDashboard() {
   }, [user?.id]);
 
   // Auto-refetch bookings every 5 seconds when tab is visible
-  useAutoRefetch(fetchData, [user?.id], 5000);
+  useAutoRefetch(fetchData, 5000);
 
   const stats = useMemo(() => {
     const totalRevenue = bookings.reduce((acc, booking) => acc + Number(booking.totalAmount || 0), 0);

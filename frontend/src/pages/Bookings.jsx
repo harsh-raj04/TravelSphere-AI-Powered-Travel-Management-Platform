@@ -27,7 +27,7 @@ export function Bookings() {
   }, []);
 
   // Auto-refetch bookings every 5 seconds when tab is visible
-  useAutoRefetch(fetchBookings, [], 5000);
+  useAutoRefetch(fetchBookings, 5000);
 
   return (
     <div className="py-10 space-y-6">
