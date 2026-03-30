@@ -58,6 +58,7 @@ export function AgentDashboard() {
   const [bookings, setBookings] = useState([]);
 
   const fetchData = useCallback(async () => {
+    if (!user?.id) return; // Guard clause instead of dependency
     try {
       const [pkgRes, bookingRes] = await Promise.all([
         packagesAPI.list({ page: 1, limit: 100 }),
@@ -74,7 +75,7 @@ export function AgentDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, []); // Empty dependency - uses user from closure
 
   useEffect(() => {
     fetchData();
