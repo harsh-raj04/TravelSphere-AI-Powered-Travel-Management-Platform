@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { bookingsAPI } from '../services/api';
+import { useAutoRefetch } from '../hooks/useAutoRefetch';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -10,18 +11,23 @@ export function Bookings() {
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState('my-bookings');
 
+  const fetchBookings = async () => {
+    try {
+      const res = await bookingsAPI.myBookings();
+      setItems(res.data?.data?.items || []);
+    } catch (_error) {
+      // Error already logged by axios
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await bookingsAPI.myBookings();
-        setItems(res.data?.data?.items || []);
-      } catch {
-        setItems([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchBookings();
   }, []);
+
+  // Auto-refetch bookings every 5 seconds when tab is visible
+  useAutoRefetch(fetchBookings, [], 5000);
 
   return (
     <div className="py-10 space-y-6">
