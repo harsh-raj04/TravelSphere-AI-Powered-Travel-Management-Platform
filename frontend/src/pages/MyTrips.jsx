@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { bookingsAPI } from '../services/api';
+import { useAutoRefetch } from '../hooks/useAutoRefetch';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -10,18 +11,23 @@ export function MyTrips() {
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState([]);
 
+  const fetchTrips = async () => {
+    try {
+      const res = await bookingsAPI.myBookings();
+      setTrips(res.data?.data?.items || []);
+    } catch (_error) {
+      // Error already logged by axios
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await bookingsAPI.myBookings();
-        setTrips(res.data?.data?.items || []);
-      } catch {
-        setTrips([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchTrips();
   }, []);
+
+  // Auto-refetch trips every 5 seconds when tab is visible
+  useAutoRefetch(fetchTrips, [], 5000);
 
   return (
     <div className="py-10">
