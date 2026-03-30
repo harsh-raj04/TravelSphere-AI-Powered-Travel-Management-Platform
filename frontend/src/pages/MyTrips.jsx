@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { bookingsAPI } from '../services/api';
 import { useAutoRefetch } from '../hooks/useAutoRefetch';
@@ -11,7 +11,7 @@ export function MyTrips() {
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState([]);
 
-  const fetchTrips = async () => {
+  const fetchTrips = useCallback(async () => {
     try {
       const res = await bookingsAPI.myBookings();
       setTrips(res.data?.data?.items || []);
@@ -20,11 +20,11 @@ export function MyTrips() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchTrips();
-  }, []);
+  }, [fetchTrips]);
 
   // Auto-refetch trips every 5 seconds when tab is visible
   useAutoRefetch(fetchTrips, 5000);

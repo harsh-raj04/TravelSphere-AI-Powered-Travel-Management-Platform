@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   DollarSign,
   Package,
@@ -57,7 +57,7 @@ export function AgentDashboard() {
   const [myPackages, setMyPackages] = useState([]);
   const [bookings, setBookings] = useState([]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [pkgRes, bookingRes] = await Promise.all([
         packagesAPI.list({ page: 1, limit: 100 }),
@@ -74,11 +74,11 @@ export function AgentDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     fetchData();
-  }, [user?.id]);
+  }, [fetchData]);
 
   // Auto-refetch bookings every 5 seconds when tab is visible
   useAutoRefetch(fetchData, 5000);

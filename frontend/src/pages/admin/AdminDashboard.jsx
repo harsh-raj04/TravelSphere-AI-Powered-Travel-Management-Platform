@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   DollarSign,
   Calendar,
@@ -31,7 +31,7 @@ export function AdminDashboard() {
   const [overview, setOverview] = useState(null);
   const [bookings, setBookings] = useState([]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [overviewRes, bookingsRes] = await Promise.all([
         adminAPI.analyticsOverview(),
@@ -44,11 +44,11 @@ export function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   // Auto-refetch data every 5 seconds when tab is visible
   useAutoRefetch(fetchData, 5000);
