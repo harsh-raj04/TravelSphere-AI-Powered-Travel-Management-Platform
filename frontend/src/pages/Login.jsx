@@ -41,7 +41,13 @@ export function Login() {
       const res = await authAPI.login(form);
       const nextUser = res.data.data.user;
       login(res.data.data.token, nextUser);
-      navigate(nextUser?.role === 'agent' ? '/agent/dashboard' : '/dashboard');
+      if (nextUser?.role === 'agent') {
+        navigate('/agent/dashboard');
+      } else if (nextUser?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setApiError(
         err.response?.data?.message || 'Login failed. Please check your credentials.'
@@ -144,6 +150,12 @@ export function Login() {
             <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">Demo Credentials</p>
             <p className="text-xs text-blue-800 dark:text-blue-200 font-mono">
               customer@travelsphere.dev
+            </p>
+            <p className="text-xs text-blue-800 dark:text-blue-200 font-mono">
+              agent@travelsphere.dev
+            </p>
+            <p className="text-xs text-blue-800 dark:text-blue-200 font-mono">
+              admin@travelsphere.dev
             </p>
             <p className="text-xs text-blue-800 dark:text-blue-200 font-mono">
               Password123

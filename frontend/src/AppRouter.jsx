@@ -6,6 +6,7 @@ import { RoleRoute } from './components/RoleRoute';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { AgentLayout } from './components/agent/AgentLayout';
+import { AdminLayout } from './components/admin/AdminLayout';
 
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
@@ -24,6 +25,8 @@ import { AgentPackages } from './pages/agent/AgentPackages';
 import { AgentPackageForm } from './pages/agent/AgentPackageForm';
 import { AgentBookings } from './pages/agent/AgentBookings';
 import { AgentAnalytics } from './pages/agent/AgentAnalytics';
+import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { AdminBookings } from './pages/admin/AdminBookings';
 
 function AppLayout({ children }) {
   return (
@@ -137,6 +140,22 @@ function AppRoutes() {
         element={
           <RoleRoute allowedRoles={['agent']}>
             <AgentLayout><AgentAnalytics /></AgentLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminDashboard /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/bookings"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminBookings /></AdminLayout>
           </RoleRoute>
         }
       />

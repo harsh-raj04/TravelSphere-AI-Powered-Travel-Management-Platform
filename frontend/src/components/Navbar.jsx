@@ -2,7 +2,20 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../theme/ThemeProvider';
 import { Button } from './ui/Button';
-import { Menu, X, Sun, Moon, Sparkles, Compass, Calendar, MapPin, CreditCard, User } from 'lucide-react';
+import {
+  Menu,
+  X,
+  Sun,
+  Moon,
+  Sparkles,
+  Compass,
+  Calendar,
+  MapPin,
+  CreditCard,
+  User,
+  Shield,
+  LayoutDashboard,
+} from 'lucide-react';
 import { useState } from 'react';
 
 export function Navbar() {
@@ -28,7 +41,16 @@ export function Navbar() {
     { path: '/agent/bookings', label: 'Bookings', icon: CreditCard },
   ];
 
-  const navItems = user?.role === 'agent' ? agentNavItems : customerNavItems;
+  const adminNavItems = [
+    { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/bookings', label: 'Bookings', icon: Shield },
+  ];
+
+  const navItems = user?.role === 'agent'
+    ? agentNavItems
+    : user?.role === 'admin'
+      ? adminNavItems
+      : customerNavItems;
 
   const handleLogout = () => {
     logout();
