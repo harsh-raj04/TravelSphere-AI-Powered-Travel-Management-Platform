@@ -44,4 +44,9 @@ export const agentAPI = {
   updateBookingStatus: (id, status) => apiClient.patch(`/bookings/${id}/status`, { status }),
 };
 
+export const adminAPI = {
+  bookings: (params) => apiClient.get('/admin/bookings', { params }),
+  analyticsOverview: () => apiClient.get('/admin/analytics/overview'),
+};
+
 export default apiClient;

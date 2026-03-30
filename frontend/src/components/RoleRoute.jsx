@@ -17,7 +17,13 @@ export function RoleRoute({ allowedRoles = [], children }) {
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    return <Navigate to={user.role === 'agent' ? '/agent/dashboard' : '/dashboard'} replace />;
+    const redirectTo =
+      user.role === 'agent'
+        ? '/agent/dashboard'
+        : user.role === 'admin'
+          ? '/admin/dashboard'
+          : '/dashboard';
+    return <Navigate to={redirectTo} replace />;
   }
 
   return children;
