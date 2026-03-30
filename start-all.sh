@@ -16,15 +16,6 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   exit 1
 fi
 
-DB_AVAILABLE=true
-if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-  echo "Starting database..."
-  docker compose -f "$COMPOSE_FILE" up -d
-else
-  DB_AVAILABLE=false
-  echo "Docker daemon is not running; skipping database startup."
-fi
-
 # Install dependencies if missing.
 if [[ ! -d "$BACKEND_DIR/node_modules" ]]; then
   echo "Installing backend dependencies..."
@@ -36,16 +27,12 @@ if [[ ! -d "$FRONTEND_DIR/node_modules" ]]; then
   (cd "$FRONTEND_DIR" && npm install)
 fi
 
-echo "Starting backend (http://localhost:5000)..."
+echo "Starting backend (http://localhost:4000)..."
 (
   cd "$BACKEND_DIR"
   nohup npm run dev > "$ROOT_DIR/.backend.log" 2>&1 &
   echo $! > "$ROOT_DIR/.backend.pid"
 )
-
-if [[ "$DB_AVAILABLE" == false ]]; then
-  echo "Note: backend may not function correctly until Docker/Postgres is running."
-fi
 
 echo "Starting customer UI (http://localhost:5100)..."
 (
@@ -71,7 +58,7 @@ echo "Starting admin UI (http://localhost:5300)..."
 echo ""
 echo "TravelSphere services started."
 echo "Customer:   http://localhost:5100"
-echo "Backend:    http://localhost:5000"
+echo "Backend:    http://localhost:4000"
 echo "Agent:      http://localhost:5200"
 echo "Admin:      http://localhost:5300"
 

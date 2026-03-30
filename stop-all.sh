@@ -53,20 +53,11 @@ stop_pid_file "$ROOT_DIR/.admin.pid" "admin frontend"
 stop_pid_file "$ROOT_DIR/.frontend.pid" "frontend"
 
 # Fallback cleanup for orphaned local dev servers.
-kill_port_listener 5000 "backend"
+kill_port_listener 4000 "backend"
 kill_port_listener 5100 "customer frontend"
 kill_port_listener 5200 "agent frontend"
 kill_port_listener 5300 "admin frontend"
 kill_port_listener 5173 "frontend"
 kill_port_listener 5174 "agent frontend"
-
-if [[ -f "$COMPOSE_FILE" ]]; then
-  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-    echo "Stopping database..."
-    docker compose -f "$COMPOSE_FILE" down
-  else
-    echo "Docker daemon is not running; skipping database shutdown."
-  fi
-fi
 
 echo "All services stopped."
