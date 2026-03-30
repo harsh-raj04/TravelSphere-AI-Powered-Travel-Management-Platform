@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, IndianRupee, Package, Users, TrendingUp } from 'lucide-react';
+import {
+  BarChart3,
+  CheckCircle2,
+  IndianRupee,
+  Package,
+  TrendingUp,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -66,6 +74,16 @@ export function AdminDashboard() {
 
   const topAgents = overview?.top_agents || [];
   const topPackages = overview?.top_packages || [];
+  const bookingStatusBreakdown = overview?.booking_status_breakdown || {};
+  const transactionStatusBreakdown = overview?.transaction_status_breakdown || {};
+
+  const bookingStatusChartData = [
+    { label: 'Pending', value: bookingStatusBreakdown.pending || 0 },
+    { label: 'Confirmed', value: bookingStatusBreakdown.confirmed || 0 },
+    { label: 'Cancelled', value: bookingStatusBreakdown.cancelled || 0 },
+  ];
+
+  const paymentSuccessRate = overview?.payment_success_rate || 0;
 
   if (loading) {
     return <div className="text-gray-600">Loading admin overview...</div>;
@@ -103,6 +121,18 @@ export function AdminDashboard() {
           icon={Users}
           tone="bg-amber-50 text-amber-700"
         />
+        <StatCard
+          title="Confirmed Bookings"
+          value={String(bookingStatusBreakdown.confirmed || 0)}
+          icon={CheckCircle2}
+          tone="bg-teal-50 text-teal-700"
+        />
+        <StatCard
+          title="Payment Success"
+          value={`${paymentSuccessRate}%`}
+          icon={Wallet}
+          tone="bg-cyan-50 text-cyan-700"
+        />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -134,6 +164,49 @@ export function AdminDashboard() {
                 <span className="text-sm font-semibold text-gray-900">{agent.total_bookings}</span>
               </li>
             ))}
+          </ul>
+        </section>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <section className="bg-white border border-gray-200 rounded-xl p-5">
+          <h3 className="font-semibold text-gray-900 mb-4">Booking Status Mix</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={bookingStatusChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="label" stroke="#9ca3af" />
+                <YAxis stroke="#9ca3af" allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="value" fill="#0f766e" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+
+        <section className="bg-white border border-gray-200 rounded-xl p-5">
+          <h3 className="font-semibold text-gray-900 mb-4">Transaction Status</h3>
+          <ul className="space-y-3">
+            <li className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">Initiated</span>
+              <span className="font-semibold text-gray-900">{transactionStatusBreakdown.initiated || 0}</span>
+            </li>
+            <li className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">Success</span>
+              <span className="font-semibold text-emerald-700">{transactionStatusBreakdown.success || 0}</span>
+            </li>
+            <li className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">Failed</span>
+              <span className="font-semibold text-rose-700">{transactionStatusBreakdown.failed || 0}</span>
+            </li>
+            <li className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">Refunded</span>
+              <span className="font-semibold text-amber-700">{transactionStatusBreakdown.refunded || 0}</span>
+            </li>
+            <li className="flex items-center justify-between text-sm border-t border-gray-200 pt-3">
+              <span className="text-gray-600">No Transaction</span>
+              <span className="font-semibold text-gray-900">{transactionStatusBreakdown.no_transaction || 0}</span>
+            </li>
           </ul>
         </section>
       </div>
