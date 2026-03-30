@@ -111,6 +111,11 @@ if [[ "$DB_EXISTS" == "$DB_IDENTIFIER" ]]; then
   echo "RDS instance already exists: $DB_IDENTIFIER"
 else
   echo "Creating RDS instance: $DB_IDENTIFIER"
+  PUBLIC_FLAG="--publicly-accessible"
+  if [[ "$PUBLIC_ACCESS" != "true" ]]; then
+    PUBLIC_FLAG="--no-publicly-accessible"
+  fi
+
   aws rds create-db-instance \
     --region "$REGION" \
     --db-instance-identifier "$DB_IDENTIFIER" \
@@ -124,7 +129,7 @@ else
     --master-user-password "$DB_PASSWORD" \
     --vpc-security-group-ids "$SECURITY_GROUP_ID" \
     --db-subnet-group-name "$SUBNET_GROUP_NAME" \
-    --publicly-accessible "$PUBLIC_ACCESS" \
+    "$PUBLIC_FLAG" \
     --backup-retention-period 1 \
     --auto-minor-version-upgrade \
     --no-multi-az \
@@ -161,4 +166,4 @@ echo "Set this in backend/.env (URL-encode password if needed):"
 echo "DATABASE_URL=postgresql://$DB_USERNAME:$DB_PASSWORD@$ENDPOINT:$PORT/$DB_NAME?sslmode=require"
 echo ""
 echo "Then run:"
-echo "cd backend && npx prisma migrate deploy && npm run seed"
+echo "cd backend && npx prisma migrate deploy && npm run prisma:seed"

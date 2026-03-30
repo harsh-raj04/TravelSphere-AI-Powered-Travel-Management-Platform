@@ -58,7 +58,7 @@ Then apply schema and seed:
 ```bash
 cd backend
 npx prisma migrate deploy
-npm run seed
+npm run prisma:seed
 ```
 
 ## 3) Validate App
