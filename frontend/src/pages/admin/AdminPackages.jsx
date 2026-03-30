@@ -1,10 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Star, Eye, EyeOff, Plus } from 'lucide-react';
-import { mockPackages } from './mockData';
+import { adminAPI } from '../../services/api';
 
 export function AdminPackages() {
-  const [packages, setPackages] = useState(mockPackages);
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await adminAPI.packages({ page: 1, limit: 200 });
+        const mapped = (res.data?.data?.items || []).map((pkg) => ({
+          ...pkg,
+          active: pkg.isActive,
+          bookingsCount: pkg._count?.bookings || 0,
+          featured: false,
+        }));
+        setPackages(mapped);
+      } catch {
+        setPackages([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const toggleFeatured = (packageId) => {
     setPackages((prev) => prev.map((pkg) => (pkg.id === packageId ? { ...pkg, featured: !pkg.featured } : pkg)));
@@ -51,6 +72,8 @@ export function AdminPackages() {
         </div>
       </div>
 
+      {loading && <div className="text-sm text-gray-500">Loading packages...</div>}
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Packages</p>
@@ -66,7 +89,7 @@ export function AdminPackages() {
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Bookings</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-white">{packages.reduce((sum, p) => sum + p.bookingsCount, 0)}</p>
+          <p className="text-2xl font-semibold text-gray-900 dark:text-white">{packages.reduce((sum, p) => sum + Number(p.bookingsCount || 0), 0)}</p>
         </div>
       </div>
 
@@ -85,7 +108,7 @@ export function AdminPackages() {
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-1">{pkg.name}</h3>
+                    <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-1">{pkg.title}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{pkg.destination}</p>
                   </div>
                   <button
@@ -103,15 +126,15 @@ export function AdminPackages() {
                 <div className="flex items-center gap-4 mb-4 text-sm">
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 text-amber-500 fill-current" />
-                    <span className="text-gray-900 dark:text-white font-medium">{pkg.rating}</span>
+                    <span className="text-gray-900 dark:text-white font-medium">4.8</span>
                   </div>
-                  <div className="text-gray-600 dark:text-gray-400">{pkg.bookingsCount} bookings</div>
+                  <div className="text-gray-600 dark:text-gray-400">{pkg._count?.bookings || 0} bookings</div>
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{pkg.duration}</p>
-                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">₹{pkg.price.toLocaleString('en-IN')}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{pkg.durationDays} Days</p>
+                    <p className="text-2xl font-semibold text-gray-900 dark:text-white">₹{Number(pkg.price || 0).toLocaleString('en-IN')}</p>
                   </div>
                   <button
                     onClick={() => toggleFeatured(pkg.id)}
@@ -152,20 +175,20 @@ export function AdminPackages() {
                       <div className="flex items-center gap-3">
                         {pkg.featured && <Star className="w-4 h-4 text-amber-500 fill-current" />}
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-white">{pkg.name}</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{pkg.title}</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{pkg.destination}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{pkg.duration}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">₹{pkg.price.toLocaleString('en-IN')}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{pkg.durationDays} Days</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">₹{Number(pkg.price || 0).toLocaleString('en-IN')}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1">
                         <Star className="w-4 h-4 text-amber-500 fill-current" />
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">{pkg.rating}</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">4.8</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{pkg.bookingsCount}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{pkg._count?.bookings || 0}</td>
                     <td className="px-6 py-4">
                       <button
                         onClick={() => toggleActive(pkg.id)}
