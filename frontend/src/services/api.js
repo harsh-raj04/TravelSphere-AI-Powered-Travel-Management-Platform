@@ -47,6 +47,10 @@ export const agentAPI = {
 export const adminAPI = {
   bookings: (params) => apiClient.get('/admin/bookings', { params }),
   analyticsOverview: () => apiClient.get('/admin/analytics/overview'),
+  packages: (params) => apiClient.get('/admin/packages', { params }),
+  agents: () => apiClient.get('/admin/agents'),
+  customers: () => apiClient.get('/admin/customers'),
+  transactions: (params) => apiClient.get('/admin/transactions', { params }),
 };
 
 export default apiClient;

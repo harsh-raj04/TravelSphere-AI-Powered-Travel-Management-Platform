@@ -1,21 +1,76 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MessageSquare, AlertCircle, CheckCircle, Clock, User } from 'lucide-react';
-import { mockTickets, mockAgents } from './mockData';
 import { StatusBadge } from '../../components/admin/StatusBadge';
+import { adminAPI } from '../../services/api';
 
 export function AdminSupport() {
-  const [tickets, setTickets] = useState(mockTickets);
+  const [tickets, setTickets] = useState([]);
+  const [activeAgents, setActiveAgents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [priorityFilter, setPriorityFilter] = useState('all');
 
-  const filteredTickets = tickets.filter((ticket) => priorityFilter === 'all' || ticket.priority === priorityFilter);
+  useEffect(() => {
+    (async () => {
+      try {
+        const [bookingsRes, transactionsRes, agentsRes] = await Promise.all([
+          adminAPI.bookings(),
+          adminAPI.transactions(),
+          adminAPI.agents(),
+        ]);
 
-  const handleAssignAgent = (ticketId, agentName) => {
-    setTickets((prev) => prev.map((ticket) => (ticket.id === ticketId ? { ...ticket, assignedTo: agentName } : ticket)));
-  };
+        const bookings = bookingsRes.data?.data || [];
+        const transactions = transactionsRes.data?.data || [];
+        const agents = agentsRes.data?.data || [];
 
-  const handleStatusChange = (ticketId, newStatus) => {
-    setTickets((prev) => prev.map((ticket) => (ticket.id === ticketId ? { ...ticket, status: newStatus } : ticket)));
-  };
+        const bookingTickets = bookings
+          .filter((b) => ['pending', 'cancelled'].includes((b.status || '').toLowerCase()))
+          .map((b) => ({
+            id: `BK-${String(b.id).slice(-6).toUpperCase()}`,
+            customerName: b.customer_name || 'Unknown Customer',
+            subject:
+              (b.status || '').toLowerCase() === 'cancelled'
+                ? `Cancelled booking: ${b.package_title || 'Travel Package'}`
+                : `Pending booking review: ${b.package_title || 'Travel Package'}`,
+            priority: (b.status || '').toLowerCase() === 'cancelled' ? 'high' : 'medium',
+            status: (b.status || '').toLowerCase() === 'cancelled' ? 'in-progress' : 'open',
+            assignedTo: b.agent_name || null,
+            createdAt: b.created_at
+              ? new Date(b.created_at).toLocaleDateString('en-IN')
+              : new Date().toLocaleDateString('en-IN'),
+          }));
+
+        const paymentTickets = transactions
+          .filter((t) => ['failed', 'refunded'].includes((t.status || '').toLowerCase()))
+          .map((t) => ({
+            id: `TX-${String(t.id).slice(-6).toUpperCase()}`,
+            customerName: t.customer_name || 'Unknown Customer',
+            subject:
+              (t.status || '').toLowerCase() === 'failed'
+                ? `Payment failure for booking ${t.booking_id || '-'}`
+                : `Refund processed for booking ${t.booking_id || '-'}`,
+            priority: (t.status || '').toLowerCase() === 'failed' ? 'urgent' : 'high',
+            status: (t.status || '').toLowerCase() === 'failed' ? 'open' : 'resolved',
+            assignedTo: null,
+            createdAt: t.created_at
+              ? new Date(t.created_at).toLocaleDateString('en-IN')
+              : new Date().toLocaleDateString('en-IN'),
+          }));
+
+        setTickets([...bookingTickets, ...paymentTickets]);
+        setActiveAgents(agents.filter((a) => a.status === 'active'));
+      } catch {
+        setTickets([]);
+        setActiveAgents([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const filteredTickets = useMemo(
+    () => tickets.filter((ticket) => priorityFilter === 'all' || ticket.priority === priorityFilter),
+    [tickets, priorityFilter]
+  );
 
   const openTickets = tickets.filter((t) => t.status === 'open').length;
   const inProgressTickets = tickets.filter((t) => t.status === 'in-progress').length;
@@ -38,7 +93,7 @@ export function AdminSupport() {
 
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700"><div className="flex items-center gap-4"><label className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by priority:</label><div className="flex gap-2">{['all', 'urgent', 'high', 'medium', 'low'].map((priority) => <button key={priority} onClick={() => setPriorityFilter(priority)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${priorityFilter === priority ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800'}`}>{priority}</button>)}</div></div></div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"><div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700"><tr><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Ticket ID</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Customer</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Subject</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Priority</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Status</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Assigned To</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Created</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th></tr></thead><tbody className="divide-y divide-gray-200 dark:divide-gray-700">{filteredTickets.map((ticket) => <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"><td className="px-6 py-4 whitespace-nowrap"><span className="font-mono text-sm font-medium text-gray-900 dark:text-white">{ticket.id}</span></td><td className="px-6 py-4 whitespace-nowrap"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center"><User className="w-4 h-4 text-white" /></div><span className="font-medium text-gray-900 dark:text-white">{ticket.customerName}</span></div></td><td className="px-6 py-4"><p className="text-gray-900 dark:text-white">{ticket.subject}</p></td><td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={ticket.priority} variant="small" /></td><td className="px-6 py-4 whitespace-nowrap"><select value={ticket.status} onChange={(e) => handleStatusChange(ticket.id, e.target.value)} className="px-3 py-1.5 rounded-lg text-sm font-medium border focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white"><option value="open">Open</option><option value="in-progress">In Progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></td><td className="px-6 py-4"><select value={ticket.assignedTo || ''} onChange={(e) => handleAssignAgent(ticket.id, e.target.value)} className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="">Unassigned</option>{mockAgents.filter((a) => a.status === 'active').map((agent) => <option key={agent.id} value={agent.name}>{agent.name}</option>)}</select></td><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{ticket.createdAt}</td><td className="px-6 py-4 whitespace-nowrap"><button className="text-blue-500 hover:text-blue-600 font-medium text-sm">View</button></td></tr>)}</tbody></table></div>{filteredTickets.length === 0 && <div className="text-center py-12"><p className="text-gray-500 dark:text-gray-400">No tickets found for this filter</p></div>}</div>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"><div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700"><tr><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Ticket ID</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Customer</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Subject</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Priority</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Status</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Assigned To</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Created</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th></tr></thead><tbody className="divide-y divide-gray-200 dark:divide-gray-700">{filteredTickets.map((ticket) => <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"><td className="px-6 py-4 whitespace-nowrap"><span className="font-mono text-sm font-medium text-gray-900 dark:text-white">{ticket.id}</span></td><td className="px-6 py-4 whitespace-nowrap"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center"><User className="w-4 h-4 text-white" /></div><span className="font-medium text-gray-900 dark:text-white">{ticket.customerName}</span></div></td><td className="px-6 py-4"><p className="text-gray-900 dark:text-white">{ticket.subject}</p></td><td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={ticket.priority} variant="small" /></td><td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={ticket.status} variant="small" /></td><td className="px-6 py-4"><span className="text-sm text-gray-700 dark:text-gray-300">{ticket.assignedTo || (activeAgents[0]?.name ?? 'Unassigned')}</span></td><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">{ticket.createdAt}</td><td className="px-6 py-4 whitespace-nowrap"><button className="text-blue-500 hover:text-blue-600 font-medium text-sm" type="button">View</button></td></tr>)}</tbody></table></div>{loading ? <div className="text-center py-12"><p className="text-gray-500 dark:text-gray-400">Loading tickets...</p></div> : filteredTickets.length === 0 && <div className="text-center py-12"><p className="text-gray-500 dark:text-gray-400">No tickets found for this filter</p></div>}</div>
 
       <div className="text-sm text-gray-600 dark:text-gray-400">Showing {filteredTickets.length} of {tickets.length} tickets</div>
     </div>

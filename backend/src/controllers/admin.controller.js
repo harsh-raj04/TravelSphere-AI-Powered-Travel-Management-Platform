@@ -260,4 +260,240 @@ async function analyticsOverview(_req, res) {
   }
 }
 
-module.exports = { listAllBookings, analyticsOverview };
+async function listAllPackages(req, res) {
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+  const search = String(req.query.search || "").trim();
+
+  const where = {};
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: "insensitive" } },
+      { destination: { contains: search, mode: "insensitive" } },
+      {
+        agent: {
+          is: {
+            user: {
+              is: {
+                name: { contains: search, mode: "insensitive" },
+              },
+            },
+          },
+        },
+      },
+    ];
+  }
+
+  try {
+    const [items, total] = await Promise.all([
+      prisma.travelPackage.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          agent: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: {
+              bookings: true,
+            },
+          },
+        },
+      }),
+      prisma.travelPackage.count({ where }),
+    ]);
+
+    return ok(res, "Admin packages fetched successfully", {
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+      },
+    });
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch admin packages",
+      errors: [],
+    });
+  }
+}
+
+async function listAllAgents(_req, res) {
+  try {
+    const [agents, bookings] = await Promise.all([
+      prisma.agentProfile.findMany({
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          _count: {
+            select: {
+              packages: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.booking.findMany({
+        include: {
+          package: {
+            select: {
+              agentId: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const bookingsMap = new Map();
+    const revenueMap = new Map();
+
+    for (const booking of bookings) {
+      const agentId = booking.package.agentId;
+      bookingsMap.set(agentId, (bookingsMap.get(agentId) || 0) + 1);
+      revenueMap.set(agentId, (revenueMap.get(agentId) || 0) + Number(booking.totalAmount || 0));
+    }
+
+    const items = agents.map((agent) => ({
+      id: agent.id,
+      user_id: agent.user.id,
+      name: agent.user.name,
+      email: agent.user.email,
+      phone: agent.contactNumber,
+      status: agent.isVerified ? "active" : "pending",
+      packages_count: agent._count.packages,
+      bookings_handled: bookingsMap.get(agent.id) || 0,
+      revenue: Number((revenueMap.get(agent.id) || 0).toFixed(2)),
+      joined_date: agent.createdAt,
+      agency_name: agent.agencyName,
+    }));
+
+    return ok(res, "Admin agents fetched successfully", { items });
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch admin agents",
+      errors: [],
+    });
+  }
+}
+
+async function listAllCustomers(_req, res) {
+  try {
+    const [customers, grouped] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: "customer" },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.booking.groupBy({
+        by: ["customerId"],
+        _count: {
+          id: true,
+        },
+        _sum: {
+          totalAmount: true,
+        },
+      }),
+    ]);
+
+    const groupedMap = new Map(grouped.map((row) => [row.customerId, row]));
+
+    const items = customers.map((customer) => {
+      const aggregate = groupedMap.get(customer.id);
+      return {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        phone: null,
+        total_bookings: aggregate?._count?.id || 0,
+        total_spent: Number(aggregate?._sum?.totalAmount || 0),
+        status: "active",
+        joined_date: customer.createdAt,
+      };
+    });
+
+    return ok(res, "Admin customers fetched successfully", { items });
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch admin customers",
+      errors: [],
+    });
+  }
+}
+
+async function listAllTransactions(req, res) {
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+  const status = String(req.query.status || "").trim();
+
+  const where = {};
+  if (status) {
+    where.status = status;
+  }
+
+  try {
+    const [items, total] = await Promise.all([
+      prisma.transaction.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          booking: {
+            include: {
+              customer: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.transaction.count({ where }),
+    ]);
+
+    return ok(res, "Admin transactions fetched successfully", {
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+      },
+    });
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch admin transactions",
+      errors: [],
+    });
+  }
+}
+
+module.exports = {
+  listAllBookings,
+  analyticsOverview,
+  listAllPackages,
+  listAllAgents,
+  listAllCustomers,
+  listAllTransactions,
+};
