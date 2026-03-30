@@ -1,11 +1,54 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Badge } from '../../components/ui/Badge';
-import { packagesAPI, agentAPI } from '../../services/api';
-import { Package, Wallet, CalendarCheck2, TrendingUp, ArrowRight, Star } from 'lucide-react';
+import {
+  DollarSign,
+  Package,
+  Users,
+  TrendingUp,
+  MapPin,
+  Star,
+  ArrowUpRight,
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { packagesAPI, agentAPI } from '../../services/api';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+
+const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'];
+
+const formatINR = (amount) =>
+  `₹${Number(amount || 0).toLocaleString('en-IN', {
+    maximumFractionDigits: 0,
+  })}`;
+
+function StatCard({ title, value, change, icon: Icon, iconColor, iconBg }) {
+  return (
+    <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className="text-sm text-gray-600 mb-1">{title}</p>
+          <h3 className="text-4xl leading-none font-bold text-gray-900 mb-3">{value}</h3>
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-medium text-green-600">↑ {change}</span>
+            <span className="text-sm text-gray-500">vs last month</span>
+          </div>
+        </div>
+        <div className={`${iconBg} p-3 rounded-lg`}>
+          <Icon className={`w-6 h-6 ${iconColor}`} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function AgentDashboard() {
   const { user } = useAuth();
@@ -36,106 +79,305 @@ export function AgentDashboard() {
   }, [user?.id]);
 
   const stats = useMemo(() => {
-    const totalRevenue = bookings.reduce((acc, b) => acc + Number(b.totalAmount || 0), 0);
-    const confirmed = bookings.filter((b) => b.status === 'confirmed').length;
-    const pending = bookings.filter((b) => b.status === 'pending').length;
+    const totalRevenue = bookings.reduce((acc, booking) => acc + Number(booking.totalAmount || 0), 0);
+    const confirmed = bookings.filter((booking) => booking.status === 'confirmed').length;
+    const conversionRate = bookings.length ? Math.round((confirmed / bookings.length) * 100) : 0;
 
     return {
-      packages: myPackages.length,
       revenue: totalRevenue,
-      confirmed,
-      pending,
+      packages: myPackages.length,
+      bookings: bookings.length,
+      conversionRate,
     };
   }, [myPackages, bookings]);
 
-  const recentBookings = bookings.slice(0, 4);
+  const revenueData = useMemo(() => {
+    const now = new Date();
+    const months = [];
+
+    for (let i = 6; i >= 0; i -= 1) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      months.push({
+        key,
+        month: date.toLocaleDateString('en-US', { month: 'short' }),
+        revenue: 0,
+      });
+    }
+
+    bookings.forEach((booking) => {
+      const date = new Date(booking.travelDate || Date.now());
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      const bucket = months.find((item) => item.key === key);
+      if (bucket) {
+        bucket.revenue += Number(booking.totalAmount || 0);
+      }
+    });
+
+    return months;
+  }, [bookings]);
+
+  const packagePerformance = useMemo(() => {
+    const ranked = myPackages
+      .map((pkg) => {
+        const count = bookings.filter((booking) => booking.package?.id === pkg.id).length;
+        return {
+          name: pkg.title,
+          value: count,
+        };
+      })
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 4);
+
+    const total = ranked.reduce((sum, item) => sum + item.value, 0);
+    if (!total) {
+      return [
+        { name: 'Starter Packages', value: 40 },
+        { name: 'Adventure', value: 25 },
+        { name: 'Leisure', value: 20 },
+        { name: 'Premium', value: 15 },
+      ];
+    }
+
+    return ranked.map((item) => ({
+      ...item,
+      value: Math.round((item.value / total) * 100),
+    }));
+  }, [myPackages, bookings]);
+
+  const topPackages = useMemo(() => {
+    return myPackages
+      .map((pkg) => {
+        const pkgBookings = bookings.filter((booking) => booking.package?.id === pkg.id);
+        const revenue = pkgBookings.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
+
+        return {
+          id: pkg.id,
+          name: pkg.title,
+          destination: pkg.destination,
+          bookings: pkgBookings.length,
+          revenue,
+          rating: 4.8,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 4);
+  }, [myPackages, bookings]);
+
+  const recentBookings = useMemo(() => bookings.slice(0, 4), [bookings]);
+
+  if (loading) {
+    return <div className="p-8 text-gray-600">Loading dashboard...</div>;
+  }
 
   return (
-    <div className="py-10 space-y-8">
-      <section className="relative overflow-hidden rounded-2xl p-8 md:p-10 text-white bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600">
-        <div className="relative z-10">
-          <p className="text-sm uppercase tracking-wide font-semibold text-white/90 mb-3">Agent Workspace</p>
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">
-            Welcome, {user?.name || user?.email?.split('@')[0] || 'Agent'}
-          </h1>
-          <p className="text-white/90 max-w-2xl mb-6">Create packages, manage bookings, and track your performance in one place.</p>
-          <div className="flex flex-wrap gap-3">
-            <Link to="/agent/packages/new"><Button variant="secondary">Create Package</Button></Link>
-            <Link to="/agent/bookings"><Button variant="outline" className="border-white text-white hover:bg-white hover:text-indigo-700">Review Bookings</Button></Link>
+    <div className="p-8 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Welcome back, {user?.name || 'Agent'}!
+        </h1>
+        <p className="text-gray-600">
+          Here's what's happening with your travel packages today
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Total Revenue"
+          value={formatINR(stats.revenue)}
+          change="18.2%"
+          icon={DollarSign}
+          iconColor="text-green-600"
+          iconBg="bg-green-100"
+        />
+        <StatCard
+          title="Active Packages"
+          value={String(stats.packages)}
+          change="12%"
+          icon={Package}
+          iconColor="text-blue-600"
+          iconBg="bg-blue-100"
+        />
+        <StatCard
+          title="Total Bookings"
+          value={String(stats.bookings)}
+          change="8.5%"
+          icon={Users}
+          iconColor="text-purple-600"
+          iconBg="bg-purple-100"
+        />
+        <StatCard
+          title="Conversion Rate"
+          value={`${stats.conversionRate}%`}
+          change="3.2%"
+          icon={TrendingUp}
+          iconColor="text-orange-600"
+          iconBg="bg-orange-100"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Revenue Overview</h2>
+              <p className="text-sm text-gray-600">Monthly performance</p>
+            </div>
+            <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option>Last 7 months</option>
+              <option>Last 6 months</option>
+              <option>Last year</option>
+            </select>
           </div>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={revenueData}>
+              <defs>
+                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="month" stroke="#9ca3af" />
+              <YAxis stroke="#9ca3af" />
+              <Tooltip formatter={(value) => [formatINR(value), 'Revenue']} />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                fillOpacity={1}
+                fill="url(#colorRevenue)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
-        <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/15 rounded-full" />
-      </section>
 
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card variant="elevated" className="p-5"><p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-1">My Packages</p><p className="text-3xl font-bold text-light-text-primary dark:text-dark-text-primary">{stats.packages}</p><Package className="w-5 h-5 mt-2 text-sky-600 dark:text-sky-400" /></Card>
-        <Card variant="elevated" className="p-5"><p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-1">Total Revenue</p><p className="text-3xl font-bold text-light-text-primary dark:text-dark-text-primary">₹{stats.revenue.toLocaleString()}</p><Wallet className="w-5 h-5 mt-2 text-emerald-600 dark:text-emerald-400" /></Card>
-        <Card variant="elevated" className="p-5"><p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-1">Confirmed</p><p className="text-3xl font-bold text-light-text-primary dark:text-dark-text-primary">{stats.confirmed}</p><CalendarCheck2 className="w-5 h-5 mt-2 text-indigo-600 dark:text-indigo-400" /></Card>
-        <Card variant="elevated" className="p-5"><p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-1">Pending</p><p className="text-3xl font-bold text-light-text-primary dark:text-dark-text-primary">{stats.pending}</p><TrendingUp className="w-5 h-5 mt-2 text-fuchsia-600 dark:text-fuchsia-400" /></Card>
-      </section>
-
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-light-text-primary dark:text-dark-text-primary">Recent Booking Requests</h2>
-          <Link to="/agent/bookings" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-primary dark:text-brand-secondary">
-            View all <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {loading ? (
-          <p className="text-light-text-secondary dark:text-dark-text-secondary">Loading dashboard...</p>
-        ) : recentBookings.length === 0 ? (
-          <Card variant="elevated" className="p-8 text-center text-light-text-secondary dark:text-dark-text-secondary">No booking requests yet.</Card>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-5">
-            {recentBookings.map((booking) => (
-              <Card key={booking.id} variant="elevated" className="p-5">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-bold text-light-text-primary dark:text-dark-text-primary">{booking.package?.title || 'Package'}</h3>
-                  <Badge variant={booking.status === 'confirmed' ? 'success' : booking.status === 'pending' ? 'warning' : 'neutral'}>
-                    {booking.status}
-                  </Badge>
+        <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Package Categories</h2>
+          <p className="text-sm text-gray-600 mb-6">Distribution by type</p>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={packagePerformance}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={80}
+                paddingAngle={5}
+                dataKey="value"
+              >
+                {packagePerformance.map((entry, index) => (
+                  <Cell key={`${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => [`${value}%`, 'Share']} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="mt-4 space-y-2">
+            {packagePerformance.map((item, index) => (
+              <div key={item.name} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  />
+                  <span className="text-sm text-gray-700">{item.name}</span>
                 </div>
-                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-2">Customer: {booking.customer?.name || booking.customer?.email || 'Unknown'}</p>
-                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-4">Travel date: {new Date(booking.travelDate).toLocaleDateString()}</p>
-                <div className="flex items-center justify-between">
-                  <p className="text-xl font-bold text-brand-primary dark:text-brand-secondary">₹{Number(booking.totalAmount || 0).toLocaleString()}</p>
-                  <Link to="/agent/bookings"><Button size="sm" variant="secondary">Manage</Button></Link>
-                </div>
-              </Card>
+                <span className="text-sm font-medium text-gray-900">{item.value}%</span>
+              </div>
             ))}
           </div>
-        )}
-      </section>
+        </div>
+      </div>
 
-      <section>
-        <h2 className="text-2xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">Package Performance</h2>
-        {myPackages.length === 0 ? (
-          <Card variant="elevated" className="p-8 text-center">
-            <p className="text-light-text-secondary dark:text-dark-text-secondary mb-4">You have not created packages yet.</p>
-            <Link to="/agent/packages/new"><Button>Create First Package</Button></Link>
-          </Card>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-5">
-            {myPackages.slice(0, 4).map((pkg) => (
-              <Card key={pkg.id} variant="elevated" className="p-5">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-bold text-light-text-primary dark:text-dark-text-primary">{pkg.title}</h3>
-                  <Badge variant="primary">Active</Badge>
-                </div>
-                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-3">{pkg.destination} • {pkg.durationDays} days</p>
-                <div className="w-full bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-full h-2 mb-3">
-                  <div className="h-2 rounded-full bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600" style={{ width: `${Math.min(95, 35 + pkg.durationDays * 6)}%` }} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-brand-primary dark:text-brand-secondary">₹{Number(pkg.price || 0).toLocaleString()}</p>
-                  <span className="inline-flex items-center gap-1 text-xs text-light-text-tertiary dark:text-dark-text-tertiary"><Star className="w-3 h-3" /> trend score</span>
-                </div>
-              </Card>
-            ))}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900">Top Performing Packages</h2>
+            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+              View all
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
           </div>
-        )}
-      </section>
+          <div className="space-y-4">
+            {topPackages.length === 0 ? (
+              <p className="text-sm text-gray-500">No package performance data yet.</p>
+            ) : (
+              topPackages.map((pkg) => (
+                <div
+                  key={pkg.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-900 mb-1">{pkg.name}</h3>
+                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-4 h-4" />
+                        {pkg.destination}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        {pkg.rating}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900">{formatINR(pkg.revenue)}</p>
+                    <p className="text-sm text-gray-600">{pkg.bookings} bookings</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900">Recent Bookings</h2>
+            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+              View all
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="space-y-3">
+            {recentBookings.length === 0 ? (
+              <p className="text-sm text-gray-500">No bookings yet.</p>
+            ) : (
+              recentBookings.map((booking) => (
+                <div
+                  key={booking.id}
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-900">
+                      {booking.customer?.name || booking.customer?.email || 'Customer'}
+                    </h3>
+                    <p className="text-sm text-gray-600">{booking.package?.title || 'Package'}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(booking.travelDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900">{formatINR(booking.totalAmount)}</p>
+                    <span
+                      className={`inline-block px-2 py-1 rounded text-xs font-medium mt-1 ${
+                        booking.status === 'confirmed'
+                          ? 'bg-green-100 text-green-700'
+                          : booking.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {booking.status}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -15,6 +15,7 @@ dist/
 build/
 coverage/
 *.log
+*.pid
 
 # OS/editor
 .DS_Store
@@ -22,3 +23,4 @@ coverage/
 
 # Private design reference
 My UI/
+Travel Management Agent UI/

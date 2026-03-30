@@ -2,15 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --agent-bg: #f5f7fc;
+  --agent-surface: #ffffff;
+  --agent-text: #0f172a;
+  --agent-muted: #64748b;
+  --agent-border: #e2e8f0;
+  --agent-primary: #2563eb;
+  --agent-primary-strong: #1d4ed8;
+  --agent-accent: #06b6d4;
+}
+
+.dark {
+  --agent-bg: #0b1220;
+  --agent-surface: #121a2b;
+  --agent-text: #e2e8f0;
+  --agent-muted: #93a4c0;
+  --agent-border: #24324d;
+  --agent-primary: #3b82f6;
+  --agent-primary-strong: #2563eb;
+  --agent-accent: #22d3ee;
+}
+
 html {
   scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.agent-ui {
+  color: var(--agent-text);
+}
+
+.agent-ui h1,
+.agent-ui h2,
+.agent-ui h3,
+.agent-ui h4 {
+  letter-spacing: -0.01em;
+}
+
+.agent-ui .agent-hero {
+  background-image: linear-gradient(120deg, var(--agent-primary-strong), var(--agent-primary), var(--agent-accent));
+  box-shadow: 0 20px 50px -35px rgba(37, 99, 235, 0.8);
+}
+
+.agent-ui .agent-panel {
+  background: var(--agent-surface);
+  border: 1px solid var(--agent-border);
+}
+
+.agent-ui .agent-muted {
+  color: var(--agent-muted);
 }
 
 @layer base {
