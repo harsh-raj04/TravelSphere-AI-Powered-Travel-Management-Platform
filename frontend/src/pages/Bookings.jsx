@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { bookingsAPI } from '../services/api';
 import { useAutoRefetch } from '../hooks/useAutoRefetch';
 import { Card } from '../components/ui/Card';
@@ -11,7 +11,7 @@ export function Bookings() {
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState('my-bookings');
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       const res = await bookingsAPI.myBookings();
       setItems(res.data?.data?.items || []);
@@ -20,11 +20,11 @@ export function Bookings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [fetchBookings]);
 
   // Auto-refetch bookings every 5 seconds when tab is visible
   useAutoRefetch(fetchBookings, 5000);

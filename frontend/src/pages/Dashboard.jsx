@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../contexts/AuthContext';
 import { Compass, Calendar, Plane, Sparkles, TrendingUp, MapPin, ArrowRight, Clock } from 'lucide-react';
 import { bookingsAPI, packagesAPI } from '../services/api';
+import { useAutoRefetch } from '../hooks/useAutoRefetch';
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -13,23 +14,28 @@ export function Dashboard() {
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [bookingsRes, packagesRes] = await Promise.all([
-          bookingsAPI.myBookings(),
-          packagesAPI.list({ page: 1, limit: 10 }),
-        ]);
-        setBookings(bookingsRes.data?.data?.items || []);
-        setPackages(packagesRes.data?.data?.items || []);
-      } catch (_error) {
-        setBookings([]);
-        setPackages([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const fetchData = useCallback(async () => {
+    try {
+      const [bookingsRes, packagesRes] = await Promise.all([
+        bookingsAPI.myBookings(),
+        packagesAPI.list({ page: 1, limit: 10 }),
+      ]);
+      setBookings(bookingsRes.data?.data?.items || []);
+      setPackages(packagesRes.data?.data?.items || []);
+    } catch (_error) {
+      setBookings([]);
+      setPackages([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Auto-refetch dashboard data every 5 seconds when tab is visible
+  useAutoRefetch(fetchData, 5000);
 
   const upcomingTrips = useMemo(() => {
     return bookings
