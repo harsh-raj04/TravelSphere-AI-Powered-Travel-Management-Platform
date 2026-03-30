@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -6,7 +6,6 @@ import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../contexts/AuthContext';
 import { Compass, Calendar, Plane, Sparkles, TrendingUp, MapPin, ArrowRight, Clock } from 'lucide-react';
 import { bookingsAPI, packagesAPI } from '../services/api';
-import { useAutoRefetch } from '../hooks/useAutoRefetch';
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -14,28 +13,38 @@ export function Dashboard() {
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [bookingsRes, packagesRes] = await Promise.all([
-        bookingsAPI.myBookings(),
-        packagesAPI.list({ page: 1, limit: 10 }),
-      ]);
-      setBookings(bookingsRes.data?.data?.items || []);
-      setPackages(packagesRes.data?.data?.items || []);
-    } catch (_error) {
-      setBookings([]);
-      setPackages([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Fetch immediately on mount
+    const fetchData = async () => {
+      console.log('[Dashboard] Fetching data...');
+      try {
+        const [bookingsRes, packagesRes] = await Promise.all([
+          bookingsAPI.myBookings(),
+          packagesAPI.list({ page: 1, limit: 10 }),
+        ]);
+        console.log('[Dashboard] Got bookings:', bookingsRes.data?.data?.items?.length, 'packages:', packagesRes.data?.data?.items?.length);
+        setBookings(bookingsRes.data?.data?.items || []);
+        setPackages(packagesRes.data?.data?.items || []);
+      } catch (err) {
+        console.error('[Dashboard] Error fetching:', err.message);
+        setBookings([]);
+        setPackages([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Auto-refetch dashboard data every 5 seconds when tab is visible
-  useAutoRefetch(fetchData, 5000);
+    fetchData();
+
+    // Setup interval to refetch every 5 seconds
+    const interval = setInterval(() => {
+      console.log('[Dashboard] Auto-refetch triggered');
+      fetchData();
+    }, 5000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, []);
 
   const upcomingTrips = useMemo(() => {
     return bookings
