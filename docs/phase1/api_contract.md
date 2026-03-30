@@ -141,6 +141,22 @@
   - top_packages
   - booking_trend
 
+### GET /admin/packages
+- Access: admin
+- Purpose: list all packages with agent and booking counts
+
+### GET /admin/agents
+- Access: admin
+- Purpose: list all agents with activity and booking summary
+
+### GET /admin/customers
+- Access: admin
+- Purpose: list all customers with booking and spend summary
+
+### GET /admin/transactions
+- Access: admin
+- Purpose: list all transaction records with booking and customer mapping
+
 ---
 
 ## 4. Validation Rules (Initial)
