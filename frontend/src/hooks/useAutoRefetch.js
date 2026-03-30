@@ -9,12 +9,19 @@ export function useAutoRefetch(fetchFn, interval = 5000) {
   const intervalRef = useRef(null);
 
   useEffect(() => {
-    if (!fetchFn) return;
+    if (!fetchFn) {
+      console.warn('useAutoRefetch: fetchFn is not provided');
+      return;
+    }
 
     // Setup interval
     intervalRef.current = setInterval(() => {
-      console.debug('useAutoRefetch: Running interval refetch');
-      fetchFn();
+      try {
+        console.debug('[useAutoRefetch] Interval refetch trigger');
+        fetchFn();
+      } catch (err) {
+        console.error('[useAutoRefetch] Error in fetch:', err);
+      }
     }, interval);
 
     // Cleanup on unmount
@@ -29,8 +36,12 @@ export function useAutoRefetch(fetchFn, interval = 5000) {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && fetchFn) {
-        console.debug('useAutoRefetch: Tab became visible, refetching');
-        fetchFn();
+        try {
+          console.debug('[useAutoRefetch] Tab became visible, refetching');
+          fetchFn();
+        } catch (err) {
+          console.error('[useAutoRefetch] Error on visibility change:', err);
+        }
       }
     };
 
