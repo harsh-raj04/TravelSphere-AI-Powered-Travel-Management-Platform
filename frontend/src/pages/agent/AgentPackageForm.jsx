@@ -92,18 +92,18 @@ export function AgentPackageForm() {
   };
 
   return (
-    <div className="py-10 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-light-text-primary dark:text-dark-text-primary">
+    <div className="p-8 max-w-3xl">
+      <h1 className="text-3xl font-bold mb-6 text-gray-900">
         {isEdit ? 'Edit Package' : 'Create Package'}
       </h1>
 
-      <Card variant="premium" className="p-6">
+      <Card variant="premium" className="p-6 bg-white border border-gray-200">
         {loading ? (
-          <p className="text-light-text-secondary dark:text-dark-text-secondary">Loading form...</p>
+          <p className="text-gray-600">Loading form...</p>
         ) : (
           <form onSubmit={onSubmit} className="grid sm:grid-cols-2 gap-4">
             {error && (
-              <div className="sm:col-span-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+              <div className="sm:col-span-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm">
                 {error}
               </div>
             )}
@@ -139,11 +139,11 @@ export function AgentPackageForm() {
             />
 
             <div className="sm:col-span-2">
-              <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Description
               </label>
               <textarea
-                className="w-full px-4 py-3 rounded-lg border-2 border-light-border dark:border-dark-border bg-light-bg-tertiary dark:bg-dark-bg-secondary text-light-text-primary dark:text-dark-text-primary min-h-[140px]"
+                className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white text-gray-900 min-h-[140px]"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="Describe itinerary, highlights, and what is included..."

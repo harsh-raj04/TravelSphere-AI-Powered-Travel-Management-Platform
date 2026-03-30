@@ -5,7 +5,12 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { packagesAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, Pencil, Trash2, MapPin, Clock } from 'lucide-react';
+import { Plus, Pencil, Trash2, MapPin, Clock, Search, Filter, Users, Star } from 'lucide-react';
+
+const formatINR = (amount) =>
+  `₹${Number(amount || 0).toLocaleString('en-IN', {
+    maximumFractionDigits: 0,
+  })}`;
 
 export function AgentPackages() {
   const { user } = useAuth();
@@ -14,6 +19,8 @@ export function AgentPackages() {
   const [items, setItems] = useState([]);
   const [deletingId, setDeletingId] = useState('');
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const loadData = async () => {
     setLoading(true);
@@ -38,6 +45,32 @@ export function AgentPackages() {
     [items, user?.id]
   );
 
+  const filteredPackages = useMemo(() => {
+    return myPackages.filter((pkg) => {
+      const status = pkg.isActive ? 'active' : 'inactive';
+      const matchesSearch =
+        pkg.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pkg.destination?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [myPackages, searchTerm, statusFilter]);
+
+  const totals = useMemo(() => {
+    const active = myPackages.filter((pkg) => pkg.isActive).length;
+    const avgPrice =
+      myPackages.length === 0
+        ? 0
+        : Math.round(myPackages.reduce((sum, pkg) => sum + Number(pkg.price || 0), 0) / myPackages.length);
+
+    return {
+      total: myPackages.length,
+      active,
+      inactive: myPackages.length - active,
+      avgPrice,
+    };
+  }, [myPackages]);
+
   const onDelete = async (id) => {
     const ok = window.confirm('Delete this package?');
     if (!ok) return;
@@ -55,14 +88,48 @@ export function AgentPackages() {
   };
 
   return (
-    <div className="py-10 space-y-6">
+    <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-light-text-primary dark:text-dark-text-primary">Manage Packages</h1>
-          <p className="text-light-text-secondary dark:text-dark-text-secondary">Create, update, and optimize your listed packages.</p>
+          <h1 className="text-3xl font-bold text-gray-900">Travel Packages</h1>
+          <p className="text-gray-600">Manage and optimize package listings from your agent workspace.</p>
         </div>
         <Link to="/agent/packages/new"><Button><Plus className="w-4 h-4 mr-2" /> New Package</Button></Link>
       </div>
+
+      <Card variant="elevated" className="p-5 bg-white border border-gray-200">
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search by package title or destination"
+              className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900"
+            />
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <Button variant="outline" className="shrink-0"><Filter className="w-4 h-4 mr-1" /> Filters</Button>
+          </div>
+        </div>
+      </Card>
+
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card variant="elevated" className="p-4 bg-white border border-gray-200"><p className="text-xs text-gray-500">Total Packages</p><p className="text-2xl font-bold text-gray-900">{totals.total}</p></Card>
+        <Card variant="elevated" className="p-4 bg-white border border-gray-200"><p className="text-xs text-gray-500">Active</p><p className="text-2xl font-bold text-emerald-600">{totals.active}</p></Card>
+        <Card variant="elevated" className="p-4 bg-white border border-gray-200"><p className="text-xs text-gray-500">Inactive</p><p className="text-2xl font-bold text-amber-600">{totals.inactive}</p></Card>
+        <Card variant="elevated" className="p-4 bg-white border border-gray-200"><p className="text-xs text-gray-500">Avg. Price</p><p className="text-2xl font-bold text-gray-900">{formatINR(totals.avgPrice)}</p></Card>
+      </section>
 
       {error && (
         <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
@@ -71,29 +138,41 @@ export function AgentPackages() {
       )}
 
       {loading ? (
-        <p className="text-light-text-secondary dark:text-dark-text-secondary">Loading packages...</p>
-      ) : myPackages.length === 0 ? (
-        <Card variant="elevated" className="p-8 text-center">
-          <p className="text-light-text-secondary dark:text-dark-text-secondary mb-4">No packages created yet.</p>
+        <p className="text-gray-600">Loading packages...</p>
+      ) : filteredPackages.length === 0 ? (
+        <Card variant="elevated" className="p-8 text-center bg-white border border-gray-200">
+          <p className="text-gray-600 mb-4">No packages created yet.</p>
           <Link to="/agent/packages/new"><Button>Create Your First Package</Button></Link>
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 gap-5">
-          {myPackages.map((pkg) => (
-            <Card key={pkg.id} variant="elevated" className="p-5">
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {filteredPackages.map((pkg) => (
+            <Card key={pkg.id} variant="elevated" className="p-5 overflow-hidden bg-white border border-gray-200">
               <div className="flex items-start justify-between gap-3 mb-2">
-                <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary">{pkg.title}</h3>
-                <Badge variant="success">Active</Badge>
+                <h3 className="text-xl font-bold text-gray-900">{pkg.title}</h3>
+                <Badge variant={pkg.isActive ? 'success' : 'warning'}>{pkg.isActive ? 'active' : 'inactive'}</Badge>
               </div>
 
-              <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary inline-flex items-center gap-2 mb-2">
+              <p className="text-sm text-gray-600 inline-flex items-center gap-2 mb-2">
                 <MapPin className="w-4 h-4" /> {pkg.destination}
               </p>
-              <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary inline-flex items-center gap-2 mb-4">
+              <p className="text-sm text-gray-600 inline-flex items-center gap-2 mb-4">
                 <Clock className="w-4 h-4" /> {pkg.durationDays} days
               </p>
 
-              <p className="text-2xl font-bold text-brand-primary dark:text-brand-secondary mb-4">₹{Number(pkg.price || 0).toLocaleString()}</p>
+              <div className="flex items-center gap-3 text-xs text-gray-600 mb-4">
+                <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" /> flexible groups</span>
+                <span className="inline-flex items-center gap-1"><Star className="w-3 h-3" /> top rated</span>
+              </div>
+
+              <p className="text-2xl font-bold text-gray-900 mb-4">{formatINR(pkg.price)}</p>
+
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-sky-600 via-indigo-600 to-cyan-500"
+                  style={{ width: `${Math.min(95, 30 + Number(pkg.durationDays || 0) * 8)}%` }}
+                />
+              </div>
 
               <div className="flex gap-2">
                 <Button variant="secondary" size="sm" onClick={() => navigate(`/agent/packages/${pkg.id}/edit`)}>
