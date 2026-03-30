@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { bookingsAPI } from '../services/api';
-import { useAutoRefetch } from '../hooks/useAutoRefetch';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -11,23 +10,33 @@ export function MyTrips() {
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState([]);
 
-  const fetchTrips = useCallback(async () => {
-    try {
-      const res = await bookingsAPI.myBookings();
-      setTrips(res.data?.data?.items || []);
-    } catch (_error) {
-      // Error already logged by axios
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchTrips();
-  }, [fetchTrips]);
+    // Fetch immediately on mount
+    const fetchTrips = async () => {
+      console.log('[MyTrips] Fetching trips...');
+      try {
+        const res = await bookingsAPI.myBookings();
+        console.log('[MyTrips] Got response:', res.data?.data?.items?.length, 'items');
+        setTrips(res.data?.data?.items || []);
+      } catch (err) {
+        console.error('[MyTrips] Error fetching:', err.message);
+        setTrips([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Auto-refetch trips every 5 seconds when tab is visible
-  useAutoRefetch(fetchTrips, 5000);
+    fetchTrips();
+
+    // Setup interval to refetch every 5 seconds
+    const interval = setInterval(() => {
+      console.log('[MyTrips] Auto-refetch triggered');
+      fetchTrips();
+    }, 5000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="py-10">

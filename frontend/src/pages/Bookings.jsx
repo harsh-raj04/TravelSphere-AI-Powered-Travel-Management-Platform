@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bookingsAPI } from '../services/api';
-import { useAutoRefetch } from '../hooks/useAutoRefetch';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -11,23 +10,33 @@ export function Bookings() {
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState('my-bookings');
 
-  const fetchBookings = useCallback(async () => {
-    try {
-      const res = await bookingsAPI.myBookings();
-      setItems(res.data?.data?.items || []);
-    } catch (_error) {
-      // Error already logged by axios
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchBookings();
-  }, [fetchBookings]);
+    // Fetch immediately on mount
+    const fetchBookings = async () => {
+      console.log('[Bookings] Fetching bookings...');
+      try {
+        const res = await bookingsAPI.myBookings();
+        console.log('[Bookings] Got response:', res.data?.data?.items?.length, 'items');
+        setItems(res.data?.data?.items || []);
+      } catch (err) {
+        console.error('[Bookings] Error fetching:', err.message);
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Auto-refetch bookings every 5 seconds when tab is visible
-  useAutoRefetch(fetchBookings, 5000);
+    fetchBookings();
+
+    // Setup interval to refetch every 5 seconds
+    const interval = setInterval(() => {
+      console.log('[Bookings] Auto-refetch triggered');
+      fetchBookings();
+    }, 5000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="py-10 space-y-6">

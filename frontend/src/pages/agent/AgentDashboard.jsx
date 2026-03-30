@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   DollarSign,
   Package,
@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { packagesAPI, agentAPI } from '../../services/api';
-import { useAutoRefetch } from '../../hooks/useAutoRefetch';
 import {
   AreaChart,
   Area,
@@ -57,32 +56,42 @@ export function AgentDashboard() {
   const [myPackages, setMyPackages] = useState([]);
   const [bookings, setBookings] = useState([]);
 
-  const fetchData = useCallback(async () => {
-    if (!user?.id) return; // Guard clause instead of dependency
-    try {
-      const [pkgRes, bookingRes] = await Promise.all([
-        packagesAPI.list({ page: 1, limit: 100 }),
-        agentAPI.bookings(),
-      ]);
-
-      const allPackages = pkgRes.data?.data?.items || [];
-      const mine = allPackages.filter((pkg) => pkg.agent?.user?.id === user?.id);
-
-      setMyPackages(mine);
-      setBookings(bookingRes.data?.data?.items || []);
-    } catch (_error) {
-      // Error already logged by axios
-    } finally {
-      setLoading(false);
-    }
-  }, []); // Empty dependency - uses user from closure
-
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!user?.id) return; // Only fetch if user is available
 
-  // Auto-refetch bookings every 5 seconds when tab is visible
-  useAutoRefetch(fetchData, 5000);
+    // Fetch immediately on mount
+    const fetchData = async () => {
+      console.log('[AgentDashboard] Fetching data...');
+      try {
+        const [pkgRes, bookingRes] = await Promise.all([
+          packagesAPI.list({ page: 1, limit: 100 }),
+          agentAPI.bookings(),
+        ]);
+
+        const allPackages = pkgRes.data?.data?.items || [];
+        const mine = allPackages.filter((pkg) => pkg.agent?.user?.id === user?.id);
+
+        console.log('[AgentDashboard] Got data - packages:', mine.length, 'bookings:', bookingRes.data?.data?.items?.length);
+        setMyPackages(mine);
+        setBookings(bookingRes.data?.data?.items || []);
+      } catch (err) {
+        console.error('[AgentDashboard] Error fetching:', err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    // Setup interval to refetch every 5 seconds
+    const interval = setInterval(() => {
+      console.log('[AgentDashboard] Auto-refetch triggered');
+      fetchData();
+    }, 5000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   const stats = useMemo(() => {
     const totalRevenue = bookings.reduce((acc, booking) => acc + Number(booking.totalAmount || 0), 0);
