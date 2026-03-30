@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { packagesAPI, agentAPI } from '../../services/api';
+import { useAutoRefetch } from '../../hooks/useAutoRefetch';
 import {
   AreaChart,
   Area,
@@ -56,27 +57,31 @@ export function AgentDashboard() {
   const [myPackages, setMyPackages] = useState([]);
   const [bookings, setBookings] = useState([]);
 
+  const fetchData = async () => {
+    try {
+      const [pkgRes, bookingRes] = await Promise.all([
+        packagesAPI.list({ page: 1, limit: 100 }),
+        agentAPI.bookings(),
+      ]);
+
+      const allPackages = pkgRes.data?.data?.items || [];
+      const mine = allPackages.filter((pkg) => pkg.agent?.user?.id === user?.id);
+
+      setMyPackages(mine);
+      setBookings(bookingRes.data?.data?.items || []);
+    } catch (_error) {
+      // Error already logged by axios
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const [pkgRes, bookingRes] = await Promise.all([
-          packagesAPI.list({ page: 1, limit: 100 }),
-          agentAPI.bookings(),
-        ]);
-
-        const allPackages = pkgRes.data?.data?.items || [];
-        const mine = allPackages.filter((pkg) => pkg.agent?.user?.id === user?.id);
-
-        setMyPackages(mine);
-        setBookings(bookingRes.data?.data?.items || []);
-      } catch {
-        setMyPackages([]);
-        setBookings([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchData();
   }, [user?.id]);
+
+  // Auto-refetch bookings every 5 seconds when tab is visible
+  useAutoRefetch(fetchData, [user?.id], 5000);
 
   const stats = useMemo(() => {
     const totalRevenue = bookings.reduce((acc, booking) => acc + Number(booking.totalAmount || 0), 0);

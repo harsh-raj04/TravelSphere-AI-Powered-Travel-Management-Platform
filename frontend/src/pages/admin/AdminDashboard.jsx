@@ -9,6 +9,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { KPICard } from '../../components/admin/KPICard';
+import { useAutoRefetch } from '../../hooks/useAutoRefetch';
 import {
   LineChart,
   Line,
@@ -30,23 +31,27 @@ export function AdminDashboard() {
   const [overview, setOverview] = useState(null);
   const [bookings, setBookings] = useState([]);
 
+  const fetchData = async () => {
+    try {
+      const [overviewRes, bookingsRes] = await Promise.all([
+        adminAPI.analyticsOverview(),
+        adminAPI.bookings({ page: 1, limit: 8 }),
+      ]);
+      setOverview(overviewRes.data?.data || null);
+      setBookings(bookingsRes.data?.data?.items || []);
+    } catch (_error) {
+      // Error already logged by axios
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const [overviewRes, bookingsRes] = await Promise.all([
-          adminAPI.analyticsOverview(),
-          adminAPI.bookings({ page: 1, limit: 8 }),
-        ]);
-        setOverview(overviewRes.data?.data || null);
-        setBookings(bookingsRes.data?.data?.items || []);
-      } catch {
-        setOverview(null);
-        setBookings([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchData();
   }, []);
+
+  // Auto-refetch data every 5 seconds when tab is visible
+  useAutoRefetch(fetchData, [], 5000);
 
   const revenueData = useMemo(() => {
     const trend = overview?.revenue_trend || [];
