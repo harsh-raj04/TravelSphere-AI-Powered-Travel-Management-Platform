@@ -27,7 +27,7 @@ export function MyTrips() {
   }, []);
 
   // Auto-refetch trips every 5 seconds when tab is visible
-  useAutoRefetch(fetchTrips, [], 5000);
+  useAutoRefetch(fetchTrips, 5000);
 
   return (
     <div className="py-10">
