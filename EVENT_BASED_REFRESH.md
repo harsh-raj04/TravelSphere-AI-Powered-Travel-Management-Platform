@@ -96,36 +96,151 @@ useEffect(() => {
 }, [on]);
 ```
 
+## Extended Events System (Phase Stabilization)
+
+### Available Events
+
+#### Booking Events
+1. **`booking:created`**
+   - When: Customer creates a new booking
+   - From: `PackageDetail.jsx` (after successful booking creation)
+   - Data: `{ packageId, travelDate, travelers }`
+   - Listeners: All dashboards (Dashboard, Bookings, MyTrips, AdminDashboard, AgentDashboard)
+
+2. **`booking:cancelled`**
+   - When: Booking status changed to 'cancelled'
+   - From: `AdminBookings.jsx` & `AgentBookings.jsx` (after status update)
+   - Data: `{ bookingId, newStatus: 'cancelled' }`
+   - Listeners: All dashboards (auto-refresh when booking is cancelled)
+
+3. **`booking:confirmed`**
+   - When: Booking status changed to 'confirmed'
+   - From: `AdminBookings.jsx` & `AgentBookings.jsx` (after status update)
+   - Data: `{ bookingId, newStatus: 'confirmed' }`
+   - Listeners: All dashboards (can be used for notifications)
+
+4. **`booking:completed`**
+   - When: Booking status changed to 'completed'
+   - From: `AdminBookings.jsx` & `AgentBookings.jsx` (after status update)
+   - Data: `{ bookingId, newStatus: 'completed' }`
+   - Listeners: All dashboards
+
+#### Payment Events
+1. **`payment:completed`**
+   - When: Payment transaction status changed to 'success'
+   - From: `AdminPayments.jsx` (after payment status update)
+   - Data: `{ paymentId, transactionId, oldStatus, newStatus: 'success' }`
+   - Listeners: AdminDashboard, AdminPayments (auto-refresh when payment completes)
+
+### Event Emission Points
+
+**Frontend Components:**
+- **PackageDetail.jsx**: Emits `booking:created` after successful booking
+- **AdminBookings.jsx**: Emits `booking:cancelled`, `booking:confirmed`, `booking:completed` on status change
+- **AgentBookings.jsx**: Emits `booking:cancelled`, `booking:confirmed`, `booking:completed` on status change
+- **AdminPayments.jsx**: Emits `payment:completed` when payment marked as successful
+
+### Event Listener Points
+
+**All Dashboard Components Listen to:**
+- Dashboard.jsx: `booking:created`, `booking:cancelled`, `booking:completed`
+- Bookings.jsx: `booking:created`, `booking:cancelled`, `booking:completed`
+- MyTrips.jsx: `booking:created`, `booking:cancelled`, `booking:completed`
+- AdminDashboard.jsx: `booking:created`, `booking:cancelled`, `booking:completed`, `payment:completed`
+- AgentDashboard.jsx: `booking:created`, `booking:cancelled`, `booking:completed`
+- AdminPayments.jsx: `payment:completed`
+
+### Example: Listening to Multiple Events
+
+```jsx
+const { on } = useContext(BookingEventContext);
+
+useEffect(() => {
+  const fetchData = async () => {
+    // Fetch logic
+  };
+
+  fetchData(); // Initial fetch
+
+  // Listen for multiple events
+  const unsub1 = on('booking:created', () => {
+    console.log('New booking - refetching');
+    fetchData();
+  });
+
+  const unsub2 = on('booking:cancelled', () => {
+    console.log('Booking cancelled - refetching');
+    fetchData();
+  });
+
+  const unsub3 = on('payment:completed', () => {
+    console.log('Payment completed - refetching');
+    fetchData();
+  });
+
+  // Cleanup all subscriptions
+  return () => {
+    unsub1();
+    unsub2();
+    unsub3();
+  };
+}, [on]);
+```
+
 ## Files Modified
 
+**Initial Implementation:**
 1. **frontend/src/contexts/BookingEventContext.jsx** (NEW)
    - Event emitter context and provider
+   - Updated with comprehensive JSDoc comments
 
 2. **frontend/src/hooks/useEventBasedRefresh.js** (NEW)
    - Reusable hook for event-based refresh (optional utility)
 
 3. **frontend/src/pages/Dashboard.jsx**
-   - Replaced 5-second polling with event listener
+   - Replaced 5-second polling with event listeners
+   - Listens to: `booking:created`, `booking:cancelled`, `booking:completed`
 
 4. **frontend/src/pages/Bookings.jsx**
-   - Replaced 5-second polling with event listener
+   - Replaced 5-second polling with event listeners
+   - Listens to: `booking:created`, `booking:cancelled`, `booking:completed`
 
 5. **frontend/src/pages/MyTrips.jsx**
-   - Replaced 5-second polling with event listener
+   - Replaced 5-second polling with event listeners
+   - Listens to: `booking:created`, `booking:cancelled`, `booking:completed`
 
 6. **frontend/src/pages/PackageDetail.jsx**
    - Added event emission after booking creation
-   - Imported BookingEventContext and emit function
+   - Emits: `booking:created`
 
 7. **frontend/src/pages/admin/AdminDashboard.jsx**
-   - Replaced 5-second polling with event listener
+   - Replaced 5-second polling with event listeners
+   - Listens to: `booking:created`, `booking:cancelled`, `booking:completed`, `payment:completed`
 
 8. **frontend/src/pages/agent/AgentDashboard.jsx**
-   - Replaced 5-second polling with event listener
+   - Replaced 5-second polling with event listeners
+   - Listens to: `booking:created`, `booking:cancelled`, `booking:completed`
 
 9. **frontend/src/AppRouter.jsx**
-   - Wrapped app with BookingEventProvider
-   - Imported BookingEventProvider
+   - Wrapped app with `BookingEventProvider`
+   - Imported `BookingEventProvider`
+
+**Extended Events Implementation (Phase Stabilization):**
+10. **frontend/src/pages/admin/AdminBookings.jsx** (UPDATED)
+    - Added event emission for booking status changes
+    - Emits: `booking:cancelled`, `booking:confirmed`, `booking:completed`
+    - Calls backend `updateBookingStatus` API
+
+11. **frontend/src/pages/agent/AgentBookings.jsx** (UPDATED)
+    - Added event emission for booking status changes
+    - Emits: `booking:cancelled`, `booking:confirmed`, `booking:completed`
+    - Calls backend `updateBookingStatus` API
+
+12. **frontend/src/pages/admin/AdminPayments.jsx** (UPDATED)
+    - Added event listener for payment completion
+    - Added `handlePaymentStatusUpdate` function
+    - Emits: `payment:completed` when status changes to 'success'
+    - Listens to: `payment:completed`
 
 ## Testing
 

@@ -54,13 +54,33 @@ export function AdminDashboard() {
     // Initial fetch on mount
     fetchData();
 
-    // Listen for booking events and refetch
-    const unsubscribe = on('booking:created', () => {
-      console.log('[AdminDashboard] Event-based refresh triggered');
+    // Listen for all booking/payment events and refetch
+    const unsubscribeCreated = on('booking:created', () => {
+      console.log('[AdminDashboard] booking:created event - refetching');
       fetchData();
     });
 
-    return unsubscribe;
+    const unsubscribeCancelled = on('booking:cancelled', () => {
+      console.log('[AdminDashboard] booking:cancelled event - refetching');
+      fetchData();
+    });
+
+    const unsubscribeCompleted = on('booking:completed', () => {
+      console.log('[AdminDashboard] booking:completed event - refetching');
+      fetchData();
+    });
+
+    const unsubscribePaymentCompleted = on('payment:completed', () => {
+      console.log('[AdminDashboard] payment:completed event - refetching');
+      fetchData();
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeCancelled();
+      unsubscribeCompleted();
+      unsubscribePaymentCompleted();
+    };
   }, [on]);
 
   const revenueData = useMemo(() => {

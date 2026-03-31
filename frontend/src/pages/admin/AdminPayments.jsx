@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useContext } from 'react';
 import { CreditCard, IndianRupee, AlertCircle, CheckCircle2, Download } from 'lucide-react';
 import { adminAPI } from '../../services/api';
+import { BookingEventContext } from '../../contexts/BookingEventContext';
 import { StatusBadge } from '../../components/admin/StatusBadge';
 
 export function AdminPayments() {
+  const { emit, on } = useContext(BookingEventContext);
   const [payments, setPayments] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
-    (async () => {
+    const fetchPayments = async () => {
       try {
         const params = statusFilter === 'all' ? {} : { status: statusFilter };
         const res = await adminAPI.transactions(params);
@@ -16,8 +18,47 @@ export function AdminPayments() {
       } catch {
         setPayments([]);
       }
-    })();
+    };
+    
+    fetchPayments();
   }, [statusFilter]);
+
+  useEffect(() => {
+    // Listen for payment-related events and refetch
+    const unsubscribe = on('payment:completed', () => {
+      console.log('[AdminPayments] payment:completed event - refetching');
+      (async () => {
+        try {
+          const params = statusFilter === 'all' ? {} : { status: statusFilter };
+          const res = await adminAPI.transactions(params);
+          setPayments(res.data?.data?.items || []);
+        } catch {
+          setPayments([]);
+        }
+      })();
+    });
+
+    return unsubscribe;
+  }, [on, statusFilter]);
+
+  const handlePaymentStatusUpdate = (paymentId, oldStatus, newStatus) => {
+    // Update local state
+    setPayments((prev) =>
+      prev.map((p) =>
+        p.id === paymentId ? { ...p, status: newStatus } : p
+      )
+    );
+
+    // Emit event if status changed to success
+    if (newStatus === 'success' && oldStatus !== 'success') {
+      emit('payment:completed', {
+        paymentId,
+        transactionId: paymentId,
+        oldStatus,
+        newStatus,
+      });
+    }
+  };
 
   const filteredPayments = payments;
 
