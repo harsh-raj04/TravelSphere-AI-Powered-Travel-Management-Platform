@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { packagesAPI } from '../services/api';
+import { packagesAPI, bookingsAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { BookingEventContext } from '../contexts/BookingEventContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -10,6 +12,8 @@ import { MapPin, Clock, Users, AlertCircle, ChevronLeft, Heart } from 'lucide-re
 export function PackageDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { emit } = useContext(BookingEventContext);
   const [pkg, setPkg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -18,6 +22,8 @@ export function PackageDetail() {
     travelDate: '',
   });
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState('');
+  const [bookingSuccess, setBookingSuccess] = useState(null);
   const [wishlist, setWishlist] = useState(false);
 
   useEffect(() => {
@@ -60,6 +66,48 @@ export function PackageDetail() {
   }
 
   const totalPrice = pkg.price * bookingForm.travelers;
+
+  const handleBookNow = async () => {
+    setBookingError('');
+
+    if (user?.role !== 'customer') {
+      setBookingError('Only customer accounts can create bookings.');
+      return;
+    }
+
+    if (!bookingForm.travelDate) {
+      setBookingError('Please select a travel date.');
+      return;
+    }
+
+    setBookingLoading(true);
+    try {
+      await bookingsAPI.create({
+        package_id: id,
+        travel_date: bookingForm.travelDate,
+        travelers_count: Number(bookingForm.travelers),
+      });
+
+      // Emit booking created event for event-based refresh
+      emit('booking:created', {
+        packageId: id,
+        travelDate: bookingForm.travelDate,
+        travelers: Number(bookingForm.travelers),
+      });
+
+      setBookingSuccess({
+        title: pkg?.title || 'Travel Package',
+        destination: pkg?.destination || 'Destination',
+        travelDate: bookingForm.travelDate,
+        travelers: Number(bookingForm.travelers),
+        totalAmount: totalPrice,
+      });
+    } catch (err) {
+      setBookingError(err?.response?.data?.message || 'Failed to create booking. Please try again.');
+    } finally {
+      setBookingLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-light-bg-primary dark:bg-dark-bg-primary">
@@ -252,6 +300,7 @@ export function PackageDetail() {
                   </label>
                   <input
                     type="date"
+                    min={new Date().toISOString().split('T')[0]}
                     value={bookingForm.travelDate}
                     onChange={(e) =>
                       setBookingForm({ ...bookingForm, travelDate: e.target.value })
@@ -259,6 +308,13 @@ export function PackageDetail() {
                     className="w-full px-4 py-2.5 rounded-lg border-2 border-light-border dark:border-dark-border bg-light-bg-tertiary dark:bg-dark-bg-secondary text-light-text-primary dark:text-dark-text-primary focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none"
                   />
                 </div>
+
+                {bookingError && (
+                  <div className="inline-flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                    <AlertCircle className="w-4 h-4 mt-0.5" />
+                    <span>{bookingError}</span>
+                  </div>
+                )}
 
                 {/* Price Breakdown */}
                 <div className="p-4 bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-lg space-y-2">
@@ -289,11 +345,7 @@ export function PackageDetail() {
                   disabled={!bookingForm.travelDate || bookingLoading}
                   onClick={(e) => {
                     e.preventDefault();
-                    if (!bookingForm.travelDate) {
-                      alert('Please select a travel date');
-                      return;
-                    }
-                    alert(`Booking ${bookingForm.travelers} travelers for ₹${totalPrice}`);
+                    handleBookNow();
                   }}
                 >
                   {bookingLoading ? 'Booking...' : 'Book Now'}
@@ -325,6 +377,58 @@ export function PackageDetail() {
           </div>
         </div>
       </div>
+
+      {bookingSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-dark-bg-secondary border border-light-border dark:border-dark-border shadow-2xl p-6 sm:p-7">
+            <div className="mb-5">
+              <p className="text-xs font-semibold tracking-wide uppercase text-emerald-600 dark:text-emerald-400 mb-2">
+                Booking Confirmed
+              </p>
+              <h3 className="text-2xl font-bold text-light-text-primary dark:text-dark-text-primary mb-2">
+                Your adventure is locked in.
+              </h3>
+              <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                Great choice. Every journey starts with a single booking, and yours is now ready.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-light-border dark:border-dark-border bg-light-bg-secondary dark:bg-dark-bg-tertiary p-4 space-y-2 mb-6">
+              <p className="text-sm"><span className="font-semibold">Package:</span> {bookingSuccess.title}</p>
+              <p className="text-sm"><span className="font-semibold">Destination:</span> {bookingSuccess.destination}</p>
+              <p className="text-sm"><span className="font-semibold">Travel date:</span> {new Date(bookingSuccess.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              <p className="text-sm"><span className="font-semibold">Travelers:</span> {bookingSuccess.travelers}</p>
+              <p className="text-sm"><span className="font-semibold">Total amount:</span> ₹{Number(bookingSuccess.totalAmount || 0).toLocaleString('en-IN')}</p>
+            </div>
+
+            <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-5">
+              Tip: Keep your ID proof handy and arrive at least 30 minutes early on your departure day.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={() => {
+                  setBookingSuccess(null);
+                  navigate('/discover');
+                }}
+              >
+                Continue Exploring
+              </Button>
+              <Button
+                fullWidth
+                onClick={() => {
+                  setBookingSuccess(null);
+                  navigate('/bookings');
+                }}
+              >
+                View My Bookings
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

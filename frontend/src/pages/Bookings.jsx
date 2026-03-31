@@ -1,17 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { bookingsAPI } from '../services/api';
+import { BookingEventContext } from '../contexts/BookingEventContext';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Plane, Hotel, TrendingDown } from 'lucide-react';
 
 export function Bookings() {
+  const { on } = useContext(BookingEventContext);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState('my-bookings');
 
   useEffect(() => {
-    // Fetch immediately on mount
+    // Fetch bookings function
     const fetchBookings = async () => {
       console.log('[Bookings] Fetching bookings...');
       try {
@@ -26,17 +28,17 @@ export function Bookings() {
       }
     };
 
+    // Initial fetch on mount
     fetchBookings();
 
-    // Setup interval to refetch every 5 seconds
-    const interval = setInterval(() => {
-      console.log('[Bookings] Auto-refetch triggered');
+    // Listen for booking events and refetch
+    const unsubscribe = on('booking:created', () => {
+      console.log('[Bookings] Event-based refresh triggered');
       fetchBookings();
-    }, 5000);
+    });
 
-    // Cleanup interval on unmount
-    return () => clearInterval(interval);
-  }, []);
+    return unsubscribe;
+  }, [on]);
 
   return (
     <div className="py-10 space-y-6">

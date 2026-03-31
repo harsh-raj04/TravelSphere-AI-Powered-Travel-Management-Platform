@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useContext } from 'react';
 import {
   DollarSign,
   Package,
@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { BookingEventContext } from '../../contexts/BookingEventContext';
 import { packagesAPI, agentAPI } from '../../services/api';
 import {
   AreaChart,
@@ -52,6 +53,7 @@ function StatCard({ title, value, change, icon: Icon, iconColor, iconBg }) {
 
 export function AgentDashboard() {
   const { user } = useAuth();
+  const { on } = useContext(BookingEventContext);
   const [loading, setLoading] = useState(true);
   const [myPackages, setMyPackages] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -59,7 +61,7 @@ export function AgentDashboard() {
   useEffect(() => {
     if (!user?.id) return; // Only fetch if user is available
 
-    // Fetch immediately on mount
+    // Fetch data function
     const fetchData = async () => {
       console.log('[AgentDashboard] Fetching data...');
       try {
@@ -81,17 +83,17 @@ export function AgentDashboard() {
       }
     };
 
+    // Initial fetch on mount
     fetchData();
 
-    // Setup interval to refetch every 5 seconds
-    const interval = setInterval(() => {
-      console.log('[AgentDashboard] Auto-refetch triggered');
+    // Listen for booking events and refetch
+    const unsubscribe = on('booking:created', () => {
+      console.log('[AgentDashboard] Event-based refresh triggered');
       fetchData();
-    }, 5000);
+    });
 
-    // Cleanup interval on unmount
-    return () => clearInterval(interval);
-  }, [user?.id]);
+    return unsubscribe;
+  }, [user?.id, on]);
 
   const stats = useMemo(() => {
     const totalRevenue = bookings.reduce((acc, booking) => acc + Number(booking.totalAmount || 0), 0);

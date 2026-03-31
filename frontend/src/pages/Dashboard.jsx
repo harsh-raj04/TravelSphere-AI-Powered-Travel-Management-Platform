@@ -1,20 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../contexts/AuthContext';
+import { BookingEventContext } from '../contexts/BookingEventContext';
 import { Compass, Calendar, Plane, Sparkles, TrendingUp, MapPin, ArrowRight, Clock } from 'lucide-react';
 import { bookingsAPI, packagesAPI } from '../services/api';
 
 export function Dashboard() {
   const { user } = useAuth();
+  const { on } = useContext(BookingEventContext);
   const [bookings, setBookings] = useState([]);
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch immediately on mount
+    // Fetch data function
     const fetchData = async () => {
       console.log('[Dashboard] Fetching data...');
       try {
@@ -34,17 +36,17 @@ export function Dashboard() {
       }
     };
 
+    // Initial fetch on mount
     fetchData();
 
-    // Setup interval to refetch every 5 seconds
-    const interval = setInterval(() => {
-      console.log('[Dashboard] Auto-refetch triggered');
+    // Listen for booking events and refetch
+    const unsubscribe = on('booking:created', () => {
+      console.log('[Dashboard] Event-based refresh triggered');
       fetchData();
-    }, 5000);
+    });
 
-    // Cleanup interval on unmount
-    return () => clearInterval(interval);
-  }, []);
+    return unsubscribe;
+  }, [on]);
 
   const upcomingTrips = useMemo(() => {
     return bookings
