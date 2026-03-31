@@ -31,13 +31,27 @@ export function MyTrips() {
     // Initial fetch on mount
     fetchTrips();
 
-    // Listen for booking events and refetch
-    const unsubscribe = on('booking:created', () => {
-      console.log('[MyTrips] Event-based refresh triggered');
+    // Listen for all booking events and refetch
+    const unsubscribeCreated = on('booking:created', () => {
+      console.log('[MyTrips] booking:created event - refetching');
       fetchTrips();
     });
 
-    return unsubscribe;
+    const unsubscribeCancelled = on('booking:cancelled', () => {
+      console.log('[MyTrips] booking:cancelled event - refetching');
+      fetchTrips();
+    });
+
+    const unsubscribeCompleted = on('booking:completed', () => {
+      console.log('[MyTrips] booking:completed event - refetching');
+      fetchTrips();
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeCancelled();
+      unsubscribeCompleted();
+    };
   }, [on]);
 
   return (

@@ -86,13 +86,27 @@ export function AgentDashboard() {
     // Initial fetch on mount
     fetchData();
 
-    // Listen for booking events and refetch
-    const unsubscribe = on('booking:created', () => {
-      console.log('[AgentDashboard] Event-based refresh triggered');
+    // Listen for all booking events and refetch
+    const unsubscribeCreated = on('booking:created', () => {
+      console.log('[AgentDashboard] booking:created event - refetching');
       fetchData();
     });
 
-    return unsubscribe;
+    const unsubscribeCancelled = on('booking:cancelled', () => {
+      console.log('[AgentDashboard] booking:cancelled event - refetching');
+      fetchData();
+    });
+
+    const unsubscribeCompleted = on('booking:completed', () => {
+      console.log('[AgentDashboard] booking:completed event - refetching');
+      fetchData();
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeCancelled();
+      unsubscribeCompleted();
+    };
   }, [user?.id, on]);
 
   const stats = useMemo(() => {

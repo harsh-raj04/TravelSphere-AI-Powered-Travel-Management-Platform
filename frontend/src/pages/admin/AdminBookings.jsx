@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useContext } from 'react';
 import { Download, X } from 'lucide-react';
 import { adminAPI, agentAPI } from '../../services/api';
+import { BookingEventContext } from '../../contexts/BookingEventContext';
 
 const PAGE_SIZE = 50;
 
 export function AdminBookings() {
+  const { emit } = useContext(BookingEventContext);
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -37,6 +39,15 @@ export function AdminBookings() {
     try {
       await agentAPI.updateBookingStatus(bookingId, newStatus);
       setBookings((prev) => prev.map((booking) => (booking.id === bookingId ? { ...booking, status: newStatus } : booking)));
+      
+      // Emit appropriate event
+      if (newStatus === 'cancelled') {
+        emit('booking:cancelled', { bookingId, newStatus });
+      } else if (newStatus === 'confirmed') {
+        emit('booking:confirmed', { bookingId, newStatus });
+      } else if (newStatus === 'completed') {
+        emit('booking:completed', { bookingId, newStatus });
+      }
     } catch {
       // Keep UI stable if API update fails.
     }

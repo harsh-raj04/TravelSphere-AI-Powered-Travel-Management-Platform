@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useContext } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { agentAPI } from '../../services/api';
+import { BookingEventContext } from '../../contexts/BookingEventContext';
 import { Calendar, User2, Package, Search, Filter, CheckCircle, Clock } from 'lucide-react';
 
 const statuses = ['pending', 'confirmed', 'cancelled', 'completed'];
@@ -13,6 +14,7 @@ const formatINR = (amount) =>
   })}`;
 
 export function AgentBookings() {
+  const { emit } = useContext(BookingEventContext);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [updatingId, setUpdatingId] = useState('');
@@ -67,6 +69,15 @@ export function AgentBookings() {
       setError('');
       await agentAPI.updateBookingStatus(id, status);
       await loadData();
+      
+      // Emit appropriate event
+      if (status === 'cancelled') {
+        emit('booking:cancelled', { bookingId: id, newStatus: status });
+      } else if (status === 'confirmed') {
+        emit('booking:confirmed', { bookingId: id, newStatus: status });
+      } else if (status === 'completed') {
+        emit('booking:completed', { bookingId: id, newStatus: status });
+      }
     } catch (err) {
       setError(err?.response?.data?.message || 'Status update failed.');
     } finally {
