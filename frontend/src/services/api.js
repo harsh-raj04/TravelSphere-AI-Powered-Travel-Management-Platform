@@ -9,7 +9,7 @@ const apiClient = axios.create({
 
 // Add JWT token to requests if available
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
+  const token = sessionStorage.getItem('authToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -27,6 +27,21 @@ apiClient.interceptors.request.use((config) => {
 
   return config;
 });
+
+// Handle 401 Unauthorized responses (expired token)
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.log('[API] Received 401 - clearing session');
+      // Clear token from storage on unauthorized response
+      sessionStorage.removeItem('authToken');
+      // Trigger logout by reloading
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const authAPI = {
   register: (data) => apiClient.post('/auth/register', data),
