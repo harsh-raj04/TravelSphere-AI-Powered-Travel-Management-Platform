@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useContext } from 'react';
 import {
   DollarSign,
   Calendar,
@@ -9,6 +9,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { KPICard } from '../../components/admin/KPICard';
+import { BookingEventContext } from '../../contexts/BookingEventContext';
 import {
   LineChart,
   Line,
@@ -26,12 +27,13 @@ import { adminAPI } from '../../services/api';
 const formatINR = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`;
 
 export function AdminDashboard() {
+  const { on } = useContext(BookingEventContext);
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState(null);
   const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
-    // Fetch immediately on mount
+    // Fetch data function
     const fetchData = async () => {
       console.log('[AdminDashboard] Fetching data...');
       try {
@@ -49,17 +51,17 @@ export function AdminDashboard() {
       }
     };
 
+    // Initial fetch on mount
     fetchData();
 
-    // Setup interval to refetch every 5 seconds
-    const interval = setInterval(() => {
-      console.log('[AdminDashboard] Auto-refetch triggered');
+    // Listen for booking events and refetch
+    const unsubscribe = on('booking:created', () => {
+      console.log('[AdminDashboard] Event-based refresh triggered');
       fetchData();
-    }, 5000);
+    });
 
-    // Cleanup interval on unmount
-    return () => clearInterval(interval);
-  }, []);
+    return unsubscribe;
+  }, [on]);
 
   const revenueData = useMemo(() => {
     const trend = overview?.revenue_trend || [];

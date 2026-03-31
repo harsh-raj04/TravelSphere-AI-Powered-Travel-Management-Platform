@@ -13,6 +13,18 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Prevent browser/proxy caching for API reads so dashboards always get fresh data.
+  if ((config.method || '').toLowerCase() === 'get') {
+    config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    config.headers.Pragma = 'no-cache';
+    config.headers.Expires = '0';
+    config.params = {
+      ...(config.params || {}),
+      _t: Date.now(),
+    };
+  }
+
   return config;
 });
 
