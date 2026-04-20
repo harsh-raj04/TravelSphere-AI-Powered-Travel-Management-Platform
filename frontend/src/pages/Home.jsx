@@ -89,7 +89,7 @@ export function Home() {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative min-h-screen bg-gradient-to-br from-sky-600 via-indigo-600 to-fuchsia-600 overflow-hidden">
+      <section className="relative min-h-screen bg-gradient-to-br from-[#ff6a00] via-[#ff7f27] to-[#ff8f3a] overflow-hidden">
         {/* Background Image Overlay */}
         <div
           className="absolute inset-0 opacity-40"
@@ -104,10 +104,10 @@ export function Home() {
           {/* Hero Content */}
           <div className="text-center text-white mb-12 animate-slide-up">
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
-              Explore the world your way
+              Explore India and Beyond
             </h1>
             <p className="text-xl sm:text-2xl text-sky-100 mb-8 max-w-2xl mx-auto">
-              Discover verified travel experiences and book with confidence
+              Handcrafted tour packages for every kind of traveler
             </p>
           </div>
 
@@ -135,7 +135,7 @@ export function Home() {
               />
             </div>
             <Link to="/packages" className="block">
-              <Button variant="primary" size="lg" fullWidth>
+              <Button variant="primary" size="lg" fullWidth className="rounded-full shadow-lg shadow-orange-200/60">
                 Explore Packages
               </Button>
             </Link>
@@ -205,7 +205,7 @@ export function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">
-              Travel Themes
+              Browse by Category
             </h2>
             <p className="text-light-text-secondary dark:text-dark-text-secondary text-lg">
               Choose your adventure type
@@ -264,7 +264,7 @@ export function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600 text-white">
+      <section className="py-20 bg-gradient-to-r from-emerald-500 via-green-500 to-lime-500 text-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold mb-4">Ready for your next adventure?</h2>
           <p className="text-xl mb-8 text-blue-100">

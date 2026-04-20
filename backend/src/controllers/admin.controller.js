@@ -1,5 +1,126 @@
 const { ok } = require("../utils/apiResponse");
 const { prisma } = require("../lib/prisma");
+const { BOOKING_STATUS } = require("../constants/statuses");
+
+async function confirmBooking(req, res) {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found", errors: [] });
+    }
+
+    if (booking.status !== BOOKING_STATUS.PENDING) {
+      return res.status(400).json({
+        success: false,
+        message: "Only pending bookings can be confirmed",
+        errors: [],
+      });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: BOOKING_STATUS.CONFIRMED,
+        confirmedAt: new Date(),
+      },
+      include: {
+        package: true,
+      },
+    });
+
+    return ok(res, "Booking confirmed and customer notified", updated);
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to confirm booking",
+      errors: [],
+    });
+  }
+}
+
+async function assignBookingAgent(req, res) {
+  const agentId = String(req.body?.agent_id || "").trim();
+  const agentPayout = Number(req.body?.agent_payout);
+
+  if (!agentId) {
+    return res.status(400).json({ success: false, message: "agent_id is required", errors: [] });
+  }
+
+  if (!Number.isFinite(agentPayout) || agentPayout <= 0) {
+    return res.status(400).json({ success: false, message: "agent_payout must be positive", errors: [] });
+  }
+
+  try {
+    const [booking, agentProfile] = await Promise.all([
+      prisma.booking.findUnique({
+        where: { id: req.params.id },
+        include: { package: true },
+      }),
+      prisma.agentProfile.findUnique({ where: { id: agentId } }),
+    ]);
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found", errors: [] });
+    }
+
+    if (!agentProfile) {
+      return res.status(400).json({ success: false, message: "Agent not found", errors: [] });
+    }
+
+    if (booking.status !== BOOKING_STATUS.CONFIRMED) {
+      return res.status(400).json({
+        success: false,
+        message: "Only confirmed bookings can be assigned",
+        errors: [],
+      });
+    }
+
+    const total = Number(booking.totalAmount || 0);
+    if (agentPayout > total) {
+      return res.status(400).json({
+        success: false,
+        message: "Agent payout cannot exceed booking amount",
+        errors: [],
+      });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        assignedAgentId: agentId,
+        status: BOOKING_STATUS.ASSIGNED,
+        assignedAt: new Date(),
+        agentPayout,
+        adminMargin: Number((total - agentPayout).toFixed(2)),
+      },
+      include: {
+        package: true,
+        assignedAgent: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return ok(res, "Agent assigned and notified", updated);
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to assign booking",
+      errors: [],
+    });
+  }
+}
 
 async function listAllBookings(req, res) {
   const page = Math.max(Number(req.query.page) || 1, 1);
@@ -115,6 +236,17 @@ async function listAllBookings(req, res) {
               },
             },
           },
+          assignedAgent: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
           transaction: true,
         },
       }),
@@ -143,6 +275,16 @@ async function analyticsOverview(_req, res) {
     const [bookings, packages] = await Promise.all([
       prisma.booking.findMany({
         include: {
+          assignedAgent: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
           package: {
             include: {
               agent: {
@@ -166,6 +308,8 @@ async function analyticsOverview(_req, res) {
 
     const totalBookings = bookings.length;
     const totalRevenue = bookings.reduce((sum, booking) => sum + Number(booking.totalAmount), 0);
+    const totalAgentPayout = bookings.reduce((sum, booking) => sum + Number(booking.agentPayout || 0), 0);
+    const totalAdminMargin = bookings.reduce((sum, booking) => sum + Number(booking.adminMargin || 0), 0);
 
     const agentMap = new Map();
     const packageMap = new Map();
@@ -174,6 +318,12 @@ async function analyticsOverview(_req, res) {
     const bookingStatusBreakdown = {
       pending: 0,
       confirmed: 0,
+      assigned: 0,
+      accepted: 0,
+      rejected: 0,
+      in_progress: 0,
+      completed: 0,
+      closed: 0,
       cancelled: 0,
     };
     const transactionStatusBreakdown = {
@@ -185,18 +335,20 @@ async function analyticsOverview(_req, res) {
     };
 
     for (const booking of bookings) {
-      const agentId = booking.package.agentId;
-      const agentName = booking.package.agent.user.name;
+      const agentId = booking.assignedAgentId || booking.package.agentId;
+      const agentName = booking.assignedAgent?.user?.name || booking.package.agent?.user?.name || "Unassigned";
       const packageId = booking.package.id;
       const packageTitle = booking.package.title;
       const dateKey = booking.bookingDate.toISOString().slice(0, 10);
       const bookingStatus = String(booking.status || "").toLowerCase();
       const paymentStatus = String(booking.transaction?.status || "").toLowerCase();
 
-      if (!agentMap.has(agentId)) {
+      if (agentId && !agentMap.has(agentId)) {
         agentMap.set(agentId, { agent_id: agentId, agent_name: agentName, total_bookings: 0 });
       }
-      agentMap.get(agentId).total_bookings += 1;
+      if (agentId) {
+        agentMap.get(agentId).total_bookings += 1;
+      }
 
       if (!packageMap.has(packageId)) {
         packageMap.set(packageId, { package_id: packageId, package_title: packageTitle, total_bookings: 0 });
@@ -242,6 +394,8 @@ async function analyticsOverview(_req, res) {
     return ok(res, "Admin analytics fetched successfully", {
       total_bookings: totalBookings,
       total_revenue: Number(totalRevenue.toFixed(2)),
+      total_agent_payout: Number(totalAgentPayout.toFixed(2)),
+      total_admin_margin: Number(totalAdminMargin.toFixed(2)),
       active_packages: packages.length,
       top_agents: topAgents,
       top_packages: topPackages,
@@ -352,9 +506,9 @@ async function listAllAgents(_req, res) {
       }),
       prisma.booking.findMany({
         include: {
-          package: {
+          assignedAgent: {
             select: {
-              agentId: true,
+              id: true,
             },
           },
         },
@@ -365,7 +519,10 @@ async function listAllAgents(_req, res) {
     const revenueMap = new Map();
 
     for (const booking of bookings) {
-      const agentId = booking.package.agentId;
+      const agentId = booking.assignedAgent?.id;
+      if (!agentId) {
+        continue;
+      }
       bookingsMap.set(agentId, (bookingsMap.get(agentId) || 0) + 1);
       revenueMap.set(agentId, (revenueMap.get(agentId) || 0) + Number(booking.totalAmount || 0));
     }
@@ -496,4 +653,6 @@ module.exports = {
   listAllAgents,
   listAllCustomers,
   listAllTransactions,
+  confirmBooking,
+  assignBookingAgent,
 };

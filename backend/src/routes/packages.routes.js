@@ -14,13 +14,8 @@ const packagesRouter = express.Router();
 
 packagesRouter.get("/", listPackages);
 packagesRouter.get("/:id", getPackageById);
-packagesRouter.post("/", authenticate, authorize(ROLES.AGENT), createPackage);
-packagesRouter.put("/:id", authenticate, authorize(ROLES.AGENT), updatePackage);
-packagesRouter.delete(
-  "/:id",
-  authenticate,
-  authorize(ROLES.AGENT, ROLES.ADMIN),
-  deletePackage
-);
+packagesRouter.post("/", authenticate, authorize(ROLES.ADMIN), createPackage);
+packagesRouter.put("/:id", authenticate, authorize(ROLES.ADMIN), updatePackage);
+packagesRouter.delete("/:id", authenticate, authorize(ROLES.ADMIN), deletePackage);
 
 module.exports = { packagesRouter };

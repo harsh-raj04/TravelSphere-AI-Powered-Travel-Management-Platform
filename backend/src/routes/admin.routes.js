@@ -6,6 +6,8 @@ const {
   listAllAgents,
   listAllCustomers,
   listAllTransactions,
+  confirmBooking,
+  assignBookingAgent,
 } = require("../controllers/admin.controller");
 const { authenticate } = require("../middlewares/authenticate");
 const { authorize } = require("../middlewares/authorize");
@@ -15,6 +17,8 @@ const adminRouter = express.Router();
 
 adminRouter.use(authenticate, authorize(ROLES.ADMIN));
 adminRouter.get("/bookings", listAllBookings);
+adminRouter.patch("/bookings/:id/confirm", confirmBooking);
+adminRouter.patch("/bookings/:id/assign-agent", assignBookingAgent);
 adminRouter.get("/analytics/overview", analyticsOverview);
 adminRouter.get("/packages", listAllPackages);
 adminRouter.get("/agents", listAllAgents);

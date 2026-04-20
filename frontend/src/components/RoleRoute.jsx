@@ -1,8 +1,11 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getHomeRouteForRole, hasAllowedRole, isRoleAllowedForVariant } from '../utils/roleRouting';
 
 export function RoleRoute({ allowedRoles = [], children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, variant } = useAuth();
+  const variantLoginRoute =
+    variant === 'admin' ? '/admin/login' : variant === 'agent' ? '/agent/login' : '/login';
 
   if (loading) {
     return (
@@ -13,17 +16,15 @@ export function RoleRoute({ allowedRoles = [], children }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={variantLoginRoute} replace />;
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    const redirectTo =
-      user.role === 'agent'
-        ? '/agent/dashboard'
-        : user.role === 'admin'
-          ? '/admin/dashboard'
-          : '/dashboard';
-    return <Navigate to={redirectTo} replace />;
+  if (!isRoleAllowedForVariant(user.role, variant)) {
+    return <Navigate to={variantLoginRoute} replace />;
+  }
+
+  if (!hasAllowedRole(user.role, allowedRoles)) {
+    return <Navigate to={getHomeRouteForRole(user.role)} replace />;
   }
 
   return children;

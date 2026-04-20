@@ -6,7 +6,7 @@ export function Profile() {
   const { user } = useAuth();
 
   return (
-    <div className="py-10 max-w-3xl mx-auto">
+    <div className="travel-ui py-10 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-6 text-light-text-primary dark:text-dark-text-primary">Profile</h1>
       <Card variant="premium" className="p-6">
         <div className="flex items-center justify-between mb-6">

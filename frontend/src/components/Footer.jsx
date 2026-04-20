@@ -3,20 +3,20 @@ import { Link } from 'react-router-dom';
 
 export function Footer() {
   return (
-    <footer className="bg-light-bg-secondary dark:bg-dark-bg-tertiary border-t border-light-border dark:border-dark-border">
+    <footer className="bg-slate-950 text-white border-t border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-gradient-brand rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
                 <span className="text-white font-bold">T</span>
               </div>
               <span className="font-bold text-light-text-primary dark:text-dark-text-primary">
                 TravelSphere
               </span>
             </div>
-            <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-4">
+            <p className="text-sm text-slate-300 mb-4 max-w-xs leading-6">
               Explore the world through verified travel experiences.
             </p>
             <div className="flex gap-3">
@@ -66,7 +66,7 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-light-text-secondary dark:text-dark-text-secondary">
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4" />
-                <a href="mailto:support@travelsphere.dev" className="hover:text-brand-primary transition">
+                <a href="mailto:25042002harsh@gmail.com" className="hover:text-orange-300 transition">
                   support@travelsphere.dev
                 </a>
               </li>
@@ -85,7 +85,7 @@ export function Footer() {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-light-border dark:border-dark-border pt-8">
+        <div className="border-t border-white/10 pt-8">
           <p className="text-center text-sm text-light-text-tertiary dark:text-dark-text-tertiary">
             © 2026 TravelSphere. All rights reserved.
           </p>

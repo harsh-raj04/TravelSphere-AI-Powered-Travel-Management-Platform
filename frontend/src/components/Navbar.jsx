@@ -26,7 +26,7 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
 
   const customerNavItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: Sparkles },
+    { path: '/home', label: 'Home', icon: Sparkles },
     { path: '/discover', label: 'Discover', icon: Compass },
     { path: '/trips', label: 'My Trips', icon: Calendar },
     { path: '/plan', label: 'Plan Trip', icon: MapPin },
@@ -36,9 +36,8 @@ export function Navbar() {
 
   const agentNavItems = [
     { path: '/agent/dashboard', label: 'Dashboard', icon: Sparkles },
-    { path: '/agent/packages', label: 'Packages', icon: Compass },
-    { path: '/agent/packages/new', label: 'Create', icon: MapPin },
     { path: '/agent/bookings', label: 'Bookings', icon: CreditCard },
+    { path: '/agent/analytics', label: 'Analytics', icon: Compass },
   ];
 
   const adminNavItems = [
@@ -58,15 +57,15 @@ export function Navbar() {
   };
 
   return (
-    <nav className="bg-white/85 dark:bg-dark-bg-secondary/90 backdrop-blur-lg border-b border-light-border dark:border-dark-border shadow-sm sticky top-0 z-50">
+    <nav className="bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-b border-orange-100/70 dark:border-white/10 shadow-[0_10px_30px_-20px_rgba(0,0,0,0.35)] sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-[70px]">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600 rounded-lg flex items-center justify-center shadow-md">
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-200/50">
               <span className="text-white font-bold">T</span>
             </div>
-            <span className="font-bold text-xl bg-gradient-to-r from-sky-700 via-indigo-700 to-fuchsia-700 dark:from-sky-400 dark:via-indigo-400 dark:to-fuchsia-400 bg-clip-text text-transparent hidden sm:inline">
+            <span className="font-bold text-xl bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 bg-clip-text text-transparent hidden sm:inline">
               TravelSphere
             </span>
           </Link>
@@ -85,7 +84,7 @@ export function Navbar() {
                       to={item.path}
                       className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                         isActive
-                          ? 'bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600 text-white shadow-md'
+                          ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md shadow-orange-200/50'
                           : 'text-light-text-secondary dark:text-dark-text-secondary hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary'
                       }`}
                     >
