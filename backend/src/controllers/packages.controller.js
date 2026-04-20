@@ -4,10 +4,12 @@ const { ok, fail } = require("../utils/apiResponse");
 
 const packageSchema = z.object({
   title: z.string().min(2),
-  destination: z.string().min(2),
+  destination: z.string().min(2).optional(),
   duration_days: z.number().int().positive(),
   price: z.number().positive(),
   description: z.string().min(10),
+  itinerary: z.array(z.string().min(1)).optional(),
+  image_urls: z.array(z.string().url()).optional(),
 });
 
 async function listPackages(req, res) {
@@ -116,22 +118,20 @@ async function createPackage(req, res) {
   }
 
   try {
-    const agentProfile = await prisma.agentProfile.findUnique({
-      where: { userId: req.user.id },
-    });
-
-    if (!agentProfile) {
-      return fail(res, "Agent profile not found", [], 403);
+    const itinerary = Array.isArray(parsed.data.itinerary) ? parsed.data.itinerary : [];
+    if (itinerary.length > 0 && itinerary.length !== parsed.data.duration_days) {
+      return fail(res, "Validation failed", [{ field: "itinerary", issue: "Itinerary day count must match duration" }], 400);
     }
 
     const created = await prisma.travelPackage.create({
       data: {
-        agentId: agentProfile.id,
         title: parsed.data.title,
         destination: parsed.data.destination,
         durationDays: parsed.data.duration_days,
         price: parsed.data.price,
         description: parsed.data.description,
+        itinerary: itinerary.length > 0 ? itinerary : null,
+        imageUrls: (parsed.data.image_urls || []).length > 0 ? parsed.data.image_urls : null,
       },
     });
 
@@ -148,14 +148,6 @@ async function updatePackage(req, res) {
   }
 
   try {
-    const agentProfile = await prisma.agentProfile.findUnique({
-      where: { userId: req.user.id },
-    });
-
-    if (!agentProfile) {
-      return fail(res, "Agent profile not found", [], 403);
-    }
-
     const existing = await prisma.travelPackage.findUnique({
       where: { id: req.params.id },
     });
@@ -164,8 +156,10 @@ async function updatePackage(req, res) {
       return fail(res, "Package not found", [], 404);
     }
 
-    if (existing.agentId !== agentProfile.id) {
-      return fail(res, "Forbidden: package ownership mismatch", [], 403);
+    const durationDays = parsed.data.duration_days ?? existing.durationDays;
+    const itinerary = parsed.data.itinerary;
+    if (Array.isArray(itinerary) && itinerary.length > 0 && itinerary.length !== durationDays) {
+      return fail(res, "Validation failed", [{ field: "itinerary", issue: "Itinerary day count must match duration" }], 400);
     }
 
     const updated = await prisma.travelPackage.update({
@@ -176,6 +170,8 @@ async function updatePackage(req, res) {
         durationDays: parsed.data.duration_days,
         price: parsed.data.price,
         description: parsed.data.description,
+        itinerary: Array.isArray(parsed.data.itinerary) ? parsed.data.itinerary : undefined,
+        imageUrls: Array.isArray(parsed.data.image_urls) ? parsed.data.image_urls : undefined,
       },
     });
 
@@ -193,16 +189,6 @@ async function deletePackage(req, res) {
 
     if (!existing || !existing.isActive) {
       return fail(res, "Package not found", [], 404);
-    }
-
-    if (req.user.role !== "admin") {
-      const agentProfile = await prisma.agentProfile.findUnique({
-        where: { userId: req.user.id },
-      });
-
-      if (!agentProfile || existing.agentId !== agentProfile.id) {
-        return fail(res, "Forbidden: package ownership mismatch", [], 403);
-      }
     }
 
     const updated = await prisma.travelPackage.update({

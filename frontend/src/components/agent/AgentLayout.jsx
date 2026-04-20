@@ -1,7 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Package,
   Calendar,
   BarChart3,
   Settings,
@@ -15,8 +14,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 const navigation = [
   { name: 'Dashboard', href: '/agent/dashboard', icon: LayoutDashboard },
-  { name: 'Packages', href: '/agent/packages', icon: Package },
-  { name: 'Bookings', href: '/agent/bookings', icon: Calendar },
+  { name: 'Assigned Bookings', href: '/agent/bookings', icon: Calendar },
   { name: 'Analytics', href: '/agent/analytics', icon: BarChart3 },
 ];
 
@@ -90,7 +88,7 @@ export function AgentLayout({ children }) {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search packages, bookings, customers..."
+                  placeholder="Search assigned bookings and travelers..."
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-900"
                 />
               </div>

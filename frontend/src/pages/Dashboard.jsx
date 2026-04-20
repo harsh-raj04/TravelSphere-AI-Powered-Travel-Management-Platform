@@ -1,33 +1,69 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../contexts/AuthContext';
+import { bookingsAPI, packagesAPI } from '../services/api';
 import { Compass, Calendar, Plane, Sparkles, TrendingUp, MapPin, ArrowRight, Clock } from 'lucide-react';
 
 export function Dashboard() {
   const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState([]);
+  const [packages, setPackages] = useState([]);
 
-  const upcomingTrips = [
-    { id: 'seed-package-1', destination: 'Himachal Pradesh', date: '2030-03-15', progress: 72 },
-    { id: 'seed-package-2', destination: 'Goa', date: '2030-06-10', progress: 41 },
-  ];
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const [bookingsRes, packagesRes] = await Promise.all([
+          bookingsAPI.myBookings(),
+          packagesAPI.list({ page: 1, limit: 6 }),
+        ]);
 
-  const stats = [
-    { label: 'Trips Planned', value: '12', icon: Plane, tone: 'text-blue-600 dark:text-blue-400' },
-    { label: 'Countries Visited', value: '8', icon: Compass, tone: 'text-cyan-600 dark:text-cyan-400' },
-    { label: 'Upcoming Bookings', value: '3', icon: Calendar, tone: 'text-violet-600 dark:text-violet-400' },
-    { label: 'Travel Score', value: '92', icon: TrendingUp, tone: 'text-emerald-600 dark:text-emerald-400' },
-  ];
+        setBookings(bookingsRes.data?.data?.items || []);
+        setPackages(packagesRes.data?.data?.items || []);
+      } catch {
+        setBookings([]);
+        setPackages([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
-  const recommended = [
-    { id: 'seed-package-1', title: 'Himachal Escape', match: '95% match', desc: 'Perfect for mountain vibes and cool weather.' },
-    { id: 'seed-package-2', title: 'Goa Weekend Retreat', match: '90% match', desc: 'Ideal short getaway with beach and nightlife.' },
-  ];
+  const stats = useMemo(() => {
+    const total = bookings.length;
+    const upcoming = bookings.filter((booking) => {
+      const d = new Date(booking.travelDate);
+      return d >= new Date() && booking.status !== 'cancelled';
+    }).length;
+    const completed = bookings.filter((booking) => ['completed', 'closed'].includes(String(booking.status))).length;
+    const spend = bookings.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
+
+    return [
+      { label: 'Total Bookings', value: String(total), icon: Plane, tone: 'text-blue-600 dark:text-blue-400' },
+      { label: 'Completed Trips', value: String(completed), icon: Compass, tone: 'text-cyan-600 dark:text-cyan-400' },
+      { label: 'Upcoming Trips', value: String(upcoming), icon: Calendar, tone: 'text-violet-600 dark:text-violet-400' },
+      { label: 'Total Spend', value: `₹${Math.round(spend).toLocaleString('en-IN')}`, icon: TrendingUp, tone: 'text-emerald-600 dark:text-emerald-400' },
+    ];
+  }, [bookings]);
+
+  const recommended = useMemo(() => packages.slice(0, 2), [packages]);
+  const upcomingTrips = useMemo(() => bookings
+    .filter((booking) => new Date(booking.travelDate) >= new Date() && booking.status !== 'cancelled')
+    .slice(0, 2)
+    .map((booking) => ({
+      id: booking.package?.id,
+      destination: booking.package?.destination || booking.package?.title || 'Destination',
+      date: booking.travelDate,
+      progress: ['pending', 'confirmed', 'assigned'].includes(String(booking.status)) ? 35 : booking.status === 'accepted' ? 65 : booking.status === 'in_progress' ? 85 : 100,
+    })), [bookings]);
 
   return (
-    <div className="space-y-8 py-10">
-      <section className="relative overflow-hidden rounded-2xl p-8 md:p-10 text-white bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600">
+    <div className="travel-ui space-y-8 py-10">
+      <section className="relative overflow-hidden rounded-[28px] p-8 md:p-10 text-white bg-gradient-to-r from-[#ff6a00] via-[#ff7f27] to-[#ff8f3a]">
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 mb-4 text-sm font-semibold uppercase tracking-wide">
             <Sparkles className="w-4 h-4" />
@@ -69,6 +105,8 @@ export function Dashboard() {
         })}
       </section>
 
+      {loading && <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">Loading dashboard insights...</p>}
+
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-light-text-primary dark:text-dark-text-primary">Recommended For You</h2>
@@ -82,15 +120,18 @@ export function Dashboard() {
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div>
                   <h3 className="font-bold text-lg text-light-text-primary dark:text-dark-text-primary">{rec.title}</h3>
-                  <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">{rec.desc}</p>
+                  <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">{rec.description}</p>
                 </div>
-                <Badge variant="primary">{rec.match}</Badge>
+                <Badge variant="primary">{rec.durationDays} days</Badge>
               </div>
               <Link to={`/packages/${rec.id}`}>
                 <Button size="sm">View Package</Button>
               </Link>
             </Card>
           ))}
+          {!loading && recommended.length === 0 && (
+            <Card variant="elevated" className="p-5 text-sm text-light-text-secondary dark:text-dark-text-secondary">No package recommendations available yet.</Card>
+          )}
         </div>
       </section>
 
@@ -122,6 +163,9 @@ export function Dashboard() {
               </Link>
             </Card>
           ))}
+          {!loading && upcomingTrips.length === 0 && (
+            <Card variant="elevated" className="p-5 text-sm text-light-text-secondary dark:text-dark-text-secondary">No upcoming trips yet. Start by booking a package.</Card>
+          )}
         </div>
       </section>
 

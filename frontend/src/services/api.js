@@ -9,7 +9,7 @@ const apiClient = axios.create({
 
 // Add JWT token to requests if available
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
+  const token = sessionStorage.getItem('authToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -33,6 +33,8 @@ export const packagesAPI = {
 export const bookingsAPI = {
   create: (data) => apiClient.post('/bookings', data),
   myBookings: () => apiClient.get('/bookings/my'),
+  updateStatus: (id, payload) => apiClient.patch(`/bookings/${id}/status`, payload),
+  submitFeedback: (id, payload) => apiClient.patch(`/bookings/${id}/feedback`, payload),
 };
 
 export const transactionsAPI = {
@@ -41,13 +43,17 @@ export const transactionsAPI = {
 
 export const agentAPI = {
   bookings: () => apiClient.get('/bookings/agent'),
-  updateBookingStatus: (id, status) => apiClient.patch(`/bookings/${id}/status`, { status }),
+  updateBookingStatus: (id, payload) => apiClient.patch(`/bookings/${id}/status`, payload),
+  requestChange: (id, remark) => apiClient.patch(`/bookings/${id}/request-change`, { remark }),
 };
 
 export const adminAPI = {
   bookings: (params) => apiClient.get('/admin/bookings', { params }),
+  confirmBooking: (id) => apiClient.patch(`/admin/bookings/${id}/confirm`),
+  assignAgent: (id, payload) => apiClient.patch(`/admin/bookings/${id}/assign-agent`, payload),
   analyticsOverview: () => apiClient.get('/admin/analytics/overview'),
   packages: (params) => apiClient.get('/admin/packages', { params }),
+  createPackage: (data) => apiClient.post('/packages', data),
   agents: () => apiClient.get('/admin/agents'),
   customers: () => apiClient.get('/admin/customers'),
   transactions: (params) => apiClient.get('/admin/transactions', { params }),

@@ -25,3 +25,10 @@ coverage/
 My UI/
 Travel Management Agent UI/
 Admin Panel UI Design/
+
+# Internal planning docs (keep public READMEs only)
+DESIGN_SYSTEM.md
+development_phases.md
+project_overview.md
+docs/
+!docs/.gitkeep

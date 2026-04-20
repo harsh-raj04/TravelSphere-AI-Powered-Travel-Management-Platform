@@ -69,10 +69,9 @@ export function AdminDashboard() {
   );
 
   const totalRevenue = Number(overview?.total_revenue || 0);
+  const totalPayout = Number(overview?.total_agent_payout || 0);
+  const totalMargin = Number(overview?.total_admin_margin || 0);
   const totalBookings = Number(overview?.total_bookings || 0);
-  const activeAgents = (overview?.top_agents || []).length;
-  const conversionRate = Number(overview?.payment_success_rate || 0);
-
   const topAgent = (overview?.top_agents || [])[0];
   const mostBooked = (overview?.top_packages || [])[0];
 
@@ -89,9 +88,9 @@ export function AdminDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard title="Total Revenue" value={formatINR(totalRevenue)} icon={DollarSign} iconColor="text-emerald-500" trend={{ value: 12.5, isPositive: true }} />
-        <KPICard title="Total Bookings" value={totalBookings} icon={Calendar} iconColor="text-blue-500" trend={{ value: 8.2, isPositive: true }} />
-        <KPICard title="Active Agents" value={activeAgents} icon={Users} iconColor="text-purple-500" trend={{ value: 0, isPositive: true }} />
-        <KPICard title="Payment Success" value={`${conversionRate}%`} icon={TrendingUp} iconColor="text-amber-500" trend={{ value: 3.8, isPositive: true }} />
+        <KPICard title="Agent Payouts" value={formatINR(totalPayout)} icon={Users} iconColor="text-blue-500" trend={{ value: 8.2, isPositive: true }} />
+        <KPICard title="Admin Margin" value={formatINR(totalMargin)} icon={TrendingUp} iconColor="text-purple-500" trend={{ value: 0, isPositive: true }} />
+        <KPICard title="Total Bookings" value={totalBookings} icon={Calendar} iconColor="text-amber-500" trend={{ value: 3.8, isPositive: true }} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

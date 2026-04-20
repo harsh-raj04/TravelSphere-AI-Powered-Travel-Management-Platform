@@ -3,54 +3,53 @@ import { bookingsAPI } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { Plane, Hotel, TrendingDown } from 'lucide-react';
+import { X } from 'lucide-react';
 
 export function Bookings() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
-  const [tab, setTab] = useState('my-bookings');
+  const [feedbackBooking, setFeedbackBooking] = useState(null);
+  const [feedbackForm, setFeedbackForm] = useState({ rating: 5, comment: '' });
+  const [feedbackSaving, setFeedbackSaving] = useState(false);
+
+  const loadBookings = async () => {
+    try {
+      const res = await bookingsAPI.myBookings();
+      setItems(res.data?.data?.items || []);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await bookingsAPI.myBookings();
-        setItems(res.data?.data?.items || []);
-      } catch {
-        setItems([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadBookings();
   }, []);
 
+  const submitFeedback = async () => {
+    if (!feedbackBooking) return;
+
+    setFeedbackSaving(true);
+    try {
+      await bookingsAPI.submitFeedback(feedbackBooking.id, feedbackForm);
+      setFeedbackBooking(null);
+      setFeedbackForm({ rating: 5, comment: '' });
+      setLoading(true);
+      await loadBookings();
+    } finally {
+      setFeedbackSaving(false);
+    }
+  };
+
   return (
-    <div className="py-10 space-y-6">
+    <div className="travel-ui py-10 space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2 text-light-text-primary dark:text-dark-text-primary">Bookings</h1>
-        <p className="text-light-text-secondary dark:text-dark-text-secondary">Manage your package bookings and compare flight/hotel deals.</p>
+        <p className="text-light-text-secondary dark:text-dark-text-secondary">Manage your package bookings and track confirmation status.</p>
       </div>
 
-      <div className="inline-flex rounded-lg p-1 bg-light-bg-secondary dark:bg-dark-bg-tertiary gap-1">
-        {[
-          { key: 'my-bookings', label: 'My Bookings' },
-          { key: 'flights', label: 'Flights' },
-          { key: 'hotels', label: 'Hotels' },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition ${
-              tab === t.key
-                ? 'bg-white dark:bg-dark-bg-secondary text-light-text-primary dark:text-dark-text-primary shadow-sm'
-                : 'text-light-text-secondary dark:text-dark-text-secondary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'my-bookings' && (
+      {
         loading ? (
           <p className="text-light-text-secondary dark:text-dark-text-secondary">Loading bookings...</p>
         ) : items.length === 0 ? (
@@ -70,50 +69,75 @@ export function Bookings() {
                       {item.package?.destination || 'Destination'} • {new Date(item.travelDate).toLocaleDateString()}
                     </p>
                   </div>
-                  <Badge variant={item.status === 'confirmed' ? 'success' : 'warning'}>{item.status}</Badge>
+                  <Badge variant={['confirmed', 'assigned', 'accepted', 'in_progress', 'completed', 'closed'].includes(item.status) ? 'success' : 'warning'}>{item.status}</Badge>
                 </div>
                 <p className="mt-3 text-sm text-light-text-secondary dark:text-dark-text-secondary">
                   Travelers: {item.travelersCount}
                 </p>
+                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                  Contact: {item.contactEmail} {item.contactPhone ? `• ${item.contactPhone}` : ''}
+                </p>
+                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                  Assigned Agent: {item.assignedAgent?.user?.name || 'Not assigned yet'}
+                </p>
                 <p className="text-xl font-bold text-brand-primary dark:text-brand-secondary mt-1">
                   ₹{Number(item.totalAmount || 0).toLocaleString()}
                 </p>
+
+                {['completed', 'closed'].includes(String(item.status)) && !item.feedbackSubmittedAt && (
+                  <div className="mt-3">
+                    <Button size="sm" variant="secondary" onClick={() => setFeedbackBooking(item)}>
+                      Give Feedback
+                    </Button>
+                  </div>
+                )}
+
+                {item.feedbackSubmittedAt && (
+                  <p className="text-xs text-emerald-600 mt-3">Feedback submitted: {item.feedbackRating}/5</p>
+                )}
               </Card>
             ))}
           </div>
         )
-      )}
+      }
 
-      {tab === 'flights' && (
-        <div className="grid md:grid-cols-2 gap-5">
-          {[{ airline: 'SkyAir', route: 'BLR -> GOI', price: 5299 }, { airline: 'Pacific Wings', route: 'DEL -> IXC', price: 6199 }].map((f) => (
-            <Card key={f.airline} variant="elevated" className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="inline-flex items-center gap-2 font-semibold text-light-text-primary dark:text-dark-text-primary">
-                  <Plane className="w-4 h-4" /> {f.airline}
-                </div>
-                <Badge variant="success" className="inline-flex items-center gap-1"><TrendingDown className="w-3 h-3" /> deal</Badge>
-              </div>
-              <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-2">{f.route} • 1 stop • 3h 25m</p>
-              <p className="text-2xl font-bold text-brand-primary dark:text-brand-secondary mb-3">₹{f.price.toLocaleString()}</p>
-              <Button size="sm">Select Flight</Button>
-            </Card>
-          ))}
-        </div>
-      )}
+      {feedbackBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-5 border border-gray-200 shadow-xl">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900">Share Trip Feedback</h3>
+              <button onClick={() => setFeedbackBooking(null)} className="p-2 rounded-lg hover:bg-gray-100">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-      {tab === 'hotels' && (
-        <div className="grid md:grid-cols-2 gap-5">
-          {[{ name: 'Beachfront Resort', place: 'Goa', price: 4899 }, { name: 'Himalayan Retreat', place: 'Manali', price: 3599 }].map((h) => (
-            <Card key={h.name} variant="elevated" className="p-5">
-              <div className="inline-flex items-center gap-2 font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
-                <Hotel className="w-4 h-4" /> {h.name}
+            <div className="space-y-3">
+              <select
+                value={feedbackForm.rating}
+                onChange={(event) => setFeedbackForm((prev) => ({ ...prev, rating: Number(event.target.value) }))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2"
+              >
+                {[5, 4, 3, 2, 1].map((rating) => (
+                  <option key={rating} value={rating}>{rating} Star{rating > 1 ? 's' : ''}</option>
+                ))}
+              </select>
+
+              <textarea
+                rows={4}
+                value={feedbackForm.comment}
+                onChange={(event) => setFeedbackForm((prev) => ({ ...prev, comment: event.target.value }))}
+                placeholder="How was your trip experience?"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2"
+              />
+
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => setFeedbackBooking(null)}>Cancel</Button>
+                <Button onClick={submitFeedback} disabled={feedbackSaving || feedbackForm.comment.trim().length < 3}>
+                  {feedbackSaving ? 'Submitting...' : 'Submit Feedback'}
+                </Button>
               </div>
-              <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mb-2">{h.place} • 4.7 rating</p>
-              <p className="text-2xl font-bold text-brand-primary dark:text-brand-secondary mb-3">₹{h.price.toLocaleString()} <span className="text-xs font-medium text-light-text-tertiary dark:text-dark-text-tertiary">/night</span></p>
-              <Button size="sm">Book Hotel</Button>
-            </Card>
-          ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
