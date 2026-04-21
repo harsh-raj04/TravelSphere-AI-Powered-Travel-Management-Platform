@@ -19,7 +19,7 @@ export function PlanTrip() {
   };
 
   return (
-    <div className="py-10 max-w-3xl mx-auto">
+    <div className="travel-ui py-10 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-6 text-light-text-primary dark:text-dark-text-primary">Plan a Trip</h1>
       <Card variant="premium" className="p-6">
         <form onSubmit={onSubmit} className="grid sm:grid-cols-2 gap-4">

@@ -1,8 +1,13 @@
 const BOOKING_STATUS = {
   PENDING: "pending",
   CONFIRMED: "confirmed",
-  CANCELLED: "cancelled",
+  ASSIGNED: "assigned",
+  ACCEPTED: "accepted",
+  REJECTED: "rejected",
+  IN_PROGRESS: "in_progress",
   COMPLETED: "completed",
+  CLOSED: "closed",
+  CANCELLED: "cancelled",
 };
 
 const TRANSACTION_STATUS = {

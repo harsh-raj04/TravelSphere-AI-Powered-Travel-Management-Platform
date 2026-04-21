@@ -1,5 +1,126 @@
 const { ok } = require("../utils/apiResponse");
 const { prisma } = require("../lib/prisma");
+const { BOOKING_STATUS } = require("../constants/statuses");
+
+async function confirmBooking(req, res) {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found", errors: [] });
+    }
+
+    if (booking.status !== BOOKING_STATUS.PENDING) {
+      return res.status(400).json({
+        success: false,
+        message: "Only pending bookings can be confirmed",
+        errors: [],
+      });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: BOOKING_STATUS.CONFIRMED,
+        confirmedAt: new Date(),
+      },
+      include: {
+        package: true,
+      },
+    });
+
+    return ok(res, "Booking confirmed and customer notified", updated);
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to confirm booking",
+      errors: [],
+    });
+  }
+}
+
+async function assignBookingAgent(req, res) {
+  const agentId = String(req.body?.agent_id || "").trim();
+  const agentPayout = Number(req.body?.agent_payout);
+
+  if (!agentId) {
+    return res.status(400).json({ success: false, message: "agent_id is required", errors: [] });
+  }
+
+  if (!Number.isFinite(agentPayout) || agentPayout <= 0) {
+    return res.status(400).json({ success: false, message: "agent_payout must be positive", errors: [] });
+  }
+
+  try {
+    const [booking, agentProfile] = await Promise.all([
+      prisma.booking.findUnique({
+        where: { id: req.params.id },
+        include: { package: true },
+      }),
+      prisma.agentProfile.findUnique({ where: { id: agentId } }),
+    ]);
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found", errors: [] });
+    }
+
+    if (!agentProfile) {
+      return res.status(400).json({ success: false, message: "Agent not found", errors: [] });
+    }
+
+    if (booking.status !== BOOKING_STATUS.CONFIRMED) {
+      return res.status(400).json({
+        success: false,
+        message: "Only confirmed bookings can be assigned",
+        errors: [],
+      });
+    }
+
+    const total = Number(booking.totalAmount || 0);
+    if (agentPayout > total) {
+      return res.status(400).json({
+        success: false,
+        message: "Agent payout cannot exceed booking amount",
+        errors: [],
+      });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        assignedAgentId: agentId,
+        status: BOOKING_STATUS.ASSIGNED,
+        assignedAt: new Date(),
+        agentPayout,
+        adminMargin: Number((total - agentPayout).toFixed(2)),
+      },
+      include: {
+        package: true,
+        assignedAgent: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return ok(res, "Agent assigned and notified", updated);
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to assign booking",
+      errors: [],
+    });
+  }
+}
 
 async function listAllBookings(req, res) {
   const page = Math.max(Number(req.query.page) || 1, 1);
@@ -115,6 +236,17 @@ async function listAllBookings(req, res) {
               },
             },
           },
+          assignedAgent: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
           transaction: true,
         },
       }),
@@ -140,83 +272,60 @@ async function listAllBookings(req, res) {
 
 async function analyticsOverview(_req, res) {
   try {
-    // Query 1: Get booking aggregates & totals (more efficient than loading all records)
-    const bookingStats = await prisma.booking.aggregate({
-      _count: { id: true },
-      _sum: { totalAmount: true },
-    });
-
-    // Query 2: Get booking counts by status & date efficiently
-    const bookingsByStatus = await prisma.booking.groupBy({
-      by: ["status"],
-      _count: true,
-    });
-
-    // Query 3: Get top agents by booking count (limit to top 5 from DB)
-    const topAgentIds = await prisma.booking.groupBy({
-      by: ["packageId"],
-      _count: { id: true },
-      orderBy: { _count: { id: "desc" } },
-      take: 100, // Get raw data to process
-    });
-
-    // Query 4: Get package names and agent info for top agents
-    const topPackagesData = await prisma.travelPackage.findMany({
-      where: {
-        id: { in: topAgentIds.map((a) => a.packageId).slice(0, 5) },
-      },
-      include: {
-        agent: {
-          include: {
-            user: {
-              select: { id: true, name: true },
+    const [bookings, packages] = await Promise.all([
+      prisma.booking.findMany({
+        include: {
+          assignedAgent: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          package: {
+            include: {
+              agent: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
-      },
-    });
+      }),
+      prisma.travelPackage.findMany({
+        where: { isActive: true },
+      }),
+    ]);
 
-    // Query 5: Get active packages count
-    const activePackagesCount = await prisma.travelPackage.count({
-      where: { isActive: true },
-    });
+    const totalBookings = bookings.length;
+    const totalRevenue = bookings.reduce((sum, booking) => sum + Number(booking.totalAmount), 0);
+    const totalAgentPayout = bookings.reduce((sum, booking) => sum + Number(booking.agentPayout || 0), 0);
+    const totalAdminMargin = bookings.reduce((sum, booking) => sum + Number(booking.adminMargin || 0), 0);
 
-    // Query 6: Get transaction stats (only last 100 bookings for trends to avoid N+1)
-    const recentBookingsForTrends = await prisma.booking.findMany({
-      select: {
-        id: true,
-        bookingDate: true,
-        totalAmount: true,
-        status: true,
-      },
-      orderBy: { bookingDate: "desc" },
-      take: 100,
-    });
-
-    // Query 7: Get transaction status breakdown
-    const transactionStats = await prisma.transaction.groupBy({
-      by: ["status"],
-      _count: true,
-    });
-
-    // Process data for response
-    const totalBookings = bookingStats._count.id;
-    const totalRevenue = Number(bookingStats._sum.totalAmount || 0).toFixed(2);
-
-    // Build status breakdown
+    const agentMap = new Map();
+    const packageMap = new Map();
+    const bookingTrendMap = new Map();
+    const revenueTrendMap = new Map();
     const bookingStatusBreakdown = {
       pending: 0,
       confirmed: 0,
+      assigned: 0,
+      accepted: 0,
+      rejected: 0,
+      in_progress: 0,
+      completed: 0,
+      closed: 0,
       cancelled: 0,
     };
-    bookingsByStatus.forEach((item) => {
-      const key = String(item.status || "").toLowerCase();
-      if (bookingStatusBreakdown.hasOwnProperty(key)) {
-        bookingStatusBreakdown[key] = item._count;
-      }
-    });
-
-    // Build transaction status breakdown
     const transactionStatusBreakdown = {
       initiated: 0,
       success: 0,
@@ -224,53 +333,49 @@ async function analyticsOverview(_req, res) {
       refunded: 0,
       no_transaction: 0,
     };
-    transactionStats.forEach((item) => {
-      const key = String(item.status || "").toLowerCase();
-      if (transactionStatusBreakdown.hasOwnProperty(key)) {
-        transactionStatusBreakdown[key] = item._count;
+
+    for (const booking of bookings) {
+      const agentId = booking.assignedAgentId || booking.package.agentId;
+      const agentName = booking.assignedAgent?.user?.name || booking.package.agent?.user?.name || "Unassigned";
+      const packageId = booking.package.id;
+      const packageTitle = booking.package.title;
+      const dateKey = booking.bookingDate.toISOString().slice(0, 10);
+      const bookingStatus = String(booking.status || "").toLowerCase();
+      const paymentStatus = String(booking.transaction?.status || "").toLowerCase();
+
+      if (agentId && !agentMap.has(agentId)) {
+        agentMap.set(agentId, { agent_id: agentId, agent_name: agentName, total_bookings: 0 });
       }
-    });
+      if (agentId) {
+        agentMap.get(agentId).total_bookings += 1;
+      }
 
-    // Set no_transaction count
-    transactionStatusBreakdown.no_transaction = totalBookings - transactionStats.reduce((sum, s) => sum + s._count, 0);
+      if (!packageMap.has(packageId)) {
+        packageMap.set(packageId, { package_id: packageId, package_title: packageTitle, total_bookings: 0 });
+      }
+      packageMap.get(packageId).total_bookings += 1;
 
-    // Build top agents list
-    const topAgents = topPackagesData
-      .slice(0, 5)
-      .map((pkg) => {
-        const bookingCount = topAgentIds.find((a) => a.packageId === pkg.id);
-        return {
-          agent_id: pkg.agent.id,
-          agent_name: pkg.agent.user.name,
-          total_bookings: bookingCount?._count?.id || 0,
-        };
-      })
-      .sort((a, b) => b.total_bookings - a.total_bookings)
-      .slice(0, 5);
-
-    // Build top packages list (limit to 5)
-    const topPackages = topPackagesData
-      .slice(0, 5)
-      .map((pkg) => {
-        const bookingCount = topAgentIds.find((a) => a.packageId === pkg.id);
-        return {
-          package_id: pkg.id,
-          package_title: pkg.title,
-          total_bookings: bookingCount?._count?.id || 0,
-        };
-      })
-      .sort((a, b) => b.total_bookings - a.total_bookings)
-      .slice(0, 5);
-
-    // Build trends from recent bookings (last 100)
-    const bookingTrendMap = new Map();
-    const revenueTrendMap = new Map();
-
-    recentBookingsForTrends.forEach((booking) => {
-      const dateKey = new Date(booking.bookingDate).toISOString().slice(0, 10);
       bookingTrendMap.set(dateKey, (bookingTrendMap.get(dateKey) || 0) + 1);
       revenueTrendMap.set(dateKey, (revenueTrendMap.get(dateKey) || 0) + Number(booking.totalAmount || 0));
-    });
+
+      if (Object.prototype.hasOwnProperty.call(bookingStatusBreakdown, bookingStatus)) {
+        bookingStatusBreakdown[bookingStatus] += 1;
+      }
+
+      if (paymentStatus && Object.prototype.hasOwnProperty.call(transactionStatusBreakdown, paymentStatus)) {
+        transactionStatusBreakdown[paymentStatus] += 1;
+      } else {
+        transactionStatusBreakdown.no_transaction += 1;
+      }
+    }
+
+    const topAgents = Array.from(agentMap.values())
+      .sort((a, b) => b.total_bookings - a.total_bookings)
+      .slice(0, 5);
+
+    const topPackages = Array.from(packageMap.values())
+      .sort((a, b) => b.total_bookings - a.total_bookings)
+      .slice(0, 5);
 
     const bookingTrend = Array.from(bookingTrendMap.entries())
       .map(([date, count]) => ({ date, count }))
@@ -280,15 +385,18 @@ async function analyticsOverview(_req, res) {
       .map(([date, revenue]) => ({ date, revenue: Number(revenue.toFixed(2)) }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    // Calculate payment success rate
-    const totalTransactions = transactionStats.reduce((sum, s) => sum + s._count, 0);
+    const totalTransactions = bookings.filter((booking) => Boolean(booking.transaction)).length;
     const successfulTransactions = transactionStatusBreakdown.success;
-    const paymentSuccessRate = totalTransactions ? Number(((successfulTransactions / totalTransactions) * 100).toFixed(1)) : 0;
+    const paymentSuccessRate = totalTransactions
+      ? Number(((successfulTransactions / totalTransactions) * 100).toFixed(1))
+      : 0;
 
     return ok(res, "Admin analytics fetched successfully", {
       total_bookings: totalBookings,
-      total_revenue: Number(totalRevenue),
-      active_packages: activePackagesCount,
+      total_revenue: Number(totalRevenue.toFixed(2)),
+      total_agent_payout: Number(totalAgentPayout.toFixed(2)),
+      total_admin_margin: Number(totalAdminMargin.toFixed(2)),
+      active_packages: packages.length,
       top_agents: topAgents,
       top_packages: topPackages,
       booking_trend: bookingTrend,
@@ -298,7 +406,6 @@ async function analyticsOverview(_req, res) {
       payment_success_rate: paymentSuccessRate,
     });
   } catch (_error) {
-    console.error("Analytics error:", _error);
     return res.status(500).json({
       success: false,
       message: "Failed to fetch analytics overview",
@@ -399,9 +506,9 @@ async function listAllAgents(_req, res) {
       }),
       prisma.booking.findMany({
         include: {
-          package: {
+          assignedAgent: {
             select: {
-              agentId: true,
+              id: true,
             },
           },
         },
@@ -412,7 +519,10 @@ async function listAllAgents(_req, res) {
     const revenueMap = new Map();
 
     for (const booking of bookings) {
-      const agentId = booking.package.agentId;
+      const agentId = booking.assignedAgent?.id;
+      if (!agentId) {
+        continue;
+      }
       bookingsMap.set(agentId, (bookingsMap.get(agentId) || 0) + 1);
       revenueMap.set(agentId, (revenueMap.get(agentId) || 0) + Number(booking.totalAmount || 0));
     }
@@ -543,4 +653,6 @@ module.exports = {
   listAllAgents,
   listAllCustomers,
   listAllTransactions,
+  confirmBooking,
+  assignBookingAgent,
 };

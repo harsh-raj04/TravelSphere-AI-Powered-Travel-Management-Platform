@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { getHomeRouteForRole, isRoleAllowedForVariant } from '../utils/roleRouting';
 
 export function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -15,6 +16,7 @@ export function Login() {
   const [apiError, setApiError] = useState('');
   const navigate = useNavigate();
   const { login } = useAuth();
+  const variant = (import.meta.env.VITE_APP_VARIANT || 'customer').toLowerCase();
 
   const validate = () => {
     const newErrors = {};
@@ -40,14 +42,21 @@ export function Login() {
     try {
       const res = await authAPI.login(form);
       const nextUser = res.data.data.user;
-      login(res.data.data.token, nextUser);
-      if (nextUser?.role === 'agent') {
-        navigate('/agent/dashboard');
-      } else if (nextUser?.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/dashboard');
+
+      if (!isRoleAllowedForVariant(nextUser?.role, variant)) {
+        setApiError(`This portal only allows ${variant} accounts.`);
+        setLoading(false);
+        return;
       }
+
+      const didLogin = login(res.data.data.token, nextUser);
+      if (!didLogin) {
+        setApiError(`This portal only allows ${variant} accounts.`);
+        setLoading(false);
+        return;
+      }
+
+      navigate(getHomeRouteForRole(nextUser?.role));
     } catch (err) {
       setApiError(
         err.response?.data?.message || 'Login failed. Please check your credentials.'
@@ -58,7 +67,7 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-dark-bg-primary dark:via-dark-bg-secondary dark:to-dark-bg-primary flex items-center justify-center px-4 py-12">
+    <div className="travel-ui min-h-screen bg-gradient-to-br from-[#fff5eb] via-white to-[#fff1e6] dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-gradient-brand rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -145,22 +154,6 @@ export function Login() {
             </Button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 mb-2">Demo Credentials</p>
-            <p className="text-xs text-blue-800 dark:text-blue-200 font-mono">
-              customer@travelsphere.dev
-            </p>
-            <p className="text-xs text-blue-800 dark:text-blue-200 font-mono">
-              agent@travelsphere.dev
-            </p>
-            <p className="text-xs text-blue-800 dark:text-blue-200 font-mono">
-              admin@travelsphere.dev
-            </p>
-            <p className="text-xs text-blue-800 dark:text-blue-200 font-mono">
-              Password123
-            </p>
-          </div>
 
           {/* Sign Up Link */}
           <div className="text-center text-sm text-light-text-secondary dark:text-dark-text-secondary">

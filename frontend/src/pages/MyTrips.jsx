@@ -55,7 +55,7 @@ export function MyTrips() {
   }, [on]);
 
   return (
-    <div className="py-10">
+    <div className="travel-ui py-10">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-light-text-primary dark:text-dark-text-primary">My Trips</h1>
         <Link to="/discover"><Button>Plan Another Trip</Button></Link>

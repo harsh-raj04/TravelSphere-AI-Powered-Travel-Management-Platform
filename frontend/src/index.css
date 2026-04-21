@@ -3,14 +3,14 @@
 @tailwind utilities;
 
 :root {
-  --agent-bg: #f5f7fc;
-  --agent-surface: #ffffff;
-  --agent-text: #0f172a;
-  --agent-muted: #64748b;
-  --agent-border: #e2e8f0;
-  --agent-primary: #2563eb;
-  --agent-primary-strong: #1d4ed8;
-  --agent-accent: #06b6d4;
+  --travel-bg: #fffaf5;
+  --travel-surface: #ffffff;
+  --travel-text: #0f172a;
+  --travel-muted: #64748b;
+  --travel-border: #eadfd4;
+  --travel-primary: #f97316;
+  --travel-primary-strong: #ea580c;
+  --travel-accent: #16a34a;
 }
 
 .dark {
@@ -39,24 +39,24 @@ body {
   color: var(--agent-text);
 }
 
-.agent-ui h1,
-.agent-ui h2,
-.agent-ui h3,
-.agent-ui h4 {
+ .travel-ui h1,
+.travel-ui h2,
+.travel-ui h3,
+.travel-ui h4 {
   letter-spacing: -0.01em;
 }
 
-.agent-ui .agent-hero {
-  background-image: linear-gradient(120deg, var(--agent-primary-strong), var(--agent-primary), var(--agent-accent));
+ .travel-ui .travel-hero {
+  background-image: linear-gradient(120deg, var(--travel-primary-strong), var(--travel-primary), var(--travel-accent));
   box-shadow: 0 20px 50px -35px rgba(37, 99, 235, 0.8);
 }
 
-.agent-ui .agent-panel {
+ .travel-ui .travel-panel {
   background: var(--agent-surface);
   border: 1px solid var(--agent-border);
 }
 
-.agent-ui .agent-muted {
+ .travel-ui .travel-muted {
   color: var(--agent-muted);
 }
 

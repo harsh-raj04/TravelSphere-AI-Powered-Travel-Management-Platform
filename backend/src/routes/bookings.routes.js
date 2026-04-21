@@ -4,6 +4,8 @@ const {
   myBookings,
   agentBookings,
   updateBookingStatus,
+  requestBookingChange,
+  submitBookingFeedback,
 } = require("../controllers/bookings.controller");
 const { authenticate } = require("../middlewares/authenticate");
 const { authorize } = require("../middlewares/authorize");
@@ -19,6 +21,18 @@ bookingsRouter.patch(
   authenticate,
   authorize(ROLES.AGENT, ROLES.ADMIN),
   updateBookingStatus
+);
+bookingsRouter.patch(
+  "/:id/request-change",
+  authenticate,
+  authorize(ROLES.AGENT),
+  requestBookingChange
+);
+bookingsRouter.patch(
+  "/:id/feedback",
+  authenticate,
+  authorize(ROLES.CUSTOMER),
+  submitBookingFeedback
 );
 
 module.exports = { bookingsRouter };

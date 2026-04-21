@@ -1,110 +1,69 @@
-import { useEffect, useMemo, useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../contexts/AuthContext';
-import { BookingEventContext } from '../contexts/BookingEventContext';
-import { Compass, Calendar, Plane, Sparkles, TrendingUp, MapPin, ArrowRight, Clock } from 'lucide-react';
 import { bookingsAPI, packagesAPI } from '../services/api';
+import { Compass, Calendar, Plane, Sparkles, TrendingUp, MapPin, ArrowRight, Clock } from 'lucide-react';
 
 export function Dashboard() {
   const { user } = useAuth();
-  const { on } = useContext(BookingEventContext);
+  const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
   const [packages, setPackages] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch data function
-    const fetchData = async () => {
-      console.log('[Dashboard] Fetching data...');
+    (async () => {
+      setLoading(true);
       try {
         const [bookingsRes, packagesRes] = await Promise.all([
           bookingsAPI.myBookings(),
-          packagesAPI.list({ page: 1, limit: 10 }),
+          packagesAPI.list({ page: 1, limit: 6 }),
         ]);
-        console.log('[Dashboard] Got bookings:', bookingsRes.data?.data?.items?.length, 'packages:', packagesRes.data?.data?.items?.length);
+
         setBookings(bookingsRes.data?.data?.items || []);
         setPackages(packagesRes.data?.data?.items || []);
-      } catch (err) {
-        console.error('[Dashboard] Error fetching:', err.message);
+      } catch {
         setBookings([]);
         setPackages([]);
       } finally {
         setLoading(false);
       }
-    };
-
-    // Initial fetch on mount
-    fetchData();
-
-    // Listen for all booking events and refetch
-    const unsubscribeCreated = on('booking:created', () => {
-      console.log('[Dashboard] booking:created event - refetching');
-      fetchData();
-    });
-
-    const unsubscribeCancelled = on('booking:cancelled', () => {
-      console.log('[Dashboard] booking:cancelled event - refetching');
-      fetchData();
-    });
-
-    const unsubscribeCompleted = on('booking:completed', () => {
-      console.log('[Dashboard] booking:completed event - refetching');
-      fetchData();
-    });
-
-    return () => {
-      unsubscribeCreated();
-      unsubscribeCancelled();
-      unsubscribeCompleted();
-    };
-  }, [on]);
-
-  const upcomingTrips = useMemo(() => {
-    return bookings
-      .filter((booking) => new Date(booking.travelDate) > new Date())
-      .sort((a, b) => new Date(a.travelDate) - new Date(b.travelDate))
-      .slice(0, 2)
-      .map((booking) => ({
-        id: booking.id,
-        destination: booking.package?.destination || 'Destination TBD',
-        date: booking.travelDate,
-        progress: booking.status === 'confirmed' ? 80 : booking.status === 'pending' ? 40 : 20,
-      }));
-  }, [bookings]);
+    })();
+  }, []);
 
   const stats = useMemo(() => {
-    const totalBookings = bookings.length;
-    const upcomingCount = bookings.filter((b) => new Date(b.travelDate) > new Date()).length;
-    const uniqueDestinations = new Set(bookings.map((b) => b.package?.destination)).size;
-    const travelScore = Math.min(100, 50 + Math.floor(totalBookings * 5) + Math.floor(uniqueDestinations * 10));
+    const total = bookings.length;
+    const upcoming = bookings.filter((booking) => {
+      const d = new Date(booking.travelDate);
+      return d >= new Date() && booking.status !== 'cancelled';
+    }).length;
+    const completed = bookings.filter((booking) => ['completed', 'closed'].includes(String(booking.status))).length;
+    const spend = bookings.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
 
     return [
-      { label: 'Trips Planned', value: String(totalBookings), icon: Plane, tone: 'text-blue-600 dark:text-blue-400' },
-      { label: 'Destinations', value: String(uniqueDestinations), icon: Compass, tone: 'text-cyan-600 dark:text-cyan-400' },
-      { label: 'Upcoming Bookings', value: String(upcomingCount), icon: Calendar, tone: 'text-violet-600 dark:text-violet-400' },
-      { label: 'Travel Score', value: String(travelScore), icon: TrendingUp, tone: 'text-emerald-600 dark:text-emerald-400' },
+      { label: 'Total Bookings', value: String(total), icon: Plane, tone: 'text-blue-600 dark:text-blue-400' },
+      { label: 'Completed Trips', value: String(completed), icon: Compass, tone: 'text-cyan-600 dark:text-cyan-400' },
+      { label: 'Upcoming Trips', value: String(upcoming), icon: Calendar, tone: 'text-violet-600 dark:text-violet-400' },
+      { label: 'Total Spend', value: `₹${Math.round(spend).toLocaleString('en-IN')}`, icon: TrendingUp, tone: 'text-emerald-600 dark:text-emerald-400' },
     ];
   }, [bookings]);
 
-  const recommended = useMemo(() => {
-    return packages.slice(0, 2).map((pkg) => ({
-      id: pkg.id,
-      title: pkg.title,
-      match: `${Math.floor(Math.random() * 20) + 80}% match`,
-      desc: pkg.description || 'Well-curated travel package for you.',
-    }));
-  }, [packages]);
-
-  if (loading) {
-    return <div className="text-gray-600 dark:text-gray-400 py-10">Loading your dashboard...</div>;
-  }
+  const recommended = useMemo(() => packages.slice(0, 2), [packages]);
+  const upcomingTrips = useMemo(() => bookings
+    .filter((booking) => new Date(booking.travelDate) >= new Date() && booking.status !== 'cancelled')
+    .slice(0, 2)
+    .map((booking) => ({
+      id: booking.package?.id,
+      destination: booking.package?.destination || booking.package?.title || 'Destination',
+      date: booking.travelDate,
+      progress: ['pending', 'confirmed', 'assigned'].includes(String(booking.status)) ? 35 : booking.status === 'accepted' ? 65 : booking.status === 'in_progress' ? 85 : 100,
+    })), [bookings]);
 
   return (
-    <div className="space-y-8 py-10">
-      <section className="relative overflow-hidden rounded-2xl p-8 md:p-10 text-white bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600">
+    <div className="travel-ui space-y-8 py-10">
+      <section className="relative overflow-hidden rounded-[28px] p-8 md:p-10 text-white bg-gradient-to-r from-[#ff6a00] via-[#ff7f27] to-[#ff8f3a]">
         <div className="relative z-10">
           <div className="inline-flex items-center gap-2 mb-4 text-sm font-semibold uppercase tracking-wide">
             <Sparkles className="w-4 h-4" />
@@ -146,6 +105,8 @@ export function Dashboard() {
         })}
       </section>
 
+      {loading && <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">Loading dashboard insights...</p>}
+
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-light-text-primary dark:text-dark-text-primary">Recommended For You</h2>
@@ -159,15 +120,18 @@ export function Dashboard() {
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div>
                   <h3 className="font-bold text-lg text-light-text-primary dark:text-dark-text-primary">{rec.title}</h3>
-                  <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">{rec.desc}</p>
+                  <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">{rec.description}</p>
                 </div>
-                <Badge variant="primary">{rec.match}</Badge>
+                <Badge variant="primary">{rec.durationDays} days</Badge>
               </div>
               <Link to={`/packages/${rec.id}`}>
                 <Button size="sm">View Package</Button>
               </Link>
             </Card>
           ))}
+          {!loading && recommended.length === 0 && (
+            <Card variant="elevated" className="p-5 text-sm text-light-text-secondary dark:text-dark-text-secondary">No package recommendations available yet.</Card>
+          )}
         </div>
       </section>
 
@@ -199,6 +163,9 @@ export function Dashboard() {
               </Link>
             </Card>
           ))}
+          {!loading && upcomingTrips.length === 0 && (
+            <Card variant="elevated" className="p-5 text-sm text-light-text-secondary dark:text-dark-text-secondary">No upcoming trips yet. Start by booking a package.</Card>
+          )}
         </div>
       </section>
 
