@@ -1,0 +1,27 @@
+# Node.js dependencies
+node_modules/
+backend/node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Build and logs
+dist/
+build/
+coverage/
+*.log
+*.pid
+
+# OS/editor
+.DS_Store
+.vscode/
+
+# Private design reference
+My UI/
+Travel Management Agent UI/
+Admin Panel UI Design/
