@@ -38,6 +38,7 @@ model User {
   agentProfile AgentProfile?
   bookings     Booking[]
 
+  @@index([role])
   @@map("users")
 }
 
@@ -93,6 +94,9 @@ model Booking {
   @@index([customerId])
   @@index([packageId])
   @@index([status])
+  @@index([bookingDate])
+  @@index([travelDate])
+  @@index([status, bookingDate])
   @@map("bookings")
 }
 
@@ -107,5 +111,7 @@ model Transaction {
   updatedAt            DateTime          @updatedAt
   booking              Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
+  @@index([status])
+  @@index([createdAt])
   @@map("transactions")
 }
