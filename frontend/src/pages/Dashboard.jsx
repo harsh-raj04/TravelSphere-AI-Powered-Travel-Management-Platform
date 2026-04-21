@@ -1,29 +1,106 @@
+import { useEffect, useMemo, useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../contexts/AuthContext';
+import { BookingEventContext } from '../contexts/BookingEventContext';
 import { Compass, Calendar, Plane, Sparkles, TrendingUp, MapPin, ArrowRight, Clock } from 'lucide-react';
+import { bookingsAPI, packagesAPI } from '../services/api';
 
 export function Dashboard() {
   const { user } = useAuth();
+  const { on } = useContext(BookingEventContext);
+  const [bookings, setBookings] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const upcomingTrips = [
-    { id: 'seed-package-1', destination: 'Himachal Pradesh', date: '2030-03-15', progress: 72 },
-    { id: 'seed-package-2', destination: 'Goa', date: '2030-06-10', progress: 41 },
-  ];
+  useEffect(() => {
+    // Fetch data function
+    const fetchData = async () => {
+      console.log('[Dashboard] Fetching data...');
+      try {
+        const [bookingsRes, packagesRes] = await Promise.all([
+          bookingsAPI.myBookings(),
+          packagesAPI.list({ page: 1, limit: 10 }),
+        ]);
+        console.log('[Dashboard] Got bookings:', bookingsRes.data?.data?.items?.length, 'packages:', packagesRes.data?.data?.items?.length);
+        setBookings(bookingsRes.data?.data?.items || []);
+        setPackages(packagesRes.data?.data?.items || []);
+      } catch (err) {
+        console.error('[Dashboard] Error fetching:', err.message);
+        setBookings([]);
+        setPackages([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const stats = [
-    { label: 'Trips Planned', value: '12', icon: Plane, tone: 'text-blue-600 dark:text-blue-400' },
-    { label: 'Countries Visited', value: '8', icon: Compass, tone: 'text-cyan-600 dark:text-cyan-400' },
-    { label: 'Upcoming Bookings', value: '3', icon: Calendar, tone: 'text-violet-600 dark:text-violet-400' },
-    { label: 'Travel Score', value: '92', icon: TrendingUp, tone: 'text-emerald-600 dark:text-emerald-400' },
-  ];
+    // Initial fetch on mount
+    fetchData();
 
-  const recommended = [
-    { id: 'seed-package-1', title: 'Himachal Escape', match: '95% match', desc: 'Perfect for mountain vibes and cool weather.' },
-    { id: 'seed-package-2', title: 'Goa Weekend Retreat', match: '90% match', desc: 'Ideal short getaway with beach and nightlife.' },
-  ];
+    // Listen for all booking events and refetch
+    const unsubscribeCreated = on('booking:created', () => {
+      console.log('[Dashboard] booking:created event - refetching');
+      fetchData();
+    });
+
+    const unsubscribeCancelled = on('booking:cancelled', () => {
+      console.log('[Dashboard] booking:cancelled event - refetching');
+      fetchData();
+    });
+
+    const unsubscribeCompleted = on('booking:completed', () => {
+      console.log('[Dashboard] booking:completed event - refetching');
+      fetchData();
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeCancelled();
+      unsubscribeCompleted();
+    };
+  }, [on]);
+
+  const upcomingTrips = useMemo(() => {
+    return bookings
+      .filter((booking) => new Date(booking.travelDate) > new Date())
+      .sort((a, b) => new Date(a.travelDate) - new Date(b.travelDate))
+      .slice(0, 2)
+      .map((booking) => ({
+        id: booking.id,
+        destination: booking.package?.destination || 'Destination TBD',
+        date: booking.travelDate,
+        progress: booking.status === 'confirmed' ? 80 : booking.status === 'pending' ? 40 : 20,
+      }));
+  }, [bookings]);
+
+  const stats = useMemo(() => {
+    const totalBookings = bookings.length;
+    const upcomingCount = bookings.filter((b) => new Date(b.travelDate) > new Date()).length;
+    const uniqueDestinations = new Set(bookings.map((b) => b.package?.destination)).size;
+    const travelScore = Math.min(100, 50 + Math.floor(totalBookings * 5) + Math.floor(uniqueDestinations * 10));
+
+    return [
+      { label: 'Trips Planned', value: String(totalBookings), icon: Plane, tone: 'text-blue-600 dark:text-blue-400' },
+      { label: 'Destinations', value: String(uniqueDestinations), icon: Compass, tone: 'text-cyan-600 dark:text-cyan-400' },
+      { label: 'Upcoming Bookings', value: String(upcomingCount), icon: Calendar, tone: 'text-violet-600 dark:text-violet-400' },
+      { label: 'Travel Score', value: String(travelScore), icon: TrendingUp, tone: 'text-emerald-600 dark:text-emerald-400' },
+    ];
+  }, [bookings]);
+
+  const recommended = useMemo(() => {
+    return packages.slice(0, 2).map((pkg) => ({
+      id: pkg.id,
+      title: pkg.title,
+      match: `${Math.floor(Math.random() * 20) + 80}% match`,
+      desc: pkg.description || 'Well-curated travel package for you.',
+    }));
+  }, [packages]);
+
+  if (loading) {
+    return <div className="text-gray-600 dark:text-gray-400 py-10">Loading your dashboard...</div>;
+  }
 
   return (
     <div className="space-y-8 py-10">

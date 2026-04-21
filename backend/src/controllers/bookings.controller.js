@@ -73,9 +73,22 @@ async function myBookings(req, res) {
     const items = await prisma.booking.findMany({
       where: { customerId: req.user.id },
       orderBy: { createdAt: "desc" },
-      include: {
-        package: true,
-        transaction: true,
+      select: {
+        id: true,
+        travelDate: true,
+        travelersCount: true,
+        status: true,
+        totalAmount: true,
+        bookingDate: true,
+        package: {
+          select: {
+            id: true,
+            title: true,
+            destination: true,
+            durationDays: true,
+            price: true,
+          },
+        },
       },
     });
 
@@ -105,7 +118,13 @@ async function agentBookings(req, res) {
         },
       },
       orderBy: { createdAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        travelDate: true,
+        travelersCount: true,
+        status: true,
+        totalAmount: true,
+        bookingDate: true,
         customer: {
           select: {
             id: true,
@@ -113,8 +132,15 @@ async function agentBookings(req, res) {
             email: true,
           },
         },
-        package: true,
-        transaction: true,
+        package: {
+          select: {
+            id: true,
+            title: true,
+            destination: true,
+            durationDays: true,
+            price: true,
+          },
+        },
       },
     });
 

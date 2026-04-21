@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useContext } from 'react';
 import {
   DollarSign,
   Package,
@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { BookingEventContext } from '../../contexts/BookingEventContext';
 import { packagesAPI, agentAPI } from '../../services/api';
 import {
   AreaChart,
@@ -52,12 +53,17 @@ function StatCard({ title, value, change, icon: Icon, iconColor, iconBg }) {
 
 export function AgentDashboard() {
   const { user } = useAuth();
+  const { on } = useContext(BookingEventContext);
   const [loading, setLoading] = useState(true);
   const [myPackages, setMyPackages] = useState([]);
   const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
-    (async () => {
+    if (!user?.id) return; // Only fetch if user is available
+
+    // Fetch data function
+    const fetchData = async () => {
+      console.log('[AgentDashboard] Fetching data...');
       try {
         const [pkgRes, bookingRes] = await Promise.all([
           packagesAPI.list({ page: 1, limit: 100 }),
@@ -67,16 +73,41 @@ export function AgentDashboard() {
         const allPackages = pkgRes.data?.data?.items || [];
         const mine = allPackages.filter((pkg) => pkg.agent?.user?.id === user?.id);
 
+        console.log('[AgentDashboard] Got data - packages:', mine.length, 'bookings:', bookingRes.data?.data?.items?.length);
         setMyPackages(mine);
         setBookings(bookingRes.data?.data?.items || []);
-      } catch {
-        setMyPackages([]);
-        setBookings([]);
+      } catch (err) {
+        console.error('[AgentDashboard] Error fetching:', err.message);
       } finally {
         setLoading(false);
       }
-    })();
-  }, [user?.id]);
+    };
+
+    // Initial fetch on mount
+    fetchData();
+
+    // Listen for all booking events and refetch
+    const unsubscribeCreated = on('booking:created', () => {
+      console.log('[AgentDashboard] booking:created event - refetching');
+      fetchData();
+    });
+
+    const unsubscribeCancelled = on('booking:cancelled', () => {
+      console.log('[AgentDashboard] booking:cancelled event - refetching');
+      fetchData();
+    });
+
+    const unsubscribeCompleted = on('booking:completed', () => {
+      console.log('[AgentDashboard] booking:completed event - refetching');
+      fetchData();
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeCancelled();
+      unsubscribeCompleted();
+    };
+  }, [user?.id, on]);
 
   const stats = useMemo(() => {
     const totalRevenue = bookings.reduce((acc, booking) => acc + Number(booking.totalAmount || 0), 0);

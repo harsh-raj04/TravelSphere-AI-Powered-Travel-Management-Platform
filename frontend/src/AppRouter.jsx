@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { BookingEventProvider } from './contexts/BookingEventContext';
 import { useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -272,7 +273,9 @@ export default function App() {
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
+          <BookingEventProvider>
+            <AppRoutes />
+          </BookingEventProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

@@ -9,12 +9,39 @@ const apiClient = axios.create({
 
 // Add JWT token to requests if available
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
+  const token = sessionStorage.getItem('authToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Prevent browser/proxy caching for API reads so dashboards always get fresh data.
+  if ((config.method || '').toLowerCase() === 'get') {
+    config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    config.headers.Pragma = 'no-cache';
+    config.headers.Expires = '0';
+    config.params = {
+      ...(config.params || {}),
+      _t: Date.now(),
+    };
+  }
+
   return config;
 });
+
+// Handle 401 Unauthorized responses (expired token)
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.log('[API] Received 401 - clearing session');
+      // Clear token from storage on unauthorized response
+      sessionStorage.removeItem('authToken');
+      // Trigger logout by reloading
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const authAPI = {
   register: (data) => apiClient.post('/auth/register', data),
@@ -47,6 +74,10 @@ export const agentAPI = {
 export const adminAPI = {
   bookings: (params) => apiClient.get('/admin/bookings', { params }),
   analyticsOverview: () => apiClient.get('/admin/analytics/overview'),
+  packages: (params) => apiClient.get('/admin/packages', { params }),
+  agents: () => apiClient.get('/admin/agents'),
+  customers: () => apiClient.get('/admin/customers'),
+  transactions: (params) => apiClient.get('/admin/transactions', { params }),
 };
 
 export default apiClient;

@@ -1,27 +1,58 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { bookingsAPI } from '../services/api';
+import { BookingEventContext } from '../contexts/BookingEventContext';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Plane, Hotel, TrendingDown } from 'lucide-react';
 
 export function Bookings() {
+  const { on } = useContext(BookingEventContext);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState('my-bookings');
 
   useEffect(() => {
-    (async () => {
+    // Fetch bookings function
+    const fetchBookings = async () => {
+      console.log('[Bookings] Fetching bookings...');
       try {
         const res = await bookingsAPI.myBookings();
+        console.log('[Bookings] Got response:', res.data?.data?.items?.length, 'items');
         setItems(res.data?.data?.items || []);
-      } catch {
+      } catch (err) {
+        console.error('[Bookings] Error fetching:', err.message);
         setItems([]);
       } finally {
         setLoading(false);
       }
-    })();
-  }, []);
+    };
+
+    // Initial fetch on mount
+    fetchBookings();
+
+    // Listen for all booking events and refetch
+    const unsubscribeCreated = on('booking:created', () => {
+      console.log('[Bookings] booking:created event - refetching');
+      fetchBookings();
+    });
+
+    const unsubscribeCancelled = on('booking:cancelled', () => {
+      console.log('[Bookings] booking:cancelled event - refetching');
+      fetchBookings();
+    });
+
+    const unsubscribeCompleted = on('booking:completed', () => {
+      console.log('[Bookings] booking:completed event - refetching');
+      fetchBookings();
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeCancelled();
+      unsubscribeCompleted();
+    };
+  }, [on]);
 
   return (
     <div className="py-10 space-y-6">

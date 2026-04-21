@@ -1,27 +1,58 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { bookingsAPI } from '../services/api';
+import { BookingEventContext } from '../contexts/BookingEventContext';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Calendar, MapPin, Users } from 'lucide-react';
 
 export function MyTrips() {
+  const { on } = useContext(BookingEventContext);
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState([]);
 
   useEffect(() => {
-    (async () => {
+    // Fetch trips function
+    const fetchTrips = async () => {
+      console.log('[MyTrips] Fetching trips...');
       try {
         const res = await bookingsAPI.myBookings();
+        console.log('[MyTrips] Got response:', res.data?.data?.items?.length, 'items');
         setTrips(res.data?.data?.items || []);
-      } catch {
+      } catch (err) {
+        console.error('[MyTrips] Error fetching:', err.message);
         setTrips([]);
       } finally {
         setLoading(false);
       }
-    })();
-  }, []);
+    };
+
+    // Initial fetch on mount
+    fetchTrips();
+
+    // Listen for all booking events and refetch
+    const unsubscribeCreated = on('booking:created', () => {
+      console.log('[MyTrips] booking:created event - refetching');
+      fetchTrips();
+    });
+
+    const unsubscribeCancelled = on('booking:cancelled', () => {
+      console.log('[MyTrips] booking:cancelled event - refetching');
+      fetchTrips();
+    });
+
+    const unsubscribeCompleted = on('booking:completed', () => {
+      console.log('[MyTrips] booking:completed event - refetching');
+      fetchTrips();
+    });
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeCancelled();
+      unsubscribeCompleted();
+    };
+  }, [on]);
 
   return (
     <div className="py-10">
