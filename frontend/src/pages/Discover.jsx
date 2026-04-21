@@ -52,7 +52,7 @@ export function Discover() {
   }, [items, query, activeCategory]);
 
   return (
-    <div className="py-10 space-y-8">
+    <div className="travel-ui py-10 space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-light-text-primary dark:text-dark-text-primary mb-2">Discover Destinations</h1>
         <p className="text-light-text-secondary dark:text-dark-text-secondary">Personalized package discovery inspired by your travel style.</p>
@@ -76,7 +76,7 @@ export function Discover() {
                 onClick={() => setActiveCategory(cat)}
                 className={`px-3 py-2 rounded-lg text-sm font-medium ${
                   activeCategory === cat
-                    ? 'bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600 text-white'
+                    ? 'bg-gradient-to-r from-[#ff6a00] via-[#ff7f27] to-[#ff8f3a] text-white'
                     : 'bg-light-bg-secondary dark:bg-dark-bg-tertiary text-light-text-secondary dark:text-dark-text-secondary'
                 }`}
               >
@@ -89,7 +89,7 @@ export function Discover() {
 
       <Card variant="elevated" className="p-5 bg-gradient-to-r from-sky-50 via-indigo-50 to-fuchsia-50 dark:from-dark-bg-secondary dark:via-dark-bg-tertiary dark:to-dark-bg-secondary">
         <div className="inline-flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600 text-white">
+          <div className="p-2 rounded-lg bg-gradient-to-r from-[#ff6a00] via-[#ff7f27] to-[#ff8f3a] text-white">
             <Sparkles className="w-4 h-4" />
           </div>
           <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">

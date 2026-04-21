@@ -50,12 +50,12 @@ export function PackageListing() {
   });
 
   return (
-    <div className="min-h-screen bg-light-bg-primary dark:bg-dark-bg-primary py-12">
+    <div className="travel-ui min-h-screen bg-[#fffaf5] dark:bg-slate-950 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">
-            Explore Packages
+            Explore Handcrafted Packages
           </h1>
           <p className="text-light-text-secondary dark:text-dark-text-secondary text-lg">
             Discover {packages.length} amazing travel experiences

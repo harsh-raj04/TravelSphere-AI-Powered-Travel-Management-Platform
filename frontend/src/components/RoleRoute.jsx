@@ -1,21 +1,11 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-
-// Check if JWT token is expired
-function isTokenExpired(token) {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const expirationTime = payload.exp * 1000; // Convert to milliseconds
-    return Date.now() >= expirationTime;
-  } catch (err) {
-    console.error('[RoleRoute] Failed to parse token:', err);
-    return true; // Treat parsing errors as expired
-  }
-}
+import { getHomeRouteForRole, hasAllowedRole, isRoleAllowedForVariant } from '../utils/roleRouting';
 
 export function RoleRoute({ allowedRoles = [], children }) {
-  const { user, loading, logout } = useAuth();
-  const token = sessionStorage.getItem('authToken');
+  const { user, loading, variant } = useAuth();
+  const variantLoginRoute =
+    variant === 'admin' ? '/admin/login' : variant === 'agent' ? '/agent/login' : '/login';
 
   if (loading) {
     return (
@@ -25,25 +15,16 @@ export function RoleRoute({ allowedRoles = [], children }) {
     );
   }
 
-  // Check if token is expired
-  if (token && isTokenExpired(token)) {
-    console.log('[RoleRoute] Token expired - logging out');
-    logout();
-    return <Navigate to="/login" replace />;
+  if (!user) {
+    return <Navigate to={variantLoginRoute} replace />;
   }
 
-  if (!user || !token) {
-    return <Navigate to="/login" replace />;
+  if (!isRoleAllowedForVariant(user.role, variant)) {
+    return <Navigate to={variantLoginRoute} replace />;
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    const redirectTo =
-      user.role === 'agent'
-        ? '/agent/dashboard'
-        : user.role === 'admin'
-          ? '/admin/dashboard'
-          : '/dashboard';
-    return <Navigate to={redirectTo} replace />;
+  if (!hasAllowedRole(user.role, allowedRoles)) {
+    return <Navigate to={getHomeRouteForRole(user.role)} replace />;
   }
 
   return children;

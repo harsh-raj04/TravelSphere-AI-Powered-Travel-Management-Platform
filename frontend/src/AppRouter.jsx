@@ -15,7 +15,9 @@ import { AgentHome } from './pages/AgentHome';
 import { AdminHome } from './pages/AdminHome';
 import { Login } from './pages/Login';
 import { AgentLogin } from './pages/AgentLogin';
+import { AdminLogin } from './pages/AdminLogin';
 import { Register } from './pages/Register';
+import { AgentRegister } from './pages/AgentRegister';
 import { Dashboard } from './pages/Dashboard';
 import { Discover } from './pages/Discover';
 import { MyTrips } from './pages/MyTrips';
@@ -25,8 +27,6 @@ import { Profile } from './pages/Profile';
 import { PackageListing } from './pages/PackageListing';
 import { PackageDetail } from './pages/PackageDetail';
 import { AgentDashboard } from './pages/agent/AgentDashboard';
-import { AgentPackages } from './pages/agent/AgentPackages';
-import { AgentPackageForm } from './pages/agent/AgentPackageForm';
 import { AgentBookings } from './pages/agent/AgentBookings';
 import { AgentAnalytics } from './pages/agent/AgentAnalytics';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
@@ -38,10 +38,11 @@ import { AdminPayments } from './pages/admin/AdminPayments';
 import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 import { AdminSupport } from './pages/admin/AdminSupport';
 import { AdminSettings } from './pages/admin/AdminSettings';
+import { getHomeRouteForRole, isRoleAllowedForVariant } from './utils/roleRouting';
 
 function AppLayout({ children }) {
   return (
-    <div className="min-h-screen flex flex-col bg-light-bg-primary dark:bg-dark-bg-primary">
+    <div className="travel-ui min-h-screen flex flex-col bg-[#fffaf5] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <Navbar />
       <main className="flex-1">
         {children}
@@ -54,6 +55,8 @@ function AppLayout({ children }) {
 function AppRoutes() {
   const { user, loading } = useAuth();
   const variant = (import.meta.env.VITE_APP_VARIANT || 'customer').toLowerCase();
+  const variantLoginRoute =
+    variant === 'admin' ? '/admin/login' : variant === 'agent' ? '/agent/login' : '/login';
 
   const RootHome = () => {
     if (loading) {
@@ -64,9 +67,13 @@ function AppRoutes() {
       );
     }
 
-    if (user?.role === 'agent') return <Navigate to="/agent/dashboard" replace />;
-    if (user?.role === 'admin') return <Navigate to="/admin/dashboard" replace />;
-    if (user?.role === 'customer') return <Navigate to="/dashboard" replace />;
+    if (user?.role) {
+      if (!isRoleAllowedForVariant(user.role, variant)) {
+        return <Navigate to={variantLoginRoute} replace />;
+      }
+
+      return <Navigate to={getHomeRouteForRole(user.role)} replace />;
+    }
 
     if (variant === 'agent') return <AgentHome />;
     if (variant === 'admin') return <AdminHome />;
@@ -76,17 +83,55 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<RootHome />} />
-      <Route path="/login" element={<AppLayout><Login /></AppLayout>} />
-      <Route path="/agent/login" element={<AppLayout><AgentLogin /></AppLayout>} />
-      <Route path="/register" element={<AppLayout><Register /></AppLayout>} />
       <Route
-        path="/dashboard"
+        path="/login"
+        element={
+          variant === 'customer'
+            ? <AppLayout><Login /></AppLayout>
+            : <Navigate to={variantLoginRoute} replace />
+        }
+      />
+      <Route
+        path="/agent/login"
+        element={
+          variant === 'agent'
+            ? <AppLayout><AgentLogin /></AppLayout>
+            : <Navigate to={variantLoginRoute} replace />
+        }
+      />
+      <Route
+        path="/admin/login"
+        element={
+          variant === 'admin'
+            ? <AppLayout><AdminLogin /></AppLayout>
+            : <Navigate to={variantLoginRoute} replace />
+        }
+      />
+      <Route
+        path="/agent/register"
+        element={
+          variant === 'agent'
+            ? <AppLayout><AgentRegister /></AppLayout>
+            : <Navigate to={variantLoginRoute} replace />
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          variant === 'customer'
+            ? <AppLayout><Register /></AppLayout>
+            : <Navigate to={variantLoginRoute} replace />
+        }
+      />
+      <Route
+        path="/home"
         element={
           <RoleRoute allowedRoles={['customer']}>
             <AppLayout><Dashboard /></AppLayout>
           </RoleRoute>
         }
       />
+      <Route path="/dashboard" element={<Navigate to="/home" replace />} />
       <Route
         path="/discover"
         element={
@@ -132,30 +177,6 @@ function AppRoutes() {
         element={
           <RoleRoute allowedRoles={['agent']}>
             <AgentLayout><AgentDashboard /></AgentLayout>
-          </RoleRoute>
-        }
-      />
-      <Route
-        path="/agent/packages"
-        element={
-          <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentPackages /></AgentLayout>
-          </RoleRoute>
-        }
-      />
-      <Route
-        path="/agent/packages/new"
-        element={
-          <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentPackageForm /></AgentLayout>
-          </RoleRoute>
-        }
-      />
-      <Route
-        path="/agent/packages/:id/edit"
-        element={
-          <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentPackageForm /></AgentLayout>
           </RoleRoute>
         }
       />

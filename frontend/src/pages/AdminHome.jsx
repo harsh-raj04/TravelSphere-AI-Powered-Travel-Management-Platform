@@ -9,7 +9,7 @@ export function AdminHome() {
         <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white leading-tight mb-4">Platform Visibility, End-to-End.</h1>
         <p className="text-gray-600 dark:text-gray-300 text-lg max-w-2xl mb-8">Built for admin workflows: bookings, payments, customer oversight, support management, and analytics in one place.</p>
         <div className="flex gap-4">
-          <Link to="/login" className="px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold">Login as Admin</Link>
+          <Link to="/admin/login" className="px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold">Login as Admin</Link>
           <Link to="/admin/dashboard" className="px-5 py-3 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-900">Go to Dashboard</Link>
         </div>
 

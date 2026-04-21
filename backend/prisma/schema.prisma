@@ -16,8 +16,13 @@ enum Role {
 enum BookingStatus {
   pending
   confirmed
-  cancelled
+  assigned
+  accepted
+  rejected
+  in_progress
   completed
+  closed
+  cancelled
 }
 
 enum TransactionStatus {
@@ -53,22 +58,25 @@ model AgentProfile {
   updatedAt     DateTime        @updatedAt
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   packages      TravelPackage[]
+  assignedBookings Booking[]    @relation("AssignedAgentBookings")
 
   @@map("agent_profiles")
 }
 
 model TravelPackage {
   id           String    @id @default(cuid())
-  agentId      String
+  agentId      String?
   title        String
-  destination  String
+  destination  String?
   durationDays Int
   price        Decimal   @db.Decimal(10, 2)
   description  String
+  itinerary    Json?
+  imageUrls    Json?
   isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  agent        AgentProfile @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agent        AgentProfile? @relation(fields: [agentId], references: [id], onDelete: SetNull)
   bookings     Booking[]
 
   @@index([agentId])
@@ -80,19 +88,40 @@ model Booking {
   id            String        @id @default(cuid())
   customerId    String
   packageId     String
+  customerName  String?
+  contactEmail  String?
+  contactPhone  String?
+  travelMessage String?
+  assignedAgentId String?
   bookingDate   DateTime      @default(now())
   travelDate    DateTime
   travelersCount Int
   status        BookingStatus @default(pending)
   totalAmount   Decimal       @db.Decimal(10, 2)
+  agentPayout   Decimal?      @db.Decimal(10, 2)
+  adminMargin   Decimal?      @db.Decimal(10, 2)
+  agentDecisionRemark String?
+  agentRequestRemark  String?
+  agentRejectionReason String?
+  feedbackRating Int?
+  feedbackComment String?
+  feedbackSubmittedAt DateTime?
+  confirmedAt   DateTime?
+  assignedAt    DateTime?
+  acceptedAt    DateTime?
+  rejectedAt    DateTime?
+  completedAt   DateTime?
+  closedAt      DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   customer      User          @relation(fields: [customerId], references: [id], onDelete: Cascade)
   package       TravelPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  assignedAgent AgentProfile? @relation("AssignedAgentBookings", fields: [assignedAgentId], references: [id], onDelete: SetNull)
   transaction   Transaction?
 
   @@index([customerId])
   @@index([packageId])
+  @@index([assignedAgentId])
   @@index([status])
   @@index([bookingDate])
   @@index([travelDate])
