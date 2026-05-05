@@ -12,6 +12,11 @@ const packageSchema = z.object({
   image_urls: z.array(z.string().url()).optional(),
 });
 
+const packageInterestSchema = z.object({
+  availability: z.string().min(2).max(40).optional(),
+  message: z.string().min(2).max(500).optional(),
+});
+
 async function listPackages(req, res) {
   const page = Math.max(Number(req.query.page) || 1, 1);
   const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
@@ -202,10 +207,115 @@ async function deletePackage(req, res) {
   }
 }
 
+async function optInForPackage(req, res) {
+  const parsed = packageInterestSchema.safeParse(req.body || {});
+  if (!parsed.success) {
+    return fail(res, "Validation failed", parsed.error.issues, 400);
+  }
+
+  try {
+    const agentProfile = await prisma.agentProfile.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (!agentProfile) {
+      return fail(res, "Agent profile not found", [], 403);
+    }
+
+    const travelPackage = await prisma.travelPackage.findFirst({
+      where: {
+        id: req.params.id,
+        isActive: true,
+      },
+    });
+
+    if (!travelPackage) {
+      return fail(res, "Package not found", [], 404);
+    }
+
+    const record = await prisma.packageInterest.upsert({
+      where: {
+        packageId_agentId: {
+          packageId: travelPackage.id,
+          agentId: agentProfile.id,
+        },
+      },
+      create: {
+        packageId: travelPackage.id,
+        agentId: agentProfile.id,
+        availability: parsed.data.availability || "available",
+        message: parsed.data.message || null,
+      },
+      update: {
+        availability: parsed.data.availability || "available",
+        message: parsed.data.message || null,
+      },
+      include: {
+        package: true,
+        agent: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return ok(res, "Package opt-in saved successfully", record, 201);
+  } catch (_error) {
+    return fail(res, "Failed to save package opt-in", [], 500);
+  }
+}
+
+async function myPackageInterests(req, res) {
+  try {
+    const agentProfile = await prisma.agentProfile.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (!agentProfile) {
+      return fail(res, "Agent profile not found", [], 403);
+    }
+
+    const items = await prisma.packageInterest.findMany({
+      where: { agentId: agentProfile.id },
+      orderBy: { updatedAt: "desc" },
+      include: {
+        package: {
+          include: {
+            agent: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return ok(res, "Agent package interests fetched successfully", { items });
+  } catch (_error) {
+    return fail(res, "Failed to fetch package interests", [], 500);
+  }
+}
+
 module.exports = {
   listPackages,
   getPackageById,
   createPackage,
   updatePackage,
   deletePackage,
+  optInForPackage,
+  myPackageInterests,
 };

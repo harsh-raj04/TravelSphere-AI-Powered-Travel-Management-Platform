@@ -26,10 +26,19 @@ jest.mock("../src/lib/prisma", () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    agentApplication: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+      updateMany: jest.fn(),
+      update: jest.fn(),
+    },
     transaction: {
       findUnique: jest.fn(),
       upsert: jest.fn(),
     },
+    $transaction: jest.fn(async (callback) => callback(prisma)),
   };
 
   return { prisma };
@@ -85,7 +94,8 @@ describe("TravelSphere API", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.data.pagination.total).toBe(0);
+    expect(Array.isArray(response.body.data.items)).toBe(true);
+    expect(response.body.data.items.length).toBe(0);
   });
 
   test("POST /api/v1/bookings rejects past travel date", async () => {
@@ -125,7 +135,8 @@ describe("TravelSphere API", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.data.pagination.total).toBe(0);
+    expect(Array.isArray(response.body.data.items)).toBe(true);
+    expect(response.body.data.items.length).toBe(0);
   });
 
   test("POST /api/v1/transactions creates transaction for booking owner", async () => {
@@ -240,5 +251,80 @@ describe("TravelSphere API", () => {
 
     expect(response.status).toBe(404);
     expect(response.body.success).toBe(false);
+  });
+
+  test("GET /api/v1/bookings/marketplace returns open bookings for agent", async () => {
+    prisma.agentProfile.findUnique.mockResolvedValue({ id: "agent-profile-1", userId: "agent-user-1" });
+    prisma.booking.findMany.mockResolvedValue([]);
+    prisma.booking.count.mockResolvedValue(0);
+
+    const agentToken = tokenFor({
+      id: "agent-user-1",
+      email: "agent@travelsphere.dev",
+      role: "agent",
+    });
+
+    const response = await request(app)
+      .get("/api/v1/bookings/marketplace")
+      .set("Authorization", `Bearer ${agentToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(Array.isArray(response.body.data.items)).toBe(true);
+    expect(response.body.data.items.length).toBe(0);
+  });
+
+  test("POST /api/v1/bookings/:id/apply creates agent application", async () => {
+    prisma.agentProfile.findUnique.mockResolvedValue({ id: "agent-profile-1", userId: "agent-user-1" });
+    prisma.booking.findUnique.mockResolvedValue({
+      id: "booking-apply-1",
+      status: "open_for_agents",
+      totalAmount: 10000,
+      applications: [],
+    });
+    prisma.agentApplication.findUnique.mockResolvedValue(null);
+    prisma.agentApplication.create.mockResolvedValue({ id: "app-1", bookingId: "booking-apply-1" });
+
+    const agentToken = tokenFor({
+      id: "agent-user-1",
+      email: "agent@travelsphere.dev",
+      role: "agent",
+    });
+
+    const response = await request(app)
+      .post("/api/v1/bookings/booking-apply-1/apply")
+      .set("Authorization", `Bearer ${agentToken}`)
+      .send({ message: "I can deliver this itinerary smoothly." });
+
+    expect(response.status).toBe(201);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.bookingId).toBe("booking-apply-1");
+  });
+
+  test("PATCH /api/v1/admin/bookings/:id/publish opens booking for agents", async () => {
+    prisma.booking.findUnique.mockResolvedValue({
+      id: "booking-publish-1",
+      status: "confirmed",
+      assignedAgentId: null,
+    });
+    prisma.booking.update.mockResolvedValue({
+      id: "booking-publish-1",
+      status: "open_for_agents",
+      publishedAt: new Date(),
+    });
+
+    const adminToken = tokenFor({
+      id: "admin-1",
+      email: "admin@travelsphere.dev",
+      role: "admin",
+    });
+
+    const response = await request(app)
+      .patch("/api/v1/admin/bookings/booking-publish-1/publish")
+      .set("Authorization", `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.status).toBe("open_for_agents");
   });
 });

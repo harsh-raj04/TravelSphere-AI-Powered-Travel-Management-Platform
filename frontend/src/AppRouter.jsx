@@ -20,17 +20,22 @@ import { Register } from './pages/Register';
 import { AgentRegister } from './pages/AgentRegister';
 import { Dashboard } from './pages/Dashboard';
 import { Discover } from './pages/Discover';
-import { MyTrips } from './pages/MyTrips';
 import { PlanTrip } from './pages/PlanTrip';
 import { Bookings } from './pages/Bookings';
 import { Profile } from './pages/Profile';
 import { PackageListing } from './pages/PackageListing';
 import { PackageDetail } from './pages/PackageDetail';
 import { AgentDashboard } from './pages/agent/AgentDashboard';
+import { AgentPackages } from './pages/agent/AgentPackages';
+import { AgentPackagesBrowse } from './pages/agent/AgentPackagesBrowse';
+import { AgentPackageDetail } from './pages/agent/AgentPackageDetail';
 import { AgentBookings } from './pages/agent/AgentBookings';
+import { AgentBookingsNew } from './pages/agent/AgentBookingsNew';
+import { AgentBookingDetail } from './pages/agent/AgentBookingDetail';
 import { AgentAnalytics } from './pages/agent/AgentAnalytics';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { AdminBookings } from './pages/admin/AdminBookings';
+import { AdminBookingsNew } from './pages/admin/AdminBookingsNew';
+import { AdminBookingDetail } from './pages/admin/AdminBookingDetail';
 import { AdminPackages } from './pages/admin/AdminPackages';
 import { AdminAgents } from './pages/admin/AdminAgents';
 import { AdminCustomers } from './pages/admin/AdminCustomers';
@@ -141,14 +146,6 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/trips"
-        element={
-          <RoleRoute allowedRoles={['customer']}>
-            <AppLayout><MyTrips /></AppLayout>
-          </RoleRoute>
-        }
-      />
-      <Route
         path="/plan"
         element={
           <RoleRoute allowedRoles={['customer']}>
@@ -181,10 +178,34 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/agent/packages"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AgentLayout><AgentPackagesBrowse /></AgentLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/packages/:id"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AgentLayout><AgentPackageDetail /></AgentLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
         path="/agent/bookings"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentBookings /></AgentLayout>
+            <AgentLayout><AgentBookingsNew /></AgentLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/bookings/:id"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AgentLayout><AgentBookingDetail /></AgentLayout>
           </RoleRoute>
         }
       />
@@ -208,7 +229,15 @@ function AppRoutes() {
         path="/admin/bookings"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminBookings /></AdminLayout>
+            <AdminLayout><AdminBookingsNew /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/bookings/:id"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminBookingDetail /></AdminLayout>
           </RoleRoute>
         }
       />

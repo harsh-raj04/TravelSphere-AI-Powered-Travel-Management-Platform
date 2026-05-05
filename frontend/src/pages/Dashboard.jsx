@@ -58,7 +58,7 @@ export function Dashboard() {
       id: booking.package?.id,
       destination: booking.package?.destination || booking.package?.title || 'Destination',
       date: booking.travelDate,
-      progress: ['pending', 'confirmed', 'assigned'].includes(String(booking.status)) ? 35 : booking.status === 'accepted' ? 65 : booking.status === 'in_progress' ? 85 : 100,
+      progress: ['completed', 'closed'].includes(String(booking.status)) ? 100 : booking.status === 'in_progress' ? 85 : 35,
     })), [bookings]);
 
   return (
@@ -138,8 +138,8 @@ export function Dashboard() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-light-text-primary dark:text-dark-text-primary">Upcoming Trips</h2>
-          <Link to="/trips" className="text-sm font-semibold text-brand-primary dark:text-brand-secondary inline-flex items-center gap-1">
-            Manage trips <ArrowRight className="w-4 h-4" />
+          <Link to="/bookings" className="text-sm font-semibold text-brand-primary dark:text-brand-secondary inline-flex items-center gap-1">
+            Manage bookings <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
@@ -174,7 +174,6 @@ export function Dashboard() {
           <h3 className="font-bold mb-2 text-light-text-primary dark:text-dark-text-primary">Quick Actions</h3>
           <div className="flex flex-wrap gap-3">
             <Link to="/discover"><Button variant="secondary" size="sm">Discover</Button></Link>
-            <Link to="/trips"><Button variant="secondary" size="sm">My Trips</Button></Link>
             <Link to="/bookings"><Button variant="secondary" size="sm">Bookings</Button></Link>
           </div>
         </Card>

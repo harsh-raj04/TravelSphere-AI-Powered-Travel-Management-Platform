@@ -69,17 +69,12 @@ model AgentProfile {
   bio           String?
   contactNumber String?
   isVerified    Boolean         @default(false)
-  agentRating   Decimal         @default(5.0) @db.Decimal(5, 2)
-  tripAssignedCount Int         @default(0)
-  tripAcceptedCount Int         @default(0)
-  tripRejectedCount Int         @default(0)
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   packages      TravelPackage[]
   assignedBookings Booking[]    @relation("AssignedAgentBookings")
   applications  AgentApplication[]
-  packageInterests PackageInterest[]
 
   @@map("agent_profiles")
 }
@@ -99,7 +94,6 @@ model TravelPackage {
   updatedAt    DateTime  @updatedAt
   agent        AgentProfile? @relation(fields: [agentId], references: [id], onDelete: SetNull)
   bookings     Booking[]
-  interests    PackageInterest[]
 
   @@index([agentId])
   @@index([destination])
@@ -119,7 +113,7 @@ model Booking {
   bookingDate   DateTime      @default(now())
   travelDate    DateTime
   travelersCount Int
-  status        BookingStatus @default(confirmed)
+  status        BookingStatus @default(pending)
   totalAmount   Decimal       @db.Decimal(10, 2)
   agentPayout   Decimal?      @db.Decimal(10, 2)
   adminMargin   Decimal?      @db.Decimal(10, 2)
@@ -174,23 +168,6 @@ model AgentApplication {
   @@index([bookingId, status])
   @@index([agentId, status])
   @@map("agent_applications")
-}
-
-model PackageInterest {
-  id           String        @id @default(cuid())
-  packageId    String
-  agentId      String
-  availability String        @default("available")
-  message      String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  package      TravelPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  agent        AgentProfile  @relation(fields: [agentId], references: [id], onDelete: Cascade)
-
-  @@unique([packageId, agentId])
-  @@index([packageId])
-  @@index([agentId])
-  @@map("package_interests")
 }
 
 model Transaction {

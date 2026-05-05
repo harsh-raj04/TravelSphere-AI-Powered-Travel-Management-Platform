@@ -3,6 +3,10 @@ const {
   createBooking,
   myBookings,
   agentBookings,
+  marketplaceBookings,
+  marketplaceBookingDetails,
+  applyForBooking,
+  myApplications,
   updateBookingStatus,
   requestBookingChange,
   submitBookingFeedback,
@@ -16,6 +20,10 @@ const bookingsRouter = express.Router();
 bookingsRouter.post("/", authenticate, authorize(ROLES.CUSTOMER), createBooking);
 bookingsRouter.get("/my", authenticate, authorize(ROLES.CUSTOMER), myBookings);
 bookingsRouter.get("/agent", authenticate, authorize(ROLES.AGENT), agentBookings);
+bookingsRouter.get("/marketplace", authenticate, authorize(ROLES.AGENT), marketplaceBookings);
+bookingsRouter.get("/marketplace/:id", authenticate, authorize(ROLES.AGENT), marketplaceBookingDetails);
+bookingsRouter.post("/:id/apply", authenticate, authorize(ROLES.AGENT), applyForBooking);
+bookingsRouter.get("/applications/my", authenticate, authorize(ROLES.AGENT), myApplications);
 bookingsRouter.patch(
   "/:id/status",
   authenticate,
