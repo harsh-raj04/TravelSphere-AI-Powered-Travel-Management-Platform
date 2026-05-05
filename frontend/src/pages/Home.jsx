@@ -1,198 +1,242 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Card } from '../components/ui/Card';
+import { ChevronLeft, ChevronRight, MapPin, Phone, Mail, Search, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { Input } from '../components/ui/Input';
-import { Star, MapPin, Users, Clock, Shield, Zap, TrendingUp, MessageCircle } from 'lucide-react';
+import { packageService, getImageUrl } from '../services/packageService';
+
+const BACKEND_ORIGIN = import.meta.env.VITE_BACKEND_ORIGIN || 'http://localhost:4000';
 
 export function Home() {
-  const [filters, setFilters] = useState({
-    destination: '',
-    startDate: '',
-    budget: '',
-  });
+  const [packages, setPackages] = useState([]);
+  const [destinations, setDestinations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [scrollIndex, setScrollIndex] = useState(0);
+  const [activePackageTab, setActivePackageTab] = useState('all');
 
-  const featured = [
-    {
-      id: 1,
-      title: 'Himachal Escape',
-      location: 'Himachal Pradesh',
-      duration: 5,
-      price: 18999,
-      image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=500&h=300&fit=crop',
-      rating: 4.8,
-      reviews: 234,
-    },
-    {
-      id: 2,
-      title: 'Goa Weekend Retreat',
-      location: 'Goa',
-      duration: 3,
-      price: 11999,
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=300&fit=crop',
-      rating: 4.6,
-      reviews: 187,
-    },
-    {
-      id: 3,
-      title: 'Kerala Backwaters',
-      location: 'Kerala',
-      duration: 4,
-      price: 15999,
-      image: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=500&h=300&fit=crop',
-      rating: 4.9,
-      reviews: 312,
-    },
-    {
-      id: 4,
-      title: 'Rajasthan Royal Tour',
-      location: 'Rajasthan',
-      duration: 6,
-      price: 21999,
-      image: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=500&h=300&fit=crop',
-      rating: 4.7,
-      reviews: 256,
-    },
-  ];
+  useEffect(() => {
+    loadPackages();
+    loadDestinationCounts();
+  }, []);
+
+  const loadPackages = async () => {
+    try {
+      const data = await packageService.getAll();
+      setPackages(data);
+    } catch (err) {
+      console.error('Failed to load packages', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDestinationCounts = async () => {
+    try {
+      const counts = await packageService.getDestinationCounts();
+      const mapped = counts.map((item) => ({
+        name: item.destination,
+        count: item.count,
+        image: destinationImages[item.destination] || '',
+      }));
+      setDestinations(mapped);
+    } catch (err) {
+      console.error('Failed to load destination counts', err);
+    }
+  };
 
   const categories = [
-    { icon: '🏖️', name: 'Beach', desc: 'Coastal paradise' },
-    { icon: '⛰️', name: 'Mountains', desc: 'Alpine adventures' },
-    { icon: '🎸', name: 'Adventure', desc: 'Thrilling activities' },
-    { icon: '👑', name: 'Luxury', desc: 'Premium stays' },
+    { icon: '🏖️', name: 'Beach', desc: 'Coastal paradise', slug: 'beach' },
+    { icon: '⛰️', name: 'Mountains', desc: 'Alpine adventures', slug: 'mountain' },
+    { icon: '🏛️', name: 'Heritage', desc: 'Cultural tours', slug: 'heritage' },
+    { icon: '🌊', name: 'Adventure', desc: 'Thrilling activities', slug: 'adventure' },
+    { icon: '🕌', name: 'Pilgrimage', desc: 'Spiritual journeys', slug: 'pilgrimage' },
+    { icon: '🌴', name: 'Weekend', desc: 'Short getaways', slug: 'weekend' },
   ];
 
-  const features = [
-    {
-      icon: Shield,
-      title: 'Verified Agents',
-      desc: 'All travel agents are carefully verified and trusted',
-    },
-    {
-      icon: TrendingUp,
-      title: 'Best Pricing',
-      desc: 'Compare and book the best deals available',
-    },
-    {
-      icon: Zap,
-      title: 'Easy Booking',
-      desc: 'Simple, fast, and secure booking process',
-    },
-    {
-      icon: MessageCircle,
-      title: 'Support 24/7',
-      desc: 'Round-the-clock customer support',
-    },
+  const destinationImages = {
+    'Shimla': `${BACKEND_ORIGIN}/images/packages/shimla-heritage-trail.jpg`,
+    'Goa': `${BACKEND_ORIGIN}/images/packages/goa-beach-paradise.jpg`,
+    'Manali': `${BACKEND_ORIGIN}/images/packages/manali-snow-adventure.jpg`,
+    'Kedarnath': `${BACKEND_ORIGIN}/images/packages/kedarnath-dham-yatra.jpg`,
+    'Kerala': `${BACKEND_ORIGIN}/images/packages/kerala-backwaters.jpg`,
+    'Rajasthan': `${BACKEND_ORIGIN}/images/packages/royal-rajasthan.jpg`,
+    'Kashmir': `${BACKEND_ORIGIN}/images/packages/kashmir-paradise.jpg`,
+    'Andaman': `${BACKEND_ORIGIN}/images/packages/andaman-island-hopping.jpg`,
+    'Leh Ladakh': `${BACKEND_ORIGIN}/images/packages/leh-ladakh-road-trip.jpg`,
+    'Rishikesh': `${BACKEND_ORIGIN}/images/packages/rishikesh-adventure.jpg`,
+  };
+
+  const scrollFeatured = (direction) => {
+    const container = document.getElementById('featured-scroll');
+    if (!container) return;
+    const scrollAmount = 340;
+    if (direction === 'left') {
+      container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      setScrollIndex(Math.max(0, scrollIndex - 1));
+    } else {
+      container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      setScrollIndex(Math.min(packages.length - 1, scrollIndex + 1));
+    }
+  };
+
+  const packageTabs = [
+    { id: 'all', label: 'All Packages' },
+    { id: 'group_tours', label: 'Group Tours' },
+    { id: 'family_tours', label: 'Family Tours' },
+    { id: 'pilgrimage', label: 'Pilgrimage' },
+    { id: 'weekend_trips', label: 'Weekend Trips' },
   ];
+
+  const filteredTabPackages = activePackageTab === 'all'
+    ? packages
+    : packages.filter(pkg => pkg.category === activePackageTab);
 
   return (
     <>
       {/* Hero Section */}
-      <section className="relative min-h-screen bg-gradient-to-br from-[#ff6a00] via-[#ff7f27] to-[#ff8f3a] overflow-hidden">
-        {/* Background Image Overlay */}
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&h=600&fit=crop)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        />
+      <section className="relative bg-gradient-to-br from-teal-900 via-teal-800 to-emerald-800 overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&h=600&fit=crop')] bg-cover bg-center opacity-25" />
+        <div className="absolute inset-0 bg-gradient-to-b from-teal-900/60 to-emerald-900/80" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32 flex flex-col justify-center min-h-screen">
-          {/* Hero Content */}
-          <div className="text-center text-white mb-12 animate-slide-up">
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
-              Explore India and Beyond
-            </h1>
-            <p className="text-xl sm:text-2xl text-sky-100 mb-8 max-w-2xl mx-auto">
-              Handcrafted tour packages for every kind of traveler
-            </p>
-          </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 w-full text-center">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
+            Discover Your Next
+            <span className="block text-teal-300">Great Adventure</span>
+          </h1>
+          <p className="text-lg text-teal-100 mb-8 max-w-2xl mx-auto">
+            Explore handcrafted tour packages across India. From serene mountains to sun-kissed beaches, your perfect journey awaits.
+          </p>
 
-          {/* Search Card */}
-          <Card variant="glass" className="max-w-3xl mx-auto w-full p-8">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              <Input
-                placeholder="Where to travel?"
-                value={filters.destination}
-                onChange={(e) => setFilters({ ...filters, destination: e.target.value })}
-                className="bg-white/90 dark:bg-dark-bg-secondary"
-              />
-              <Input
-                type="date"
-                value={filters.startDate}
-                onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                className="bg-white/90 dark:bg-dark-bg-secondary"
-              />
-              <Input
-                placeholder="Budget (₹)"
-                type="number"
-                value={filters.budget}
-                onChange={(e) => setFilters({ ...filters, budget: e.target.value })}
-                className="bg-white/90 dark:bg-dark-bg-secondary"
-              />
+          {/* Search Bar */}
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center bg-white rounded-2xl shadow-2xl overflow-hidden">
+              <div className="flex-1 flex items-center px-5">
+                <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search destinations, packages..."
+                  className="w-full px-4 py-4 text-gray-700 placeholder-gray-400 focus:outline-none"
+                />
+              </div>
+              <Link to="/packages">
+                <button className="px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white font-semibold transition-colors">
+                  Explore
+                </button>
+              </Link>
             </div>
-            <Link to="/packages" className="block">
-              <Button variant="primary" size="lg" fullWidth className="rounded-full shadow-lg shadow-orange-200/60">
-                Explore Packages
-              </Button>
-            </Link>
-          </Card>
+          </div>
         </div>
       </section>
 
-      {/* Featured Packages */}
-      <section className="py-20 bg-gradient-to-b from-light-bg-primary to-light-bg-secondary/40 dark:from-dark-bg-primary dark:to-dark-bg-secondary/30">
+      {/* Featured Packages - Horizontal Scroll */}
+      <section className="py-20 bg-teal-50/50 dark:bg-dark-bg-secondary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">
-              Featured Packages
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-2">
+                Featured Packages
+              </h2>
+              <p className="text-gray-600 dark:text-dark-text-secondary">
+                Handpicked experiences for unforgettable journeys
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => scrollFeatured('left')}
+                className="p-3 rounded-full bg-white dark:bg-dark-bg-secondary border border-teal-200 dark:border-dark-border text-teal-600 hover:bg-teal-50 dark:hover:bg-dark-bg shadow-sm transition-all"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => scrollFeatured('right')}
+                className="p-3 rounded-full bg-teal-600 text-white hover:bg-teal-700 shadow-md transition-all"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
+            </div>
+          ) : (
+            <div
+              id="featured-scroll"
+              className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 -mx-4 px-4"
+              style={{ scrollSnapType: 'x mandatory' }}
+            >
+              {packages.map((pkg) => (
+                <Link
+                  key={pkg.id}
+                  to={`/packages/${pkg.id}`}
+                  className="flex-shrink-0 w-[300px] sm:w-[340px]"
+                  style={{ scrollSnapAlign: 'start' }}
+                >
+                  <Card hover className="h-full overflow-hidden rounded-2xl">
+                    <div className="relative h-48 overflow-hidden">
+                      <img
+                        src={getImageUrl(pkg.bannerImage)}
+                        alt={pkg.title}
+                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                      />
+                      <Badge variant="accent" className="absolute top-3 left-3">
+                        {pkg.durationDays} Days
+                      </Badge>
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold text-gray-900 dark:text-dark-text-primary text-lg mb-2">
+                        {pkg.title}
+                      </h3>
+                      <div className="flex items-center gap-1 text-gray-500 dark:text-dark-text-secondary text-sm mb-3">
+                        <MapPin className="w-4 h-4" />
+                        {pkg.destination}
+                      </div>
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-dark-border">
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-dark-text-secondary">Starting from</p>
+                          <p className="text-xl font-bold text-teal-600">₹{pkg.price?.toLocaleString()}</p>
+                        </div>
+                        <Link
+                          to={`/packages/${pkg.id}`}
+                          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm rounded-lg transition-colors"
+                        >
+                          View
+                        </Link>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Categories */}
+      <section className="py-20 bg-white dark:bg-dark-bg-primary">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3">
+              Browse by Category
             </h2>
-            <p className="text-light-text-secondary dark:text-dark-text-secondary text-lg">
-              Handpicked experiences for unforgettable journeys
+            <p className="text-gray-600 dark:text-dark-text-secondary">
+              Find the perfect trip that matches your travel style
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featured.map((pkg) => (
-              <Link key={pkg.id} to={`/packages/${pkg.id}`}>
-                <Card variant="elevated" hover className="h-full overflow-hidden">
-                  {/* Image */}
-                  <div className="relative mb-4 overflow-hidden rounded-lg h-48">
-                    <img
-                      src={pkg.image}
-                      alt={pkg.title}
-                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
-                    />
-                    <Badge className="absolute top-3 right-3" variant="primary">
-                      ⭐ {pkg.rating}
-                    </Badge>
-                  </div>
-
-                  {/* Content */}
-                  <div className="space-y-3">
-                    <h3 className="font-bold text-light-text-primary dark:text-dark-text-primary text-lg">
-                      {pkg.title}
-                    </h3>
-                    <div className="flex items-center gap-2 text-light-text-secondary dark:text-dark-text-secondary text-sm">
-                      <MapPin className="w-4 h-4" />
-                      {pkg.location}
-                    </div>
-                    <div className="flex items-center gap-2 text-light-text-secondary dark:text-dark-text-secondary text-sm">
-                      <Clock className="w-4 h-4" />
-                      {pkg.duration} days
-                    </div>
-                    <div className="pt-3 border-t border-light-border dark:border-dark-border">
-                      <p className="text-2xl font-bold text-brand-primary dark:text-brand-secondary mb-3">
-                        ₹{pkg.price.toLocaleString()}
-                      </p>
-                      <Button variant="secondary" size="sm" fullWidth>
-                        View Details
-                      </Button>
-                    </div>
-                  </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {categories.map((cat) => (
+              <Link key={cat.name} to={`/packages?category=${cat.slug}`}>
+                <Card hover className="text-center py-8 rounded-2xl">
+                  <div className="text-4xl mb-3">{cat.icon}</div>
+                  <h3 className="font-semibold text-gray-900 dark:text-dark-text-primary mb-1">
+                    {cat.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-dark-text-secondary">
+                    {cat.desc}
+                  </p>
                 </Card>
               </Link>
             ))}
@@ -200,81 +244,205 @@ export function Home() {
         </div>
       </section>
 
-      {/* Categories */}
-      <section className="py-20 bg-light-bg-secondary dark:bg-dark-bg-secondary">
+      {/* Top Destinations */}
+      <section className="py-20 bg-teal-50/50 dark:bg-dark-bg-secondary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">
-              Browse by Category
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3">
+              Top Destinations
             </h2>
-            <p className="text-light-text-secondary dark:text-dark-text-secondary text-lg">
-              Choose your adventure type
+            <p className="text-gray-600 dark:text-dark-text-secondary">
+              Most loved destinations by our travelers
             </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-            {categories.map((cat) => (
-              <Card key={cat.name} variant="elevated" hover className="text-center py-8">
-                <div className="text-5xl mb-3">{cat.icon}</div>
-                <h3 className="font-bold text-light-text-primary dark:text-dark-text-primary mb-2">
-                  {cat.name}
-                </h3>
-                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                  {cat.desc}
-                </p>
-              </Card>
+          {destinations.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+              <Loader2 className="w-6 h-6 text-teal-600 animate-spin mx-auto mb-2" />
+              Loading destinations...
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              {destinations.map((dest) => (
+                <Link key={dest.name} to={`/packages?destination=${dest.name}`}>
+                  <Card hover className="overflow-hidden rounded-2xl p-0">
+                    <div className="relative h-40 overflow-hidden">
+                      <img
+                        src={dest.image}
+                        alt={dest.name}
+                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <h3 className="text-white font-bold text-sm">{dest.name}</h3>
+                        <p className="text-teal-300 text-xs">{dest.count} package{dest.count !== 1 ? 's' : ''}</p>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Package Tabs */}
+      <section className="py-20 bg-white dark:bg-dark-bg-primary">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3">
+              Explore Our Packages
+            </h2>
+            <p className="text-gray-600 dark:text-dark-text-secondary">
+              Find the perfect package for your next getaway
+            </p>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex flex-wrap gap-2 justify-center mb-10">
+            {packageTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActivePackageTab(tab.id)}
+                className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+                  activePackageTab === tab.id
+                    ? 'bg-teal-600 text-white shadow-lg shadow-teal-200'
+                    : 'bg-gray-100 dark:bg-dark-bg-secondary text-gray-600 dark:text-dark-text-secondary hover:bg-teal-100 dark:hover:bg-dark-border'
+                }`}
+              >
+                {tab.label}
+              </button>
             ))}
           </div>
+
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
+            </div>
+          ) : filteredTabPackages.length === 0 ? (
+            <div className="text-center py-12 text-gray-500 dark:text-dark-text-secondary">
+              No packages found in this category.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTabPackages.map((pkg) => (
+                <Link key={pkg.id} to={`/packages/${pkg.id}`}>
+                  <Card hover className="h-full overflow-hidden rounded-2xl">
+                    <div className="relative h-48 overflow-hidden">
+                      <img
+                        src={getImageUrl(pkg.bannerImage)}
+                        alt={pkg.title}
+                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                      />
+                      <Badge variant="accent" className="absolute top-3 left-3">
+                        {pkg.durationDays} Days
+                      </Badge>
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold text-gray-900 dark:text-dark-text-primary text-lg mb-2">
+                        {pkg.title}
+                      </h3>
+                      <div className="flex items-center gap-1 text-gray-500 dark:text-dark-text-secondary text-sm mb-3">
+                        <MapPin className="w-4 h-4" />
+                        {pkg.destination}
+                      </div>
+                      <p className="text-gray-600 dark:text-dark-text-secondary text-sm mb-4 line-clamp-2">
+                        {pkg.description}
+                      </p>
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-dark-border">
+                        <div>
+                          <p className="text-xs text-gray-500 dark:text-dark-text-secondary">Starting from</p>
+                          <p className="text-xl font-bold text-teal-600">₹{pkg.price?.toLocaleString()}</p>
+                        </div>
+                        <span className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm rounded-lg transition-colors">
+                          Explore
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <div className="text-center mt-10">
+            <Link to="/packages">
+              <Button variant="primary" size="lg" className="rounded-full">
+                View All Packages
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* Why TravelSphere */}
-      <section className="py-20 bg-gradient-to-b from-light-bg-primary to-light-bg-secondary/40 dark:from-dark-bg-primary dark:to-dark-bg-secondary/30">
+      {/* Contact Section */}
+      <section className="py-20 bg-teal-900 dark:bg-dark-bg-primary/90">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">
-              Why Choose TravelSphere?
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+              Get In Touch
             </h2>
-            <p className="text-light-text-secondary dark:text-dark-text-secondary text-lg">
-              The smarter way to book travel packages
+            <p className="text-teal-200">
+              Have questions? We'd love to hear from you.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature) => {
-              const Icon = feature.icon;
-              return (
-                <Card key={feature.title} variant="elevated" className="text-center">
-                  <div className="flex justify-center mb-4">
-                    <div className="p-3 bg-gradient-to-r from-sky-600 via-indigo-600 to-fuchsia-600 rounded-lg">
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                  <h3 className="font-bold text-light-text-primary dark:text-dark-text-primary mb-2">
-                    {feature.title}
-                  </h3>
-                  <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                    {feature.desc}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <Card className="!bg-white/10 !backdrop-blur-sm !border-teal-700 text-white rounded-2xl p-8">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-teal-600 rounded-xl">
+                  <MapPin className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg mb-2">Our Address</h3>
+                  <p className="text-teal-100 text-sm leading-relaxed">
+                    Law Gate, Phagwara<br />
+                    Punjab, 144411<br />
+                    India
                   </p>
-                </Card>
-              );
-            })}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="!bg-white/10 !backdrop-blur-sm !border-teal-700 text-white rounded-2xl p-8">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-teal-600 rounded-xl">
+                  <Phone className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg mb-2">Call Us</h3>
+                  <p className="text-teal-100 text-sm leading-relaxed">
+                    +91 7992336832
+                  </p>
+                  <p className="text-teal-200 text-xs mt-1">
+                    Available Mon-Sat, 9 AM - 7 PM
+                  </p>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-emerald-500 via-green-500 to-lime-500 text-white">
+      {/* Newsletter */}
+      <section className="py-20 bg-teal-50 dark:bg-dark-bg-secondary">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold mb-4">Ready for your next adventure?</h2>
-          <p className="text-xl mb-8 text-blue-100">
-            Join thousands of travelers discovering amazing experiences
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3">
+            Stay Updated
+          </h2>
+          <p className="text-gray-600 dark:text-dark-text-secondary mb-8">
+            Subscribe to our newsletter for exclusive deals and travel inspiration.
           </p>
-          <Link to="/packages">
-            <Button variant="secondary" size="lg">
-              Start Exploring
+          <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+            <input
+              type="email"
+              placeholder="Enter your email"
+              className="flex-1 px-5 py-3 rounded-xl border border-teal-200 dark:border-dark-border bg-white dark:bg-dark-bg-secondary text-gray-700 dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <Button variant="primary" className="rounded-xl px-6">
+              Subscribe
             </Button>
-          </Link>
+          </div>
         </div>
       </section>
     </>

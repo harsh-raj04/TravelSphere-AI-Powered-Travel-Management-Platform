@@ -3,24 +3,24 @@
 @tailwind utilities;
 
 :root {
-  --travel-bg: #fffaf5;
+  --travel-bg: #F0FDFA;
   --travel-surface: #ffffff;
-  --travel-text: #0f172a;
-  --travel-muted: #64748b;
-  --travel-border: #eadfd4;
-  --travel-primary: #f97316;
-  --travel-primary-strong: #ea580c;
-  --travel-accent: #16a34a;
+  --travel-text: #022C22;
+  --travel-muted: #0D6E63;
+  --travel-border: #A7F3D0;
+  --travel-primary: #0F766E;
+  --travel-primary-strong: #064E48;
+  --travel-accent: #14B8A6;
 }
 
 .dark {
-  --agent-bg: #0b1220;
-  --agent-surface: #121a2b;
-  --agent-text: #e2e8f0;
-  --agent-muted: #93a4c0;
-  --agent-border: #24324d;
-  --agent-primary: #3b82f6;
-  --agent-primary-strong: #2563eb;
+  --agent-bg: #022C22;
+  --agent-surface: #0F4C3A;
+  --agent-text: #D0F0ED;
+  --agent-muted: #A7F3D0;
+  --agent-border: #14B8A6;
+  --agent-primary: #0F766E;
+  --agent-primary-strong: #064E48;
   --agent-accent: #22d3ee;
 }
 
@@ -48,7 +48,7 @@ body {
 
  .travel-ui .travel-hero {
   background-image: linear-gradient(120deg, var(--travel-primary-strong), var(--travel-primary), var(--travel-accent));
-  box-shadow: 0 20px 50px -35px rgba(37, 99, 235, 0.8);
+  box-shadow: 0 20px 50px -35px rgba(15, 118, 110, 0.8);
 }
 
  .travel-ui .travel-panel {
@@ -64,4 +64,20 @@ body {
   input[type="range"] {
     @apply cursor-pointer;
   }
+}
+
+@keyframes slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+@keyframes scale-up {
+  from { transform: scale(0.85); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-scale-up {
+  animation: scale-up 0.25s ease-out;
 }

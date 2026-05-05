@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { bookingsAPI, packagesAPI } from '../services/api';
+import { bookingsAPI, packagesAPI, paymentAPI } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
-import { MapPin, Clock, Users, AlertCircle, ChevronLeft, Heart } from 'lucide-react';
+import { MapPin, Clock, Users, CheckCircle, X, ArrowRight, Calendar, AlertCircle, ChevronLeft, Heart } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function PackageDetail() {
@@ -13,44 +13,52 @@ export function PackageDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [pkg, setPkg] = useState(null);
+  const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [bookingForm, setBookingForm] = useState({
     travelers: 1,
-    travelDate: '',
-    customerName: user?.name || '',
-    contactEmail: user?.email || '',
-    contactPhone: '',
+    selectedDeparture: null,
+    selectedRoom: null,
   });
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingResult, setBookingResult] = useState(null);
   const [bookingError, setBookingError] = useState('');
   const [wishlist, setWishlist] = useState(false);
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-
-  useEffect(() => {
-    setBookingForm((prev) => ({
-      ...prev,
-      customerName: user?.name || prev.customerName,
-      contactEmail: user?.email || prev.contactEmail,
-    }));
-  }, [user?.name, user?.email]);
 
   useEffect(() => {
     loadPackage();
   }, [id]);
 
+  useEffect(() => {
+    if (!document.getElementById('razorpay-script')) {
+      const script = document.createElement('script');
+      script.id = 'razorpay-script';
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
   const loadPackage = async () => {
     setLoading(true);
     try {
-      const res = await packagesAPI.getById(id);
-      setPkg(res.data.data);
+      const pkgRes = await packagesAPI.getById(id);
+      setPkg(pkgRes.data.data);
     } catch (err) {
       console.error('Failed to load package', err);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (pkg) {
+      packagesAPI.getDetails(pkg.id)
+        .then(res => setDetails(res.data.data))
+        .catch(err => console.error('Failed to load package details', err));
+    }
+  }, [pkg]);
 
   if (loading) {
     return (
@@ -75,44 +83,105 @@ export function PackageDetail() {
     );
   }
 
-  const totalPrice = pkg.price * bookingForm.travelers;
+  const selectedRoomPrice = bookingForm.selectedRoom ? Number(bookingForm.selectedRoom.price) : Number(pkg?.price || 0);
+  const totalPrice = selectedRoomPrice * bookingForm.travelers;
+  const bannerImage = pkg?.bannerImage
+    ? (pkg.bannerImage.startsWith('http') ? pkg.bannerImage : `http://localhost:4000${pkg.bannerImage}`)
+    : null;
   const images = Array.isArray(pkg?.imageUrls) && pkg.imageUrls.length > 0 ? pkg.imageUrls : [];
-  const itinerary = Array.isArray(pkg?.itinerary) ? pkg.itinerary : [];
+  const itinerary = details?.itineraries || [];
+  const pricingOptions = details?.pricingOptions || [];
+  const departures = details?.departures || [];
+  const inclusions = (details?.inclusions || []).filter(i => i.type === 'inclusion');
+  const exclusions = (details?.inclusions || []).filter(i => i.type === 'exclusion');
 
   const submitBooking = async (event) => {
     event.preventDefault();
     setBookingError('');
 
-    if (!bookingForm.travelDate) {
-      setBookingError('Please select a travel date.');
+    if (!bookingForm.selectedDeparture) {
+      setBookingError('Please select a departure date.');
       return;
     }
 
-    if (!bookingForm.customerName.trim() || !bookingForm.contactEmail.trim()) {
-      setBookingError('Customer name and contact email are required.');
+    if (!bookingForm.selectedRoom) {
+      setBookingError('Please select a room type.');
+      return;
+    }
+
+    if (!user) {
+      setBookingError('Please log in to book this package.');
       return;
     }
 
     setBookingLoading(true);
     try {
-      const res = await bookingsAPI.create({
+      const orderRes = await paymentAPI.createOrder({
         package_id: pkg.id,
-        travel_date: bookingForm.travelDate,
-        travelers_count: bookingForm.travelers,
-        customer_name: bookingForm.customerName,
-        contact_email: bookingForm.contactEmail,
-        contact_phone: bookingForm.contactPhone || undefined,
-        travel_message: `Adventure awaits in ${pkg.title}.`,
+        departure_id: bookingForm.selectedDeparture.id,
+        room_type: bookingForm.selectedRoom.roomType,
+        room_price: Number(bookingForm.selectedRoom.price),
+        travelers: bookingForm.travelers,
+        departure_date: bookingForm.selectedDeparture.departureDate,
+        travel_date: bookingForm.selectedDeparture.departureDate,
       });
 
-      const booking = res.data?.data;
-      setBookingResult({
-        id: booking?.id,
-        message: 'Journey begins where plans meet courage. Your booking request is now in review.',
+      const { key_id, order_id, amount, currency, booking_details } = orderRes.data.data;
+
+      const options = {
+        key: key_id,
+        amount: Number(amount),
+        currency: currency || 'INR',
+        name: 'TravelSphere',
+        description: `${pkg.title} - ${bookingForm.travelers} traveler(s)`,
+        order_id: order_id,
+        prefill: {
+          name: user.name,
+          email: user.email,
+        },
+        theme: { color: '#0F766E' },
+        handler: async function (response) {
+          try {
+            const verifyRes = await paymentAPI.verify({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              booking_details: booking_details,
+            });
+            const booking = verifyRes.data?.data;
+            setBookingResult({
+              id: booking?.id,
+              travelDate: bookingForm.selectedDeparture?.departureDate,
+              travelers: bookingForm.travelers,
+              message: `${user?.name?.split(' ')[0] || 'Traveler'}, your journey to ${pkg?.destination || pkg?.title} is confirmed! Pack your bags and get ready for an unforgettable adventure.`,
+            });
+          } catch {
+            setBookingError('Payment successful but booking confirmation failed. Please contact support.');
+          }
+          setBookingLoading(false);
+        },
+        modal: {
+          ondismiss: function () {
+            // Only show error if booking didn't already succeed
+            setBookingResult(prev => {
+              if (!prev) {
+                setBookingError('Payment was not completed.');
+              }
+              return prev;
+            });
+            setBookingLoading(false);
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+      rzp.on('payment.failed', function () {
+        setBookingError('Payment failed. Please try again.');
+        setBookingLoading(false);
       });
     } catch (err) {
-      setBookingError(err?.response?.data?.message || 'Booking request failed. Please try again.');
-    } finally {
+      setBookingError(err?.response?.data?.message || 'Payment initiation failed. Please try again.');
       setBookingLoading(false);
     }
   };
@@ -120,10 +189,10 @@ export function PackageDetail() {
   return (
     <div className="min-h-screen bg-light-bg-primary dark:bg-dark-bg-primary">
       {/* Hero Banner */}
-      <div className="relative h-96 bg-gradient-to-br from-[#ff6a00] via-[#ff7f27] to-[#ff8f3a] overflow-hidden">
-        {images.length > 0 ? (
+      <div className="relative h-96 bg-gradient-to-br from-[#022C22] via-[#0F766E] to-[#14B8A6] overflow-hidden">
+        {bannerImage ? (
           <>
-            <img src={images[activeImageIndex]} alt={pkg.title} className="absolute inset-0 w-full h-full object-cover" />
+            <img src={bannerImage} alt={pkg.title} className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0 bg-black/35" />
           </>
         ) : (
@@ -147,17 +216,6 @@ export function PackageDetail() {
           <Heart className={`w-6 h-6 ${wishlist ? 'fill-red-400 text-red-400' : 'text-white'}`} />
         </button>
 
-        {images.length > 1 && (
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2">
-            {images.map((_, index) => (
-              <button
-                key={`img-dot-${index}`}
-                onClick={() => setActiveImageIndex(index)}
-                className={`w-2.5 h-2.5 rounded-full ${index === activeImageIndex ? 'bg-white' : 'bg-white/50'}`}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-40 mb-12 relative z-10">
@@ -208,9 +266,9 @@ export function PackageDetail() {
             </Card>
 
             {/* Tabs */}
-            <div className="border-b border-light-border dark:border-dark-border">
-              <div className="flex gap-8">
-                {['overview', 'itinerary', 'inclusions'].map((tab) => (
+            <div className="border-b border-light-border dark:border-dark-border overflow-x-auto">
+              <div className="flex gap-6 min-w-max">
+                {['overview', 'itinerary', 'pricing', 'inclusions', 'departures'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -227,60 +285,217 @@ export function PackageDetail() {
             </div>
 
             {/* Tab Content */}
-            <Card variant="elevated" className="p-8">
+            <Card variant="elevated" className="p-8 space-y-6">
+              {/* Overview */}
               {activeTab === 'overview' && (
-                <div className="space-y-4">
+                <div className="space-y-5">
+                  <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary">About This Trip</h3>
                   <p className="text-light-text-secondary dark:text-dark-text-secondary leading-relaxed">
                     {pkg.description}
                   </p>
-                  <div className="grid grid-cols-2 gap-4 pt-4">
-                    <div>
-                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-1">
-                        Best Season
-                      </p>
-                      <p className="font-semibold text-light-text-primary dark:text-dark-text-primary">
-                        Oct - Mar
-                      </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-light-border dark:border-dark-border">
+                    <div className="bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-lg p-4 text-center">
+                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-1">Duration</p>
+                      <p className="font-bold text-light-text-primary dark:text-dark-text-primary">{pkg.durationDays} Days</p>
                     </div>
-                    <div>
-                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-1">
-                        Difficulty Level
-                      </p>
-                      <p className="font-semibold text-light-text-primary dark:text-dark-text-primary">
-                        Moderate
-                      </p>
+                    <div className="bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-lg p-4 text-center">
+                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-1">Destination</p>
+                      <p className="font-bold text-light-text-primary dark:text-dark-text-primary">{pkg.destination}</p>
+                    </div>
+                    <div className="bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-lg p-4 text-center">
+                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-1">Base Price</p>
+                      <p className="font-bold text-brand-primary">₹{pkg.price?.toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* Itinerary */}
               {activeTab === 'itinerary' && (
-                <div className="space-y-4">
-                  {(itinerary.length > 0 ? itinerary : Array.from({ length: Number(pkg.durationDays || 0) }, (_, idx) => `Itinerary for Day ${idx + 1} will be updated soon.`)).map((plan, index) => (
-                    <div
-                      key={index + 1}
-                      className="p-4 bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-lg border border-light-border dark:border-dark-border"
-                    >
-                      <h4 className="font-bold text-light-text-primary dark:text-dark-text-primary mb-2">
-                        Day {index + 1}
-                      </h4>
-                      <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                        {plan}
-                      </p>
+                <div className="space-y-5">
+                  <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary">Day-wise Itinerary</h3>
+                  {itinerary.length > 0 ? (
+                    <div className="space-y-0 border-l-2 border-light-border dark:border-dark-border ml-2">
+                      {itinerary.map((day) => (
+                        <div key={day.dayNumber} className="relative pl-8 pb-8 last:pb-0">
+                          <div className="absolute left-0 top-0 -translate-x-1/2 w-4 h-4 rounded-full bg-brand-primary dark:bg-brand-secondary border-2 border-white dark:border-dark-bg-primary" />
+                          <h4 className="font-bold text-light-text-primary dark:text-dark-text-primary text-lg mb-2">
+                            Day {day.dayNumber}: {day.title}
+                          </h4>
+                          <div className="space-y-3">
+                            {day.morningActivity && (
+                              <div className="flex items-start gap-3 text-sm">
+                                <span className="mt-0.5 w-14 text-xs font-semibold text-amber-600 dark:text-amber-400 flex-shrink-0">☀️ Morning</span>
+                                <p className="text-light-text-secondary dark:text-dark-text-secondary">{day.morningActivity}</p>
+                              </div>
+                            )}
+                            {day.afternoonActivity && (
+                              <div className="flex items-start gap-3 text-sm">
+                                <span className="mt-0.5 w-14 text-xs font-semibold text-orange-600 dark:text-orange-400 flex-shrink-0">🌤️ Aftrn</span>
+                                <p className="text-light-text-secondary dark:text-dark-text-secondary">{day.afternoonActivity}</p>
+                              </div>
+                            )}
+                            {day.eveningActivity && (
+                              <div className="flex items-start gap-3 text-sm">
+                                <span className="mt-0.5 w-14 text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex-shrink-0">🌅 Evening</span>
+                                <p className="text-light-text-secondary dark:text-dark-text-secondary">{day.eveningActivity}</p>
+                              </div>
+                            )}
+                            {day.nightActivity && (
+                              <div className="flex items-start gap-3 text-sm">
+                                <span className="mt-0.5 w-14 text-xs font-semibold text-slate-600 dark:text-slate-400 flex-shrink-0">🌙 Night</span>
+                                <p className="text-light-text-secondary dark:text-dark-text-secondary">{day.nightActivity}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  ) : (
+                    <p className="text-light-text-secondary dark:text-dark-text-secondary py-8 text-center">
+                      Itinerary details coming soon.
+                    </p>
+                  )}
                 </div>
               )}
 
+              {/* Pricing */}
+              {activeTab === 'pricing' && (
+                <div className="space-y-6">
+                  <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary">Pricing & Room Options</h3>
+                  {pricingOptions.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b-2 border-light-border dark:border-dark-border">
+                            <th className="text-left py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Room Type</th>
+                            <th className="text-right py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Price / Person</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pricingOptions.map((opt, idx) => (
+                            <tr key={idx} className="border-b border-light-border dark:border-dark-border hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary transition-colors">
+                              <td className="py-3 px-4 text-light-text-primary dark:text-dark-text-primary capitalize font-medium">
+                                {opt.roomType?.replace(/_/g, ' ')}
+                              </td>
+                              <td className="py-3 px-4 text-right font-bold text-brand-primary dark:text-brand-secondary">
+                                ₹{Number(opt.price).toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mt-3">
+                        * GST 5% extra. Prices may vary based on departure date.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-light-text-secondary dark:text-dark-text-secondary py-8 text-center">
+                      Pricing details coming soon.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Inclusions & Exclusions */}
               {activeTab === 'inclusions' && (
-                <div className="space-y-2">
-                  {['Accommodation', 'Meals (Breakfast & Dinner)', 'Guided Tours', 'Transport', 'Travel Insurance'].map(
-                    (item, idx) => (
-                      <div key={idx} className="flex items-center gap-3 p-3 bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-lg">
-                        <span className="text-brand-primary text-xl">✓</span>
-                        <p className="text-light-text-primary dark:text-dark-text-primary">{item}</p>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">✅ Inclusions</h3>
+                    {inclusions.length > 0 ? (
+                      <div className="space-y-2">
+                        {inclusions.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
+                            <span className="text-emerald-600 dark:text-emerald-400 text-lg">✓</span>
+                            <p className="text-light-text-primary dark:text-dark-text-primary text-sm">{item.description}</p>
+                          </div>
+                        ))}
                       </div>
-                    )
+                    ) : (
+                      <div className="space-y-2">
+                        {['Accommodation', 'Meals (Breakfast & Dinner)', 'Guided Tours', 'Transport', 'Travel Insurance'].map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
+                            <span className="text-emerald-600 dark:text-emerald-400 text-lg">✓</span>
+                            <p className="text-light-text-primary dark:text-dark-text-primary text-sm">{item}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">❌ Exclusions</h3>
+                    {exclusions.length > 0 ? (
+                      <div className="space-y-2">
+                        {exclusions.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/30">
+                            <span className="text-red-500 dark:text-red-400 text-lg">✗</span>
+                            <p className="text-light-text-primary dark:text-dark-text-primary text-sm">{item.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {['Flight / Train tickets', 'Personal expenses', 'Tips & gratuities', 'Travel insurance'].map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/30">
+                            <span className="text-red-500 dark:text-red-400 text-lg">✗</span>
+                            <p className="text-light-text-primary dark:text-dark-text-primary text-sm">{item}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Departures */}
+              {activeTab === 'departures' && (
+                <div className="space-y-6">
+                  <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary">Available Departures</h3>
+                  {departures.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b-2 border-light-border dark:border-dark-border">
+                            <th className="text-left py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Date</th>
+                            <th className="text-center py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Available Seats</th>
+                            <th className="text-right py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Price</th>
+                            <th className="text-right py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {departures.map((dep, idx) => {
+                            const available = (dep.availableSeats - (dep.bookedSeats || 0));
+                            const soldOut = available <= 0;
+                            return (
+                              <tr key={idx} className={`border-b border-light-border dark:border-dark-border ${soldOut ? 'opacity-50' : 'hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary transition-colors'}`}>
+                                <td className="py-3 px-4 font-medium text-light-text-primary dark:text-dark-text-primary">
+                                  {new Date(dep.departureDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </td>
+                                <td className="py-3 px-4 text-center text-light-text-secondary dark:text-dark-text-secondary">
+                                  {soldOut ? '—' : available}
+                                </td>
+                                <td className="py-3 px-4 text-right font-semibold text-brand-primary dark:text-brand-secondary">
+                                  ₹{Number(dep.price).toLocaleString()}
+                                </td>
+                                <td className="py-3 px-4 text-right">
+                                  {soldOut ? (
+                                    <Badge variant="danger" size="sm">Sold Out</Badge>
+                                  ) : available < 5 ? (
+                                    <Badge variant="warning" size="sm">Only {available} left</Badge>
+                                  ) : (
+                                    <Badge variant="success" size="sm">Available</Badge>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-light-text-secondary dark:text-dark-text-secondary py-8 text-center">
+                      Departure dates coming soon.
+                    </p>
                   )}
                 </div>
               )}
@@ -293,95 +508,130 @@ export function PackageDetail() {
               {/* Price */}
               <div className="text-center pb-6 border-b border-light-border dark:border-dark-border">
                 <p className="text-light-text-tertiary dark:text-dark-text-tertiary text-sm mb-2">
-                  Price per person
+                  Starting from
                 </p>
                 <p className="text-4xl font-bold text-brand-primary dark:text-brand-secondary">
                   ₹{pkg.price?.toLocaleString()}
                 </p>
+                <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mt-1">per person</p>
               </div>
 
               {/* Booking Form */}
-              <form className="space-y-4" onSubmit={submitBooking}>
+              <form className="space-y-5" onSubmit={submitBooking}>
                 {bookingError && (
-                  <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
+                  <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
                     {bookingError}
                   </div>
                 )}
 
+                {/* Departure Date Selector */}
                 <div>
                   <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
-                    Customer Name
+                    Departure Date
                   </label>
-                  <input
-                    type="text"
-                    value={bookingForm.customerName}
-                    onChange={(e) => setBookingForm({ ...bookingForm, customerName: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border-2 border-light-border dark:border-dark-border bg-light-bg-tertiary dark:bg-dark-bg-secondary text-light-text-primary dark:text-dark-text-primary"
-                  />
+                  {departures.length > 0 ? (
+                    <div className="space-y-2 max-h-44 overflow-y-auto">
+                      {departures.map((dep, idx) => {
+                        const available = (dep.availableSeats - (dep.bookedSeats || 0));
+                        const soldOut = available <= 0;
+                        const isSelected = bookingForm.selectedDeparture?.id === dep.id;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            disabled={soldOut}
+                            onClick={() => setBookingForm({ ...bookingForm, selectedDeparture: dep })}
+                            className={`w-full text-left px-3 py-2.5 rounded-lg border-2 transition text-sm ${
+                              soldOut
+                                ? 'border-light-border dark:border-dark-border opacity-40 cursor-not-allowed'
+                                : isSelected
+                                ? 'border-brand-primary dark:border-brand-secondary bg-teal-50 dark:bg-teal-900/20'
+                                : 'border-light-border dark:border-dark-border hover:border-brand-primary/50'
+                            }`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium text-light-text-primary dark:text-dark-text-primary">
+                                {new Date(dep.departureDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                              <span className={`text-xs font-medium ${soldOut ? 'text-red-500' : available < 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                {soldOut ? 'Sold Out' : `${available} seats`}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <Input type="date" value={bookingForm.travelDate || ''} onChange={(e) => setBookingForm({ ...bookingForm, travelDate: e.target.value })} />
+                  )}
                 </div>
 
+                {/* Room Type Selector */}
                 <div>
                   <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
-                    Contact Email
+                    Room Type
                   </label>
-                  <input
-                    type="email"
-                    value={bookingForm.contactEmail}
-                    onChange={(e) => setBookingForm({ ...bookingForm, contactEmail: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border-2 border-light-border dark:border-dark-border bg-light-bg-tertiary dark:bg-dark-bg-secondary text-light-text-primary dark:text-dark-text-primary"
-                  />
+                  {pricingOptions.length > 0 ? (
+                    <div className="space-y-2">
+                      {pricingOptions.map((opt, idx) => {
+                        const isSelected = bookingForm.selectedRoom?.roomType === opt.roomType;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setBookingForm({ ...bookingForm, selectedRoom: opt })}
+                            className={`w-full flex justify-between items-center px-3 py-2.5 rounded-lg border-2 text-sm transition ${
+                              isSelected
+                                ? 'border-brand-primary dark:border-brand-secondary bg-teal-50 dark:bg-teal-900/20'
+                                : 'border-light-border dark:border-dark-border hover:border-brand-primary/50'
+                            }`}
+                          >
+                            <span className="font-medium capitalize text-light-text-primary dark:text-dark-text-primary">
+                              {opt.roomType?.replace(/_/g, ' ')}
+                            </span>
+                            <span className="font-bold text-brand-primary dark:text-brand-secondary">
+                              ₹{Number(opt.price).toLocaleString()}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">Loading options...</p>
+                  )}
                 </div>
 
+                {/* Travelers */}
                 <div>
                   <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
-                    Contact Phone (optional)
+                    Travelers
                   </label>
-                  <input
-                    type="tel"
-                    value={bookingForm.contactPhone}
-                    onChange={(e) => setBookingForm({ ...bookingForm, contactPhone: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border-2 border-light-border dark:border-dark-border bg-light-bg-tertiary dark:bg-dark-bg-secondary text-light-text-primary dark:text-dark-text-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
-                    Number of Travelers
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={bookingForm.travelers}
-                    onChange={(e) =>
-                      setBookingForm({
-                        ...bookingForm,
-                        travelers: Math.max(1, Math.min(20, parseInt(e.target.value) || 1)),
-                      })
-                    }
-                    className="w-full px-4 py-2.5 rounded-lg border-2 border-light-border dark:border-dark-border bg-light-bg-tertiary dark:bg-dark-bg-secondary text-light-text-primary dark:text-dark-text-primary focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
-                    Travel Date
-                  </label>
-                  <input
-                    type="date"
-                    value={bookingForm.travelDate}
-                    onChange={(e) =>
-                      setBookingForm({ ...bookingForm, travelDate: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 rounded-lg border-2 border-light-border dark:border-dark-border bg-light-bg-tertiary dark:bg-dark-bg-secondary text-light-text-primary dark:text-dark-text-primary focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none"
-                  />
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setBookingForm({ ...bookingForm, travelers: Math.max(1, bookingForm.travelers - 1) })}
+                      className="w-10 h-10 rounded-lg border-2 border-light-border dark:border-dark-border flex items-center justify-center text-lg font-bold text-light-text-primary dark:text-dark-text-primary hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary transition"
+                    >
+                      −
+                    </button>
+                    <span className="flex-1 text-center text-lg font-bold text-light-text-primary dark:text-dark-text-primary">
+                      {bookingForm.travelers}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setBookingForm({ ...bookingForm, travelers: Math.min(20, bookingForm.travelers + 1) })}
+                      className="w-10 h-10 rounded-lg border-2 border-light-border dark:border-dark-border flex items-center justify-center text-lg font-bold text-light-text-primary dark:text-dark-text-primary hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary transition"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
 
                 {/* Price Breakdown */}
                 <div className="p-4 bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-lg space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-light-text-secondary dark:text-dark-text-secondary">
-                      ₹{pkg.price?.toLocaleString()} × {bookingForm.travelers}
+                      ₹{selectedRoomPrice.toLocaleString()} × {bookingForm.travelers} {bookingForm.travelers === 1 ? 'traveler' : 'travelers'}
                     </span>
                     <span className="font-semibold text-light-text-primary dark:text-dark-text-primary">
                       ₹{totalPrice.toLocaleString()}
@@ -395,6 +645,7 @@ export function PackageDetail() {
                       ₹{totalPrice.toLocaleString()}
                     </span>
                   </div>
+                  <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary">* GST 5% extra</p>
                 </div>
 
                 {/* Book Button */}
@@ -403,7 +654,7 @@ export function PackageDetail() {
                   variant="primary"
                   size="lg"
                   fullWidth
-                  disabled={!bookingForm.travelDate || bookingLoading}
+                  disabled={!bookingForm.selectedDeparture || !bookingForm.selectedRoom || bookingLoading}
                 >
                   {bookingLoading ? 'Booking...' : 'Book Now'}
                 </Button>
@@ -423,10 +674,10 @@ export function PackageDetail() {
                     Contact our travel experts
                   </p>
                   <a
-                    href="tel:+918001234567"
+                    href="tel:+917992336832"
                     className="text-brand-primary dark:text-brand-secondary font-semibold hover:underline mt-2 inline-block"
                   >
-                    +91-800-123-4567
+                    +91-799-233-6832
                   </a>
                 </div>
               </Card>
@@ -436,30 +687,66 @@ export function PackageDetail() {
       </div>
 
       {bookingResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-900 p-8 border border-gray-200 dark:border-gray-700 shadow-2xl">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-3xl font-bold flex items-center justify-center mx-auto mb-4">
-                ✓
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setBookingResult(null)} />
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden animate-scale-up">
+            <div className="bg-gradient-to-r from-[#0F766E] via-[#14B8A6] to-[#22D3EE] px-6 py-8 text-center">
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+                <CheckCircle className="w-10 h-10 text-white" />
               </div>
-              <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">Congratulations, Traveler!</h3>
-              <p className="text-base text-gray-600 dark:text-gray-300">Your booking request has been successfully submitted.</p>
+              <h2 className="text-2xl font-bold text-white mb-1">Booking Confirmed!</h2>
+              <p className="text-white/80 text-sm">{bookingResult.message}</p>
             </div>
 
-            <div className="rounded-xl bg-gradient-to-r from-indigo-50 to-sky-50 dark:from-slate-800 dark:to-slate-700 p-6 mb-6 text-center">
-              <p className="text-sm uppercase tracking-wide text-indigo-600 dark:text-indigo-300 mb-2">Travel Quote</p>
-              <p className="text-xl font-semibold text-gray-900 dark:text-white">"{bookingResult.message}"</p>
+            <div className="px-6 py-5 space-y-4">
+              <div className="bg-teal-50 dark:bg-teal-900/20 rounded-xl px-4 py-3">
+                <p className="text-xs font-semibold text-teal-700 dark:text-teal-300 uppercase tracking-wide mb-1">Booking ID</p>
+                <p className="text-lg font-bold text-teal-600 dark:text-teal-400 tracking-wider">{bookingResult.id}</p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
+                  <MapPin className="w-4 h-4 text-teal-500" />
+                  <span className="text-sm">{pkg?.title}</span>
+                </div>
+                {bookingResult.travelDate && (
+                  <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
+                    <Calendar className="w-4 h-4 text-teal-500" />
+                    <span className="text-sm">{new Date(bookingResult.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  </div>
+                )}
+                {bookingResult.travelers && (
+                  <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
+                    <Users className="w-4 h-4 text-teal-500" />
+                    <span className="text-sm">{bookingResult.travelers} {bookingResult.travelers === 1 ? 'traveler' : 'travelers'}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => setBookingResult(null)}
+                  className="flex-1 rounded-xl"
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => navigate('/bookings')}
+                  className="flex-1 rounded-xl bg-[#0F766E] hover:bg-[#064E48] flex items-center justify-center gap-2"
+                >
+                  My Bookings
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
-              <p className="text-sm text-gray-600 dark:text-gray-300">Booking ID: <span className="font-semibold text-gray-900 dark:text-white">{bookingResult.id}</span></p>
-              <p className="text-sm text-gray-600 dark:text-gray-300">Package: <span className="font-semibold text-gray-900 dark:text-white">{pkg?.title}</span></p>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setBookingResult(null)}>Stay Here</Button>
-              <Button onClick={() => navigate('/bookings')}>Go to My Bookings</Button>
-            </div>
+            <button
+              onClick={() => setBookingResult(null)}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition"
+            >
+              <X className="w-4 h-4 text-white" />
+            </button>
           </div>
         </div>
       )}

@@ -9,7 +9,7 @@ export function Card({ children, variant = 'default', hover = false, className =
   const hoverClasses = hover ? 'hover:shadow-lg hover:scale-105 transition-all duration-300' : '';
 
   return (
-    <div className={`${variants[variant]} rounded-xl p-4 ${hoverClasses} ${className}`}>
+    <div className={`${variants[variant]} rounded-2xl p-4 ${hoverClasses} ${className}`}>
       {children}
     </div>
   );

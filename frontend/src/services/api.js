@@ -52,6 +52,7 @@ export const authAPI = {
 export const packagesAPI = {
   list: (params) => apiClient.get('/packages', { params }),
   getById: (id) => apiClient.get(`/packages/${id}`),
+  getDetails: (id) => apiClient.get(`/packages/${id}/details`),
   create: (data) => apiClient.post('/packages', data),
   update: (id, data) => apiClient.put(`/packages/${id}`, data),
   remove: (id) => apiClient.delete(`/packages/${id}`),
@@ -66,6 +67,12 @@ export const bookingsAPI = {
 
 export const transactionsAPI = {
   getByBooking: (bookingId) => apiClient.get(`/transactions/${bookingId}`),
+};
+
+export const paymentAPI = {
+  createOrder: (data) => apiClient.post('/payments/create-order', data),
+  verify: (data) => apiClient.post('/payments/verify', data),
+  getKey: () => apiClient.get('/payments/key'),
 };
 
 export const agentAPI = {

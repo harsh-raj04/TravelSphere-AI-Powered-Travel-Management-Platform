@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { BookingEventProvider } from './contexts/BookingEventContext';
 import { useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './theme/ThemeProvider';
+import { ToastProvider } from './components/ui/Toast';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { RoleRoute } from './components/RoleRoute';
 import { Navbar } from './components/Navbar';
@@ -25,6 +26,7 @@ import { Bookings } from './pages/Bookings';
 import { Profile } from './pages/Profile';
 import { PackageListing } from './pages/PackageListing';
 import { PackageDetail } from './pages/PackageDetail';
+import { Packages } from './pages/Packages';
 import { AgentDashboard } from './pages/agent/AgentDashboard';
 import { AgentPackages } from './pages/agent/AgentPackages';
 import { AgentPackagesBrowse } from './pages/agent/AgentPackagesBrowse';
@@ -47,7 +49,7 @@ import { getHomeRouteForRole, isRoleAllowedForVariant } from './utils/roleRoutin
 
 function AppLayout({ children }) {
   return (
-    <div className="travel-ui min-h-screen flex flex-col bg-[#fffaf5] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="travel-ui min-h-screen flex flex-col bg-[#F0FDFA] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <Navbar />
       <main className="flex-1">
         {children}
@@ -300,17 +302,17 @@ function AppRoutes() {
       <Route
         path="/packages"
         element={
-          <ProtectedRoute>
-            <AppLayout><PackageListing /></AppLayout>
-          </ProtectedRoute>
+          variant === 'customer'
+            ? <AppLayout><Packages /></AppLayout>
+            : <AppLayout><PackageListing /></AppLayout>
         }
       />
       <Route
         path="/packages/:id"
         element={
-          <ProtectedRoute>
-            <AppLayout><PackageDetail /></AppLayout>
-          </ProtectedRoute>
+          variant === 'customer'
+            ? <AppLayout><PackageDetail /></AppLayout>
+            : <ProtectedRoute><AppLayout><PackageDetail /></AppLayout></ProtectedRoute>
         }
       />
       <Route path="*" element={<Navigate to="/" />} />
@@ -323,9 +325,11 @@ export default function App() {
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
-          <BookingEventProvider>
-            <AppRoutes />
-          </BookingEventProvider>
+          <ToastProvider>
+            <BookingEventProvider>
+              <AppRoutes />
+            </BookingEventProvider>
+          </ToastProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

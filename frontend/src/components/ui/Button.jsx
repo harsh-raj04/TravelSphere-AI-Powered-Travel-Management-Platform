@@ -10,10 +10,10 @@ export function Button({
   const baseClasses = 'font-semibold rounded-lg transition-all duration-250 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variants = {
-    primary: 'bg-brand-primary text-white hover:bg-blue-700 focus:ring-brand-primary dark:hover:bg-blue-900',
-    secondary: 'bg-light-bg-secondary text-light-text-primary border border-light-border hover:bg-light-border dark:bg-dark-bg-tertiary dark:text-dark-text-primary dark:border-dark-border dark:hover:bg-dark-border',
-    outline: 'border-2 border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white dark:border-brand-secondary dark:text-brand-secondary dark:hover:bg-brand-secondary dark:hover:text-dark-bg-primary',
-    ghost: 'text-brand-primary hover:bg-blue-50 dark:text-brand-secondary dark:hover:bg-dark-bg-tertiary',
+    primary: 'bg-[#0F766E] text-white hover:bg-[#0d635c] focus:ring-[#0F766E] dark:bg-[#14B8A6] dark:hover:bg-[#0d9488]',
+    secondary: 'bg-[#F0FDFA] text-[#0F766E] border border-[#14B8A6] hover:bg-[#ccfbf1] dark:bg-[#022C22] dark:text-[#14B8A6] dark:border-[#0F766E] dark:hover:bg-[#0F766E]/20',
+    outline: 'border-2 border-[#0F766E] text-[#0F766E] hover:bg-[#0F766E] hover:text-white dark:border-[#14B8A6] dark:text-[#14B8A6] dark:hover:bg-[#14B8A6] dark:hover:text-[#022C22]',
+    ghost: 'text-[#0F766E] hover:bg-[#F0FDFA] dark:text-[#14B8A6] dark:hover:bg-[#022C22]',
   };
 
   const sizes = {

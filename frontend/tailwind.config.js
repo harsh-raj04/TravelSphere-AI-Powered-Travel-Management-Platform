@@ -11,35 +11,35 @@ export default {
         // Light Mode
         light: {
           bg: {
-            primary: '#F8FAFC',
-            secondary: '#F1F5F9',
+            primary: '#F0FDFA',
+            secondary: '#CCFBF1',
             tertiary: '#FFFFFF',
           },
           text: {
-            primary: '#111827',
-            secondary: '#6B7280',
-            tertiary: '#9CA3AF',
+            primary: '#022C22',
+            secondary: '#0D6E63',
+            tertiary: '#0F8970',
           },
-          border: '#E5E7EB',
+          border: '#A7F3D0',
         },
         // Dark Mode
         dark: {
           bg: {
-            primary: '#0B1220',
-            secondary: '#111827',
-            tertiary: '#1F2937',
+            primary: '#022C22',
+            secondary: '#0F4C3A',
+            tertiary: '#134E3A',
           },
           text: {
-            primary: '#F3F4F6',
-            secondary: '#D1D5DB',
-            tertiary: '#9CA3AF',
+            primary: '#D0F0ED',
+            secondary: '#A7F3D0',
+            tertiary: '#6EE7B7',
           },
-          border: '#374151',
+          border: '#14B8A6',
         },
-        // Brand Colors
+        // Brand Colors (GREEN THEME)
         brand: {
-          primary: '#2563EB',
-          secondary: '#38BDF8',
+          primary: '#0F766E',
+          secondary: '#14B8A6',
           accent: '#22D3EE',
           success: '#10B981',
           warning: '#F59E0B',
@@ -69,9 +69,9 @@ export default {
         premium: '0 20px 40px -10px rgba(37, 99, 235, 0.15)',
       },
       backgroundImage: {
-        'gradient-brand': 'linear-gradient(135deg, #2563EB 0%, #38BDF8 100%)',
-        'gradient-brand-dark': 'linear-gradient(135deg, #1E40AF 0%, #0369A1 100%)',
-        'gradient-premium': 'linear-gradient(145deg, #2563EB 0%, #22D3EE 100%)',
+        'gradient-brand': 'linear-gradient(135deg, #0F766E 0%, #14B8A6 100%)',
+        'gradient-brand-dark': 'linear-gradient(135deg, #064E48 0%, #0D6E63 100%)',
+        'gradient-premium': 'linear-gradient(145deg, #0F766E 0%, #22D3EE 100%)',
       },
       animation: {
         'fade-in': 'fadeIn 0.4s ease-in-out',

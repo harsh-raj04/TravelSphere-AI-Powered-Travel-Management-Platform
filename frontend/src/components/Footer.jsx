@@ -9,7 +9,7 @@ export function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+              <div className="w-9 h-9 bg-gradient-to-br from-teal-600 to-teal-700 rounded-xl flex items-center justify-center shadow-lg shadow-teal-500/20">
                 <span className="text-white font-bold">T</span>
               </div>
               <span className="font-bold text-light-text-primary dark:text-dark-text-primary">
@@ -66,19 +66,19 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-light-text-secondary dark:text-dark-text-secondary">
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4" />
-                <a href="mailto:25042002harsh@gmail.com" className="hover:text-orange-300 transition">
+                <a href="mailto:support@travelsphere.dev" className="hover:text-teal-300 transition">
                   support@travelsphere.dev
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="w-4 h-4" />
-                <a href="tel:+91-800-123-4567" className="hover:text-brand-primary transition">
-                  +91-800-123-4567
+                <a href="tel:+917992336832" className="hover:text-brand-primary transition">
+                  +91 7992336832
                 </a>
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 mt-1 flex-shrink-0" />
-                <span>Bangalore, India</span>
+                <span>Law Gate, Phagwara, Punjab, 144411, India</span>
               </li>
             </ul>
           </div>

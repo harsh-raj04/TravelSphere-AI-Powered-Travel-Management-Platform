@@ -19,7 +19,7 @@ const packageInterestSchema = z.object({
 
 async function listPackages(req, res) {
   const page = Math.max(Number(req.query.page) || 1, 1);
-  const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
+  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 50);
   const destination = req.query.destination;
   const minPrice = Number(req.query.minPrice);
   const maxPrice = Number(req.query.maxPrice);
@@ -77,6 +77,7 @@ async function listPackages(req, res) {
         page,
         limit,
         total,
+        hasMore: page * limit < total,
       },
     });
   } catch (_error) {
@@ -310,9 +311,87 @@ async function myPackageInterests(req, res) {
   }
 }
 
+async function getPackageDetails(req, res) {
+  try {
+    const pkg = await prisma.travelPackage.findFirst({
+      where: {
+        id: req.params.id,
+        isActive: true,
+      },
+      include: {
+        agent: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        itineraries: {
+          orderBy: { dayNumber: "asc" },
+        },
+        pricingOptions: {
+          orderBy: { roomType: "asc" },
+        },
+        departures: {
+          where: { isActive: true },
+          orderBy: { departureDate: "asc" },
+        },
+        inclusions: true,
+        addOns: true,
+      },
+    });
+
+    if (!pkg) {
+      return fail(res, "Package not found", [], 404);
+    }
+
+    // Parse JSON fields from database
+    const transformedPkg = {
+      ...pkg,
+      itineraries: pkg.itineraries.map((it) => ({
+        ...it,
+        locations: JSON.parse(it.locations || "[]"),
+        activities: JSON.parse(it.activities || "[]"),
+      })),
+    };
+
+    return ok(res, "Package details fetched successfully", transformedPkg);
+  } catch (_error) {
+    console.error("Error fetching package details:", _error);
+    return fail(res, "Failed to fetch package details", [], 500);
+  }
+}
+
+async function getDestinationCounts(req, res) {
+  try {
+    const counts = await prisma.travelPackage.groupBy({
+      by: ['destination'],
+      where: { isActive: true },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+    });
+
+    const result = counts.map((row) => ({
+      destination: row.destination,
+      count: row._count.id,
+    }));
+
+    return ok(res, 'Destination counts fetched successfully', result);
+  } catch (_error) {
+    console.error('Error fetching destination counts:', _error);
+    return fail(res, 'Failed to fetch destination counts', [], 500);
+  }
+}
+
 module.exports = {
   listPackages,
   getPackageById,
+  getPackageDetails,
+  getDestinationCounts,
   createPackage,
   updatePackage,
   deletePackage,
