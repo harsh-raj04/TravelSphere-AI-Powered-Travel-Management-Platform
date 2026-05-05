@@ -1,6 +1,38 @@
+const { z } = require("zod");
 const { ok } = require("../utils/apiResponse");
 const { prisma } = require("../lib/prisma");
 const { BOOKING_STATUS } = require("../constants/statuses");
+
+const adminBookingStatusSchema = z.object({
+  status: z.enum([
+    BOOKING_STATUS.CONFIRMED,
+    BOOKING_STATUS.OPEN_FOR_AGENTS,
+    BOOKING_STATUS.ASSIGNED,
+    BOOKING_STATUS.ACCEPTED,
+    BOOKING_STATUS.IN_PROGRESS,
+    BOOKING_STATUS.COMPLETED,
+    BOOKING_STATUS.CLOSED,
+    BOOKING_STATUS.CANCELLED,
+    BOOKING_STATUS.REJECTED,
+  ]),
+  agent_id: z.string().trim().optional(),
+  decision_remark: z.string().trim().max(500).optional(),
+  rejection_reason: z.string().trim().max(200).optional(),
+});
+
+function financialBreakdown(totalAmount) {
+  const total = Number(totalAmount || 0);
+  const commission = Number((total * 0.25).toFixed(2));
+  const gst = Number((total * 0.05).toFixed(2));
+  const payout = Number((total - commission - gst).toFixed(2));
+
+  return {
+    total,
+    commission,
+    gst,
+    payout,
+  };
+}
 
 async function confirmBooking(req, res) {
   try {
@@ -12,10 +44,14 @@ async function confirmBooking(req, res) {
       return res.status(404).json({ success: false, message: "Booking not found", errors: [] });
     }
 
+    if ([BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.OPEN_FOR_AGENTS, BOOKING_STATUS.ASSIGNED, BOOKING_STATUS.ACCEPTED, BOOKING_STATUS.IN_PROGRESS, BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CLOSED, BOOKING_STATUS.CANCELLED].includes(booking.status)) {
+      return ok(res, "Booking is already confirmed", booking);
+    }
+
     if (booking.status !== BOOKING_STATUS.PENDING) {
       return res.status(400).json({
         success: false,
-        message: "Only pending bookings can be confirmed",
+        message: "Booking cannot be confirmed in its current state",
         errors: [],
       });
     }
@@ -70,10 +106,10 @@ async function assignBookingAgent(req, res) {
       return res.status(400).json({ success: false, message: "Agent not found", errors: [] });
     }
 
-    if (booking.status !== BOOKING_STATUS.CONFIRMED) {
+    if (![BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.OPEN_FOR_AGENTS].includes(booking.status)) {
       return res.status(400).json({
         success: false,
-        message: "Only confirmed bookings can be assigned",
+        message: "Only confirmed or open bookings can be assigned",
         errors: [],
       });
     }
@@ -122,10 +158,136 @@ async function assignBookingAgent(req, res) {
   }
 }
 
+async function updateBookingStatus(req, res) {
+  const parsed = adminBookingStatusSchema.safeParse(req.body || {});
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      message: "Validation failed",
+      errors: parsed.error.issues,
+    });
+  }
+
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: {
+        package: true,
+        assignedAgent: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found", errors: [] });
+    }
+
+    const nextStatus = parsed.data.status;
+    const now = new Date();
+    const financials = financialBreakdown(Number(booking.totalAmount || 0));
+    const updateData = {
+      status: nextStatus,
+      agentDecisionRemark: parsed.data.decision_remark,
+      agentRejectionReason: parsed.data.rejection_reason,
+    };
+
+    if (nextStatus === BOOKING_STATUS.CONFIRMED) {
+      updateData.confirmedAt = booking.confirmedAt || now;
+    }
+
+    if (nextStatus === BOOKING_STATUS.OPEN_FOR_AGENTS) {
+      updateData.confirmedAt = booking.confirmedAt || now;
+      updateData.publishedAt = booking.publishedAt || now;
+    }
+
+    if (nextStatus === BOOKING_STATUS.ASSIGNED) {
+      const agentId = String(parsed.data.agent_id || booking.assignedAgentId || "").trim();
+      if (!agentId) {
+        return res.status(400).json({ success: false, message: "agent_id is required when assigning a booking", errors: [] });
+      }
+
+      const optedIn = await prisma.packageInterest.findFirst({
+        where: {
+          packageId: booking.packageId,
+          agentId,
+        },
+      });
+
+      if (!optedIn) {
+        return res.status(400).json({ success: false, message: "Selected agent has not opted in for this package", errors: [] });
+      }
+
+      updateData.assignedAgentId = agentId;
+      updateData.assignedAt = booking.assignedAt || now;
+      updateData.agentPayout = financials.payout;
+      updateData.adminMargin = Number((financials.commission + financials.gst).toFixed(2));
+      updateData.confirmedAt = booking.confirmedAt || now;
+      updateData.publishedAt = booking.publishedAt || now;
+    }
+
+    if (nextStatus === BOOKING_STATUS.ACCEPTED) {
+      updateData.acceptedAt = booking.acceptedAt || now;
+    }
+
+    if (nextStatus === BOOKING_STATUS.IN_PROGRESS) {
+      updateData.acceptedAt = booking.acceptedAt || now;
+    }
+
+    if (nextStatus === BOOKING_STATUS.COMPLETED) {
+      updateData.completedAt = now;
+    }
+
+    if (nextStatus === BOOKING_STATUS.CLOSED) {
+      updateData.closedAt = now;
+    }
+
+    if (nextStatus === BOOKING_STATUS.CANCELLED) {
+      updateData.rejectedAt = now;
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: updateData,
+      include: {
+        package: true,
+        assignedAgent: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return ok(res, "Booking status updated successfully", updated);
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update booking status",
+      errors: [],
+    });
+  }
+}
+
 async function listAllBookings(req, res) {
   const page = Math.max(Number(req.query.page) || 1, 1);
   const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
   const search = String(req.query.search || "").trim();
+  const bookingId = String(req.query.booking_id || req.query.id || "").trim();
   const bookingStatus = String(req.query.booking_status || "").trim();
   const transactionStatus = String(req.query.transaction_status || "").trim();
 
@@ -141,6 +303,10 @@ async function listAllBookings(req, res) {
         status: transactionStatus,
       },
     };
+  }
+
+  if (bookingId) {
+    where.id = bookingId;
   }
 
   if (search) {
@@ -247,14 +413,29 @@ async function listAllBookings(req, res) {
               },
             },
           },
+          applications: {
+            select: {
+              id: true,
+              status: true,
+              agentId: true,
+            },
+          },
           transaction: true,
         },
       }),
       prisma.booking.count({ where }),
     ]);
 
+    const enrichedItems = items.map((booking) => ({
+      ...booking,
+      financials: financialBreakdown(booking.totalAmount),
+      application_count: booking.applications.length,
+      selected_application_id:
+        booking.applications.find((application) => application.status === "selected")?.id || null,
+    }));
+
     return ok(res, "Admin bookings fetched successfully", {
-      items,
+      items: enrichedItems,
       pagination: {
         page,
         limit,
@@ -265,6 +446,343 @@ async function listAllBookings(req, res) {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch admin bookings",
+      errors: [],
+    });
+  }
+}
+
+async function publishBookingToAgents(req, res) {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found", errors: [] });
+    }
+
+    if (booking.status !== BOOKING_STATUS.CONFIRMED) {
+      return res.status(400).json({
+        success: false,
+        message: "Only confirmed bookings can be published to agents",
+        errors: [],
+      });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: BOOKING_STATUS.OPEN_FOR_AGENTS,
+        publishedAt: new Date(),
+      },
+      include: {
+        package: true,
+      },
+    });
+
+    return ok(res, "Booking published for agent applications", updated);
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to publish booking",
+      errors: [],
+    });
+  }
+}
+
+async function listBookingApplications(req, res) {
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found", errors: [] });
+    }
+
+    const [interests, allBookings] = await Promise.all([
+      prisma.packageInterest.findMany({
+        where: { packageId: booking.packageId },
+        include: {
+          agent: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.booking.findMany({
+        select: {
+          id: true,
+          assignedAgentId: true,
+          status: true,
+          feedbackRating: true,
+        },
+      }),
+    ]);
+
+    const statsByAgent = new Map();
+
+    for (const item of allBookings) {
+      if (!item.assignedAgentId) {
+        continue;
+      }
+
+      if (!statsByAgent.has(item.assignedAgentId)) {
+        statsByAgent.set(item.assignedAgentId, {
+          completedTrips: 0,
+          activeTrips: 0,
+          ratingSum: 0,
+          ratingCount: 0,
+        });
+      }
+
+      const stats = statsByAgent.get(item.assignedAgentId);
+      if ([BOOKING_STATUS.ACCEPTED, BOOKING_STATUS.IN_PROGRESS, BOOKING_STATUS.ASSIGNED].includes(item.status)) {
+        stats.activeTrips += 1;
+      }
+      if ([BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CLOSED].includes(item.status)) {
+        stats.completedTrips += 1;
+      }
+      if (typeof item.feedbackRating === "number") {
+        stats.ratingSum += item.feedbackRating;
+        stats.ratingCount += 1;
+      }
+    }
+
+    const items = interests.map((interest) => {
+      const agentStats = statsByAgent.get(interest.agentId) || {
+        completedTrips: 0,
+        activeTrips: 0,
+        ratingSum: 0,
+        ratingCount: 0,
+      };
+
+      const rating = agentStats.ratingCount
+        ? Number((agentStats.ratingSum / agentStats.ratingCount).toFixed(2))
+        : 4.5;
+
+      return {
+        ...interest,
+        agentProfile: {
+          id: interest.agent.id,
+          name: interest.agent.user.name,
+          email: interest.agent.user.email,
+          phone: interest.agent.contactNumber,
+          city: interest.agent.agencyName,
+          expertise: interest.agent.bio,
+          rating,
+          ratingPercent: Number((rating * 20).toFixed(0)),
+          tripAssignedCount: interest.agent.tripAssignedCount,
+          tripAcceptedCount: interest.agent.tripAcceptedCount,
+          tripRejectedCount: interest.agent.tripRejectedCount,
+          completedTrips: agentStats.completedTrips,
+          ongoingTrips: agentStats.activeTrips,
+          pendingRequests: 0,
+        },
+      };
+    });
+
+    return ok(res, "Booking applications fetched successfully", {
+      bookingId: booking.id,
+      items,
+    });
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch booking applications",
+      errors: [],
+    });
+  }
+}
+
+async function listPackageInterests(req, res) {
+  try {
+    const travelPackage = await prisma.travelPackage.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!travelPackage) {
+      return res.status(404).json({ success: false, message: "Package not found", errors: [] });
+    }
+
+    const [interests, allBookings] = await Promise.all([
+      prisma.packageInterest.findMany({
+        where: { packageId: travelPackage.id },
+        include: {
+          agent: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.booking.findMany({
+        select: {
+          id: true,
+          assignedAgentId: true,
+          status: true,
+          feedbackRating: true,
+        },
+      }),
+    ]);
+
+    const statsByAgent = new Map();
+
+    for (const item of allBookings) {
+      if (!item.assignedAgentId) {
+        continue;
+      }
+
+      if (!statsByAgent.has(item.assignedAgentId)) {
+        statsByAgent.set(item.assignedAgentId, {
+          completedTrips: 0,
+          activeTrips: 0,
+          ratingSum: 0,
+          ratingCount: 0,
+        });
+      }
+
+      const stats = statsByAgent.get(item.assignedAgentId);
+      if ([BOOKING_STATUS.ACCEPTED, BOOKING_STATUS.IN_PROGRESS, BOOKING_STATUS.ASSIGNED].includes(item.status)) {
+        stats.activeTrips += 1;
+      }
+      if ([BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CLOSED].includes(item.status)) {
+        stats.completedTrips += 1;
+      }
+      if (typeof item.feedbackRating === "number") {
+        stats.ratingSum += item.feedbackRating;
+        stats.ratingCount += 1;
+      }
+    }
+
+    const items = interests.map((interest) => {
+      const agentStats = statsByAgent.get(interest.agentId) || {
+        completedTrips: 0,
+        activeTrips: 0,
+        ratingSum: 0,
+        ratingCount: 0,
+      };
+
+      const rating = agentStats.ratingCount
+        ? Number((agentStats.ratingSum / agentStats.ratingCount).toFixed(2))
+        : 4.5;
+
+      return {
+        ...interest,
+        agentProfile: {
+          id: interest.agent.id,
+          name: interest.agent.user.name,
+          email: interest.agent.user.email,
+          phone: interest.agent.contactNumber,
+          city: interest.agent.agencyName,
+          expertise: interest.agent.bio,
+          rating,
+          ratingPercent: Number((rating * 20).toFixed(0)),
+          tripAssignedCount: interest.agent.tripAssignedCount,
+          tripAcceptedCount: interest.agent.tripAcceptedCount,
+          tripRejectedCount: interest.agent.tripRejectedCount,
+          completedTrips: agentStats.completedTrips,
+          ongoingTrips: agentStats.activeTrips,
+          pendingRequests: 0,
+        },
+      };
+    });
+
+    return ok(res, "Package interests fetched successfully", {
+      packageId: travelPackage.id,
+      items,
+    });
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch package interests",
+      errors: [],
+    });
+  }
+}
+
+async function selectBookingApplication(req, res) {
+  try {
+    const interest = await prisma.packageInterest.findUnique({
+      where: { id: req.params.applicationId },
+      include: {
+        package: true,
+        agent: true,
+      },
+    });
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!interest || !booking || booking.packageId !== interest.packageId) {
+      return res.status(404).json({ success: false, message: "Application not found", errors: [] });
+    }
+
+    if (![BOOKING_STATUS.PENDING, BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.OPEN_FOR_AGENTS, BOOKING_STATUS.ASSIGNED].includes(booking.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking is not ready for agent assignment",
+        errors: [],
+      });
+    }
+
+    const bookingAmount = Number(booking.totalAmount || 0);
+    const financials = financialBreakdown(bookingAmount);
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.packageInterest.update({
+        where: { id: interest.id },
+        data: {
+          updatedAt: new Date(),
+        },
+      });
+
+      return tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          assignedAgentId: interest.agentId,
+          status: BOOKING_STATUS.ASSIGNED,
+          assignedAt: new Date(),
+          confirmedAt: booking.confirmedAt || new Date(),
+          publishedAt: booking.publishedAt || new Date(),
+          agentPayout: financials.payout,
+          adminMargin: Number((financials.commission + financials.gst).toFixed(2)),
+        },
+        include: {
+          package: true,
+          assignedAgent: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
+    return ok(res, "Agent application selected and booking assigned", result);
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to select booking application",
       errors: [],
     });
   }
@@ -318,6 +836,7 @@ async function analyticsOverview(_req, res) {
     const bookingStatusBreakdown = {
       pending: 0,
       confirmed: 0,
+      open_for_agents: 0,
       assigned: 0,
       accepted: 0,
       rejected: 0,
@@ -646,6 +1165,93 @@ async function listAllTransactions(req, res) {
   }
 }
 
+async function updateBookingPayout(req, res) {
+  const paidAmount = Number(req.body?.paid_amount);
+  const payoutTransactionReference = String(req.body?.payout_transaction_reference || "").trim();
+
+  if (!Number.isFinite(paidAmount) || paidAmount < 0) {
+    return res.status(400).json({
+      success: false,
+      message: "paid_amount must be zero or positive",
+      errors: [],
+    });
+  }
+
+  if (!payoutTransactionReference) {
+    return res.status(400).json({
+      success: false,
+      message: "payout_transaction_reference is required",
+      errors: [],
+    });
+  }
+
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        status: true,
+        agentPayout: true,
+      },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found", errors: [] });
+    }
+
+    const targetPayout = Number(booking.agentPayout || 0);
+    if (targetPayout <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking has no payable agent payout",
+        errors: [],
+      });
+    }
+
+    if (paidAmount > targetPayout) {
+      return res.status(400).json({
+        success: false,
+        message: "paid_amount cannot exceed agent payout",
+        errors: [],
+      });
+    }
+
+    const payoutStatus = paidAmount === 0 ? "unpaid" : paidAmount >= targetPayout ? "paid" : "partial";
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        payoutStatus,
+        payoutPaidAmount: paidAmount,
+        payoutTransactionReference,
+        payoutPaidAt: paidAmount > 0 ? new Date() : null,
+      },
+      include: {
+        package: true,
+        assignedAgent: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return ok(res, "Booking payout updated successfully", updated);
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update booking payout",
+      errors: [],
+    });
+  }
+}
+
 module.exports = {
   listAllBookings,
   analyticsOverview,
@@ -654,5 +1260,11 @@ module.exports = {
   listAllCustomers,
   listAllTransactions,
   confirmBooking,
+  updateBookingStatus,
+  publishBookingToAgents,
   assignBookingAgent,
+  listBookingApplications,
+  listPackageInterests,
+  selectBookingApplication,
+  updateBookingPayout,
 };

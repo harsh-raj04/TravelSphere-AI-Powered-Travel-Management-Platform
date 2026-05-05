@@ -1,6 +1,7 @@
 const BOOKING_STATUS = {
   PENDING: "pending",
   CONFIRMED: "confirmed",
+  OPEN_FOR_AGENTS: "open_for_agents",
   ASSIGNED: "assigned",
   ACCEPTED: "accepted",
   REJECTED: "rejected",

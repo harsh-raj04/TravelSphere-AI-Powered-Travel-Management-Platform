@@ -70,6 +70,12 @@ export const transactionsAPI = {
 
 export const agentAPI = {
   bookings: () => apiClient.get('/bookings/agent'),
+  marketplace: () => apiClient.get('/bookings/marketplace'),
+  marketplaceDetails: (id) => apiClient.get(`/bookings/marketplace/${id}`),
+  applyForTrip: (id, payload) => apiClient.post(`/bookings/${id}/apply`, payload),
+  myApplications: () => apiClient.get('/bookings/applications/my'),
+  myPackageInterests: () => apiClient.get('/packages/interests/my'),
+  optInPackage: (id, payload) => apiClient.post(`/packages/${id}/interest`, payload),
   updateBookingStatus: (id, payload) => apiClient.patch(`/bookings/${id}/status`, payload),
   requestChange: (id, remark) => apiClient.patch(`/bookings/${id}/request-change`, { remark }),
 };
@@ -77,7 +83,13 @@ export const agentAPI = {
 export const adminAPI = {
   bookings: (params) => apiClient.get('/admin/bookings', { params }),
   confirmBooking: (id) => apiClient.patch(`/admin/bookings/${id}/confirm`),
+  updateBookingStatus: (id, payload) => apiClient.patch(`/admin/bookings/${id}/status`, payload),
+  publishBooking: (id) => apiClient.patch(`/admin/bookings/${id}/publish`),
   assignAgent: (id, payload) => apiClient.patch(`/admin/bookings/${id}/assign-agent`, payload),
+  updateBookingPayout: (id, payload) => apiClient.patch(`/admin/bookings/${id}/payout`, payload),
+  bookingApplications: (id) => apiClient.get(`/admin/bookings/${id}/applications`),
+  selectBookingApplication: (bookingId, applicationId) => apiClient.patch(`/admin/bookings/${bookingId}/applications/${applicationId}/select`),
+  packageInterests: (id) => apiClient.get(`/admin/packages/${id}/interests`),
   analyticsOverview: () => apiClient.get('/admin/analytics/overview'),
   packages: (params) => apiClient.get('/admin/packages', { params }),
   createPackage: (data) => apiClient.post('/packages', data),

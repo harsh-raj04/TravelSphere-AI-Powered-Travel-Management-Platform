@@ -1,9 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { bookingsAPI } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { X } from 'lucide-react';
+
+// Map internal booking statuses to customer-friendly statuses
+const getStatusLabel = (status) => {
+  const statusMap = {
+    confirmed: 'Confirmed',
+    assigned: 'Confirmed',
+    completed: 'Completed',
+    closed: 'Completed',
+    cancelled: 'Cancelled',
+    open_for_agents: 'Confirmed',
+    accepted: 'Confirmed',
+    in_progress: 'Confirmed',
+    rejected: 'Confirmed',
+  };
+  return statusMap[status] || status;
+};
+
+const getStatusVariant = (status) => {
+  const cleanStatus = getStatusLabel(status);
+  if (cleanStatus === 'Completed') return 'success';
+  if (cleanStatus === 'Confirmed') return 'info';
+  if (cleanStatus === 'Cancelled') return 'danger';
+  return 'warning';
+};
 
 export function Bookings() {
   const [loading, setLoading] = useState(true);
@@ -46,7 +70,7 @@ export function Bookings() {
     <div className="travel-ui py-10 space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2 text-light-text-primary dark:text-dark-text-primary">Bookings</h1>
-        <p className="text-light-text-secondary dark:text-dark-text-secondary">Manage your package bookings and track confirmation status.</p>
+        <p className="text-light-text-secondary dark:text-dark-text-secondary">Track confirmed trips, completed trips, and any cancellations.</p>
       </div>
 
       {
@@ -69,7 +93,7 @@ export function Bookings() {
                       {item.package?.destination || 'Destination'} • {new Date(item.travelDate).toLocaleDateString()}
                     </p>
                   </div>
-                  <Badge variant={['confirmed', 'assigned', 'accepted', 'in_progress', 'completed', 'closed'].includes(item.status) ? 'success' : 'warning'}>{item.status}</Badge>
+                  <Badge variant={getStatusVariant(item.status)}>{getStatusLabel(item.status)}</Badge>
                 </div>
                 <p className="mt-3 text-sm text-light-text-secondary dark:text-dark-text-secondary">
                   Travelers: {item.travelersCount}

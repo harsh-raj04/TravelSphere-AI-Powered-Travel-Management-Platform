@@ -28,7 +28,6 @@ export function Navbar() {
   const customerNavItems = [
     { path: '/home', label: 'Home', icon: Sparkles },
     { path: '/discover', label: 'Discover', icon: Compass },
-    { path: '/trips', label: 'My Trips', icon: Calendar },
     { path: '/plan', label: 'Plan Trip', icon: MapPin },
     { path: '/bookings', label: 'Bookings', icon: CreditCard },
     { path: '/profile', label: 'Profile', icon: User },

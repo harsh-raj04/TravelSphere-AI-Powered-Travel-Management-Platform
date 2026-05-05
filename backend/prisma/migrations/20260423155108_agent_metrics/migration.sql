@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "agent_profiles" ADD COLUMN "agentRating" DECIMAL(5,2) NOT NULL DEFAULT 5.0,
+ADD COLUMN "tripAssignedCount" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "tripAcceptedCount" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "tripRejectedCount" INTEGER NOT NULL DEFAULT 0;
