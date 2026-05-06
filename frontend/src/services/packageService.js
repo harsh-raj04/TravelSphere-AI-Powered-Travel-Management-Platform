@@ -80,4 +80,15 @@ export const packageService = {
       throw error;
     }
   },
+
+  // Get featured packages (ranked 1-7)
+  async getFeaturedPackages() {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/packages/featured`);
+      return response.data.data?.items || response.data.data;
+    } catch (error) {
+      console.error('Error fetching featured packages:', error);
+      return [];
+    }
+  },
 };

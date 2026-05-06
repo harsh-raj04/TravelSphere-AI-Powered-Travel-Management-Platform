@@ -39,6 +39,9 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminBookingsNew } from './pages/admin/AdminBookingsNew';
 import { AdminBookingDetail } from './pages/admin/AdminBookingDetail';
 import { AdminPackages } from './pages/admin/AdminPackages';
+import { AdminPackageDetail } from './pages/admin/AdminPackageDetail';
+import { AdminCustomerProfile } from './pages/admin/AdminCustomerProfile';
+import { AdminAgentProfile } from './pages/admin/AdminAgentProfile';
 import { AdminAgents } from './pages/admin/AdminAgents';
 import { AdminCustomers } from './pages/admin/AdminCustomers';
 import { AdminPayments } from './pages/admin/AdminPayments';
@@ -248,6 +251,30 @@ function AppRoutes() {
         element={
           <RoleRoute allowedRoles={['admin']}>
             <AdminLayout><AdminPackages /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/packages/:id"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminPackageDetail /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/customers/:id"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminCustomerProfile /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/agents/:id"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminAgentProfile /></AdminLayout>
           </RoleRoute>
         }
       />

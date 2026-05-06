@@ -1252,6 +1252,524 @@ async function updateBookingPayout(req, res) {
   }
 }
 
+// ────────── PACKAGE MANAGEMENT ──────────
+
+async function getPackageById(req, res) {
+  try {
+    const travelPackage = await prisma.travelPackage.findUnique({
+      where: { id: req.params.id },
+      include: {
+        agent: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        itineraries: { orderBy: { dayNumber: "asc" } },
+        pricingOptions: { orderBy: { price: "asc" } },
+        departures: { orderBy: { departureDate: "asc" }, where: { isActive: true } },
+        inclusions: true,
+        addOns: true,
+        _count: { select: { bookings: true } },
+      },
+    });
+
+    if (!travelPackage) {
+      return res.status(404).json({ success: false, message: "Package not found", errors: [] });
+    }
+
+    const ratingAgg = await prisma.booking.aggregate({
+      where: { packageId: travelPackage.id, feedbackRating: { not: null } },
+      _avg: { feedbackRating: true },
+      _count: true,
+    });
+
+    const rating = ratingAgg._avg.feedbackRating
+      ? Number(Number(ratingAgg._avg.feedbackRating).toFixed(2))
+      : null;
+
+    return ok(res, "Package fetched successfully", {
+      ...travelPackage,
+      rating,
+      reviewCount: ratingAgg._count,
+    });
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch package", errors: [] });
+  }
+}
+
+const updatePackageSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  destination: z.string().optional(),
+  durationDays: z.number().int().positive().optional(),
+  price: z.number().positive().optional(),
+  category: z.string().optional(),
+  bannerImage: z.string().optional().nullable(),
+  isActive: z.boolean().optional(),
+  featuredRank: z.number().int().positive().optional().nullable(),
+  itineraries: z.array(z.object({
+    dayNumber: z.number().int().positive(),
+    title: z.string(),
+    description: z.string().nullable().optional(),
+    morningActivity: z.string().nullable().optional(),
+    afternoonActivity: z.string().nullable().optional(),
+    eveningActivity: z.string().nullable().optional(),
+    nightActivity: z.string().nullable().optional(),
+    locations: z.union([z.array(z.string()), z.string()]).optional().transform(val => {
+      if (typeof val === 'string') {
+        try { return JSON.parse(val); } catch { return []; }
+      }
+      return val || [];
+    }),
+    activities: z.union([z.array(z.string()), z.string()]).optional().transform(val => {
+      if (typeof val === 'string') {
+        try { return JSON.parse(val); } catch { return []; }
+      }
+      return val || [];
+    }),
+  })).optional(),
+  pricingOptions: z.array(z.object({
+    roomType: z.string(),
+    price: z.number().positive(),
+  })).optional(),
+  departures: z.array(z.object({
+    departureDate: z.string(),
+    availableSeats: z.number().int().positive(),
+    price: z.number().positive(),
+    isActive: z.boolean().optional(),
+  })).optional(),
+  inclusions: z.array(z.object({
+    type: z.enum(["inclusion", "exclusion"]),
+    description: z.string(),
+  })).optional(),
+  addOns: z.array(z.object({
+    title: z.string(),
+    description: z.string().optional().nullable(),
+    price: z.number().positive(),
+  })).optional(),
+});
+
+async function updatePackage(req, res) {
+  const parsed = updatePackageSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: "Validation failed", errors: parsed.error.issues });
+  }
+
+  const { itineraries, pricingOptions, departures, inclusions, addOns, ...topLevel } = parsed.data;
+
+  try {
+    const existing = await prisma.travelPackage.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Package not found", errors: [] });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.travelPackage.update({
+        where: { id: req.params.id },
+        data: topLevel,
+      });
+
+      if (itineraries !== undefined) {
+        await tx.packageItinerary.deleteMany({ where: { packageId: req.params.id } });
+        for (const it of itineraries) {
+          await tx.packageItinerary.create({
+            data: {
+              packageId: req.params.id,
+              dayNumber: it.dayNumber,
+              title: it.title,
+              description: it.description || "",
+              morningActivity: it.morningActivity || "",
+              afternoonActivity: it.afternoonActivity || "",
+              eveningActivity: it.eveningActivity || "",
+              nightActivity: it.nightActivity || "",
+              locations: it.locations || [],
+              activities: it.activities || [],
+            },
+          });
+        }
+      }
+
+      if (pricingOptions !== undefined) {
+        await tx.packagePricingOption.deleteMany({ where: { packageId: req.params.id } });
+        for (const po of pricingOptions) {
+          await tx.packagePricingOption.create({
+            data: { packageId: req.params.id, roomType: po.roomType, price: po.price },
+          });
+        }
+      }
+
+      if (departures !== undefined) {
+        await tx.packageDeparture.deleteMany({ where: { packageId: req.params.id } });
+        for (const d of departures) {
+          await tx.packageDeparture.create({
+            data: {
+              packageId: req.params.id,
+              departureDate: new Date(d.departureDate),
+              availableSeats: d.availableSeats,
+              bookedSeats: 0,
+              price: d.price,
+              isActive: d.isActive !== false,
+            },
+          });
+        }
+      }
+
+      if (inclusions !== undefined) {
+        await tx.packageInclusion.deleteMany({ where: { packageId: req.params.id } });
+        for (const inc of inclusions) {
+          await tx.packageInclusion.create({
+            data: { packageId: req.params.id, type: inc.type, description: inc.description },
+          });
+        }
+      }
+
+      if (addOns !== undefined) {
+        await tx.packageAddOn.deleteMany({ where: { packageId: req.params.id } });
+        for (const ao of addOns) {
+          await tx.packageAddOn.create({
+            data: {
+              packageId: req.params.id,
+              title: ao.title,
+              description: ao.description || "",
+              price: ao.price,
+            },
+          });
+        }
+      }
+
+      return updated;
+    });
+
+    const enriched = await prisma.travelPackage.findUnique({
+      where: { id: req.params.id },
+      include: {
+        itineraries: { orderBy: { dayNumber: "asc" } },
+        pricingOptions: { orderBy: { price: "asc" } },
+        departures: { orderBy: { departureDate: "asc" } },
+        inclusions: true,
+        addOns: true,
+        _count: { select: { bookings: true } },
+      },
+    });
+
+    return ok(res, "Package updated successfully", enriched);
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to update package", errors: [] });
+  }
+}
+
+async function featurePackage(req, res) {
+  const rank = req.body?.featured_rank;
+  if (rank !== null && rank !== undefined && (typeof rank !== "number" || !Number.isInteger(rank) || rank < 1 || rank > 7)) {
+    return res.status(400).json({ success: false, message: "featured_rank must be an integer between 1 and 7, or null", errors: [] });
+  }
+
+  try {
+    // If assigning a rank, check for duplicates
+    if (rank !== null && rank !== undefined) {
+      const conflict = await prisma.travelPackage.findFirst({
+        where: { featuredRank: rank, id: { not: req.params.id } },
+      });
+      if (conflict) {
+        return res.status(409).json({ success: false, message: `Rank #${rank} is already assigned to "${conflict.title}"`, errors: [] });
+      }
+
+      // Count existing featured (excluding this package if it's already featured)
+      const currentFeatured = await prisma.travelPackage.count({
+        where: { featuredRank: { not: null }, id: { not: req.params.id } },
+      });
+      if (currentFeatured >= 7) {
+        return res.status(409).json({ success: false, message: "Maximum 7 featured packages allowed. Remove one first.", errors: [] });
+      }
+    }
+    const updated = await prisma.travelPackage.update({
+      where: { id: req.params.id },
+      data: { featuredRank: rank },
+    });
+
+    return ok(res, rank ? `Package ranked #${rank}` : "Package removed from featured", updated);
+  } catch (_error) {
+    if (_error.code === "P2025") {
+      return res.status(404).json({ success: false, message: "Package not found", errors: [] });
+    }
+    return res.status(500).json({ success: false, message: "Failed to update featured rank", errors: [] });
+  }
+}
+
+async function togglePackageActive(req, res) {
+  const isActive = Boolean(req.body?.is_active);
+  try {
+    const updated = await prisma.travelPackage.update({
+      where: { id: req.params.id },
+      data: { isActive },
+    });
+    return ok(res, isActive ? "Package activated" : "Package deactivated", updated);
+  } catch (_error) {
+    if (_error.code === "P2025") {
+      return res.status(404).json({ success: false, message: "Package not found", errors: [] });
+    }
+    return res.status(500).json({ success: false, message: "Failed to update package status", errors: [] });
+  }
+}
+
+// ────────── PACKAGE ANALYTICS ──────────
+
+async function listPackageHistory(req, res) {
+  try {
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+
+    const [bookings, total, stats] = await Promise.all([
+      prisma.booking.findMany({
+        where: { packageId: req.params.id },
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          customer: { select: { id: true, name: true, email: true } },
+          assignedAgent: {
+            include: { user: { select: { id: true, name: true, email: true } } },
+          },
+          transaction: { select: { id: true, status: true, amount: true } },
+        },
+      }),
+      prisma.booking.count({ where: { packageId: req.params.id } }),
+      prisma.booking.aggregate({
+        where: { packageId: req.params.id },
+        _sum: { totalAmount: true },
+        _count: true,
+      }),
+    ]);
+
+    const completedCount = await prisma.booking.count({
+      where: { packageId: req.params.id, status: { in: [BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CLOSED] } },
+    });
+
+    return ok(res, "Package history fetched successfully", {
+      items: bookings,
+      pagination: { page, limit, total },
+      analytics: {
+        totalBookings: stats._count,
+        totalRevenue: Number(stats._sum.totalAmount || 0),
+        completionRate: stats._count ? Number(((completedCount / stats._count) * 100).toFixed(1)) : 0,
+      },
+    });
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch package history", errors: [] });
+  }
+}
+
+async function listPackageAgents(req, res) {
+  try {
+    const [interests, allBookings] = await Promise.all([
+      prisma.packageInterest.findMany({
+        where: { packageId: req.params.id },
+        include: {
+          agent: {
+            include: { user: { select: { id: true, name: true, email: true } } },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.booking.findMany({
+        where: { packageId: req.params.id },
+        select: { assignedAgentId: true, status: true, feedbackRating: true },
+      }),
+    ]);
+
+    const statsByAgent = new Map();
+    for (const b of allBookings) {
+      if (!b.assignedAgentId) continue;
+      if (!statsByAgent.has(b.assignedAgentId)) {
+        statsByAgent.set(b.assignedAgentId, { completedTrips: 0, activeTrips: 0, ratingSum: 0, ratingCount: 0, rejectionCount: 0 });
+      }
+      const s = statsByAgent.get(b.assignedAgentId);
+      if ([BOOKING_STATUS.ACCEPTED, BOOKING_STATUS.IN_PROGRESS, BOOKING_STATUS.ASSIGNED].includes(b.status)) s.activeTrips++;
+      if ([BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CLOSED].includes(b.status)) s.completedTrips++;
+      if ([BOOKING_STATUS.REJECTED, BOOKING_STATUS.CANCELLED].includes(b.status)) s.rejectionCount++;
+      if (b.feedbackRating) { s.ratingSum += b.feedbackRating; s.ratingCount++; }
+    }
+
+    const items = interests.map((i) => {
+      const s = statsByAgent.get(i.agentId) || { completedTrips: 0, activeTrips: 0, ratingSum: 0, ratingCount: 0, rejectionCount: 0 };
+      return {
+        ...i,
+        agent: {
+          id: i.agent.id,
+          name: i.agent.user.name,
+          email: i.agent.user.email,
+          contactNumber: i.agent.contactNumber,
+          rating: s.ratingCount ? Number((s.ratingSum / s.ratingCount).toFixed(2)) : null,
+          completedTrips: s.completedTrips,
+          activeTrips: s.activeTrips,
+          rejectionCount: s.rejectionCount,
+        },
+      };
+    });
+
+    return ok(res, "Package agents fetched successfully", { items });
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch package agents", errors: [] });
+  }
+}
+
+async function listPackageReviews(req, res) {
+  try {
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+
+    const where = { packageId: req.params.id, feedbackRating: { not: null } };
+
+    const [reviews, total] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { feedbackSubmittedAt: "desc" },
+        select: {
+          id: true,
+          feedbackRating: true,
+          feedbackComment: true,
+          feedbackSubmittedAt: true,
+          customer: { select: { id: true, name: true, email: true } },
+          assignedAgent: {
+            include: { user: { select: { id: true, name: true } } },
+          },
+        },
+      }),
+      prisma.booking.count({ where }),
+    ]);
+
+    const avgAgg = await prisma.booking.aggregate({
+      where,
+      _avg: { feedbackRating: true },
+    });
+
+    return ok(res, "Package reviews fetched successfully", {
+      items: reviews,
+      pagination: { page, limit, total },
+      averageRating: avgAgg._avg.feedbackRating
+        ? Number(Number(avgAgg._avg.feedbackRating).toFixed(2))
+        : null,
+    });
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch package reviews", errors: [] });
+  }
+}
+
+// ────────── PROFILE ENDPOINTS ──────────
+
+async function getUserById(req, res) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found", errors: [] });
+    }
+
+    const [bookings, bookingAgg] = await Promise.all([
+      prisma.booking.findMany({
+        where: { customerId: user.id },
+        orderBy: { createdAt: "desc" },
+        include: {
+          package: { select: { id: true, title: true, destination: true } },
+          assignedAgent: {
+            include: { user: { select: { id: true, name: true } } },
+          },
+          transaction: { select: { id: true, status: true, amount: true } },
+        },
+      }),
+      prisma.booking.aggregate({
+        where: { customerId: user.id },
+        _count: true,
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    return ok(res, "User profile fetched successfully", {
+      user,
+      totalBookings: bookingAgg._count,
+      totalSpent: Number(bookingAgg._sum.totalAmount || 0),
+      bookings,
+    });
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch user profile", errors: [] });
+  }
+}
+
+async function getAgentById(req, res) {
+  try {
+    const agent = await prisma.agentProfile.findUnique({
+      where: { id: req.params.id },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        _count: { select: { packages: true } },
+      },
+    });
+
+    if (!agent) {
+      return res.status(404).json({ success: false, message: "Agent not found", errors: [] });
+    }
+
+    const [bookings, bookingAgg] = await Promise.all([
+      prisma.booking.findMany({
+        where: { assignedAgentId: agent.id },
+        orderBy: { createdAt: "desc" },
+        include: {
+          package: { select: { id: true, title: true, destination: true } },
+          customer: { select: { id: true, name: true, email: true } },
+          transaction: { select: { id: true, status: true, amount: true } },
+        },
+      }),
+      prisma.booking.aggregate({
+        where: { assignedAgentId: agent.id },
+        _sum: { totalAmount: true, agentPayout: true },
+      }),
+    ]);
+
+    const activeBookings = bookings.filter((b) =>
+      [BOOKING_STATUS.ASSIGNED, BOOKING_STATUS.ACCEPTED, BOOKING_STATUS.IN_PROGRESS].includes(b.status),
+    ).length;
+
+    const completedBookings = bookings.filter((b) =>
+      [BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CLOSED].includes(b.status),
+    ).length;
+
+    const rejectedBookings = bookings.filter((b) =>
+      [BOOKING_STATUS.REJECTED, BOOKING_STATUS.CANCELLED].includes(b.status),
+    ).length;
+
+    const rating = bookings
+      .filter((b) => b.feedbackRating)
+      .reduce((sum, b, _, arr) => sum + b.feedbackRating / arr.length, 0);
+
+    return ok(res, "Agent profile fetched successfully", {
+      id: agent.id,
+      userId: agent.user.id,
+      name: agent.user.name,
+      email: agent.user.email,
+      contactNumber: agent.contactNumber,
+      agencyName: agent.agencyName,
+      bio: agent.bio,
+      isVerified: agent.isVerified,
+      rating: rating || null,
+      packagesCount: agent._count.packages,
+      totalBookings: bookings.length,
+      activeBookings,
+      completedBookings,
+      rejectedBookings,
+      totalRevenue: Number(bookingAgg._sum.totalAmount || 0),
+      totalPayout: Number(bookingAgg._sum.agentPayout || 0),
+      bookings,
+    });
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch agent profile", errors: [] });
+  }
+}
+
 module.exports = {
   listAllBookings,
   analyticsOverview,
@@ -1267,4 +1785,13 @@ module.exports = {
   listPackageInterests,
   selectBookingApplication,
   updateBookingPayout,
+  getPackageById,
+  updatePackage,
+  featurePackage,
+  togglePackageActive,
+  listPackageHistory,
+  listPackageAgents,
+  listPackageReviews,
+  getUserById,
+  getAgentById,
 };

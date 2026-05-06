@@ -14,6 +14,15 @@ const {
   listPackageInterests,
   selectBookingApplication,
   updateBookingPayout,
+  getPackageById,
+  updatePackage,
+  featurePackage,
+  togglePackageActive,
+  listPackageHistory,
+  listPackageAgents,
+  listPackageReviews,
+  getUserById,
+  getAgentById,
 } = require("../controllers/admin.controller");
 const { authenticate } = require("../middlewares/authenticate");
 const { authorize } = require("../middlewares/authorize");
@@ -30,11 +39,21 @@ adminRouter.patch("/bookings/:id/assign-agent", assignBookingAgent);
 adminRouter.patch("/bookings/:id/payout", updateBookingPayout);
 adminRouter.get("/bookings/:id/applications", listBookingApplications);
 adminRouter.patch("/bookings/:id/applications/:applicationId/select", selectBookingApplication);
+adminRouter.get("/bookings/:id/applications", listBookingApplications);
 adminRouter.get("/packages/:id/interests", listPackageInterests);
-adminRouter.get("/analytics/overview", analyticsOverview);
+adminRouter.get("/packages/:id/history", listPackageHistory);
+adminRouter.get("/packages/:id/agents", listPackageAgents);
+adminRouter.get("/packages/:id/reviews", listPackageReviews);
+adminRouter.get("/packages/:id", getPackageById);
+adminRouter.put("/packages/:id", updatePackage);
+adminRouter.patch("/packages/:id/feature", featurePackage);
+adminRouter.patch("/packages/:id/active", togglePackageActive);
 adminRouter.get("/packages", listAllPackages);
+adminRouter.get("/agents/:id", getAgentById);
 adminRouter.get("/agents", listAllAgents);
+adminRouter.get("/users/:id", getUserById);
 adminRouter.get("/customers", listAllCustomers);
 adminRouter.get("/transactions", listAllTransactions);
+adminRouter.get("/analytics/overview", analyticsOverview);
 
 module.exports = { adminRouter };

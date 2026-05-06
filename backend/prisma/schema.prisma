@@ -95,6 +95,7 @@ model TravelPackage {
   bannerImage           String?
   category              String    @default("group_tours") // group_tours, personal_tours, couple_tours, etc.
   isActive              Boolean   @default(true)
+  featuredRank          Int?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   agent                 AgentProfile? @relation(fields: [agentId], references: [id], onDelete: SetNull)

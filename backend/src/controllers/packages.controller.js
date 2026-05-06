@@ -17,6 +17,22 @@ const packageInterestSchema = z.object({
   message: z.string().min(2).max(500).optional(),
 });
 
+async function getFeaturedPackages(req, res) {
+  try {
+    const items = await prisma.travelPackage.findMany({
+      where: {
+        isActive: true,
+        featuredRank: { not: null },
+      },
+      orderBy: { featuredRank: "asc" },
+      take: 7,
+    });
+    return ok(res, "Featured packages fetched", { items });
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch featured packages", errors: [] });
+  }
+}
+
 async function listPackages(req, res) {
   const page = Math.max(Number(req.query.page) || 1, 1);
   const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 50);
@@ -392,6 +408,7 @@ module.exports = {
   getPackageById,
   getPackageDetails,
   getDestinationCounts,
+  getFeaturedPackages,
   createPackage,
   updatePackage,
   deletePackage,

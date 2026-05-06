@@ -99,9 +99,18 @@ export const adminAPI = {
   packageInterests: (id) => apiClient.get(`/admin/packages/${id}/interests`),
   analyticsOverview: () => apiClient.get('/admin/analytics/overview'),
   packages: (params) => apiClient.get('/admin/packages', { params }),
+  getPackage: (id) => apiClient.get(`/admin/packages/${id}`),
+  updatePackage: (id, data) => apiClient.put(`/admin/packages/${id}`, data),
+  featurePackage: (id, payload) => apiClient.patch(`/admin/packages/${id}/feature`, payload),
+  togglePackageActive: (id, payload) => apiClient.patch(`/admin/packages/${id}/active`, payload),
+  getPackageHistory: (id, params) => apiClient.get(`/admin/packages/${id}/history`, { params }),
+  getPackageAgents: (id) => apiClient.get(`/admin/packages/${id}/agents`),
+  getPackageReviews: (id, params) => apiClient.get(`/admin/packages/${id}/reviews`, { params }),
   createPackage: (data) => apiClient.post('/packages', data),
   agents: () => apiClient.get('/admin/agents'),
+  getAgent: (id) => apiClient.get(`/admin/agents/${id}`),
   customers: () => apiClient.get('/admin/customers'),
+  getUser: (id) => apiClient.get(`/admin/users/${id}`),
   transactions: (params) => apiClient.get('/admin/transactions', { params }),
 };
 

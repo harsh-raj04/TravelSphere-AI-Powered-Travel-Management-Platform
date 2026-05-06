@@ -28,6 +28,7 @@ async function createPackage(data) {
       bannerImage,
       category,
       isActive: true,
+      featuredRank: data.featuredRank ?? null,
     },
   });
 
@@ -136,6 +137,7 @@ const packages = [
       'Experience the sun, sand, and sea of Goa. Visit North Goa beaches (Baga, Calangute, Anjuna), explore Fort Aguada, enjoy water sports, and unwind at beach shacks with live music.',
     bannerImage: '/images/packages/goa-beach-paradise.jpg',
     category: 'weekend_trips',
+    featuredRank: 1,
     itineraries: [
       {
         dayNumber: 1, title: 'Arrival in Goa',
@@ -194,6 +196,7 @@ const packages = [
       'A quick escape to Goa for the weekend. Enjoy the best beaches, party vibes, and delicious seafood. Perfect for a refreshing break from city life.',
     bannerImage: '/images/packages/goa-weekend-getaway.jpg',
     category: 'weekend_trips',
+    featuredRank: 2,
     itineraries: [
       {
         dayNumber: 1, title: 'Arrival & Beach Fun',
@@ -237,6 +240,7 @@ const packages = [
       'A luxury Goa experience with 5-star beach resorts, private yacht cruise, spa treatments, and fine dining. Experience Goa like never before.',
     bannerImage: '/images/packages/goa-extended-luxury.jpg',
     category: 'group_tours',
+    featuredRank: 3,
     itineraries: [
       {
         dayNumber: 1, title: 'Luxury Arrival',
@@ -309,6 +313,7 @@ const packages = [
       'Experience the magic of Manali with snow-capped peaks, Solang Valley adventures, Old Manali charm, and Rohtang Pass. Perfect for couples and families.',
     bannerImage: '/images/packages/manali-snow-adventure.jpg',
     category: 'group_tours',
+    featuredRank: 4,
     itineraries: [
       {
         dayNumber: 1, title: 'Delhi to Manali (Overnight)',
@@ -369,6 +374,7 @@ const packages = [
     description: 'A quick escape to the hills. Visit Manali for a refreshing weekend with scenic beauty and cool mountain air.',
     bannerImage: '/images/packages/manali-weekend-escape.jpg',
     category: 'weekend_trips',
+    featuredRank: 5,
     itineraries: [
       { dayNumber: 1, title: 'Arrival & Mall Road', morningActivity: 'Arrive in Manali, check in', afternoonActivity: 'Visit Hadimba Temple and Vashisht Hot Springs', eveningActivity: 'Mall Road exploration', nightActivity: 'Dinner at a local cafe', locations: ['Manali'], activities: ['Temple visit', 'Shopping'] },
       { dayNumber: 2, title: 'Solang Adventure', morningActivity: 'Solang Valley adventure sports', afternoonActivity: 'Paragliding and snow play', eveningActivity: 'Return and relax', nightActivity: 'Bonfire dinner', locations: ['Solang Valley'], activities: ['Adventure sports', 'Bonfire'] },
@@ -412,6 +418,7 @@ const packages = [
     description: 'Explore the Queen of Hills - Shimla. Walk the historic Mall Road, visit Jakhoo Temple, ride the Kalka-Shimla toy train, and experience colonial charm.',
     bannerImage: '/images/packages/shimla-heritage-trail.jpg',
     category: 'family_tours',
+    featuredRank: 6,
     itineraries: [
       { dayNumber: 1, title: 'Arrival', morningActivity: 'Arrive in Shimla, hotel check-in', afternoonActivity: 'Lunch, relaxed walk on Mall Road', eveningActivity: 'Visit The Ridge and Christ Church', nightActivity: 'Dinner at a colonial-era restaurant', locations: ['Shimla Mall Road', 'The Ridge'], activities: ['Heritage walk'] },
       { dayNumber: 2, title: 'Kufri Excursion', morningActivity: 'Drive to Kufri', afternoonActivity: 'Horse riding, Himalayan Nature Park', eveningActivity: 'Return to Shimla, visit Jakhoo Temple', nightActivity: 'Dinner, local food tasting', locations: ['Kufri', 'Jakhoo Temple'], activities: ['Horse riding', 'Wildlife park'] },
@@ -455,6 +462,7 @@ const packages = [
     description: 'Sacred pilgrimage to Kedarnath Dham. Trek through the majestic Garhwal Himalayas to one of the 12 Jyotirlingas. Includes visit to Haridwar and Tungnath.',
     bannerImage: '/images/packages/kedarnath-dham-yatra.jpg',
     category: 'pilgrimage',
+    featuredRank: 7,
     itineraries: [
       { dayNumber: 1, title: 'Haridwar Arrival', morningActivity: 'Arrive Haridwar, check-in', afternoonActivity: 'Visit Har Ki Pauri, take holy dip', eveningActivity: 'Ganga Aarti at Har Ki Pauri', nightActivity: 'Dinner at hotel', locations: ['Haridwar', 'Har Ki Pauri'], activities: ['Holy dip', 'Ganga Aarti'] },
       { dayNumber: 2, title: 'Haridwar to Gaurikund', morningActivity: 'Buffer day for travel or rest', afternoonActivity: 'Scenic drive to Gaurikund base', eveningActivity: 'Arrive Gaurikund, prepare for trek', nightActivity: 'Early dinner, rest for tomorrow', locations: ['Gaurikund'], activities: ['Travel day'] },

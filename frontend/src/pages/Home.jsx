@@ -10,15 +10,26 @@ const BACKEND_ORIGIN = import.meta.env.VITE_BACKEND_ORIGIN || 'http://localhost:
 
 export function Home() {
   const [packages, setPackages] = useState([]);
+  const [featuredPackages, setFeaturedPackages] = useState([]);
   const [destinations, setDestinations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scrollIndex, setScrollIndex] = useState(0);
   const [activePackageTab, setActivePackageTab] = useState('all');
 
   useEffect(() => {
+    loadFeaturedPackages();
     loadPackages();
     loadDestinationCounts();
   }, []);
+
+  const loadFeaturedPackages = async () => {
+    try {
+      const data = await packageService.getFeaturedPackages();
+      setFeaturedPackages(data || []);
+    } catch (err) {
+      console.error('Failed to load featured packages', err);
+    }
+  };
 
   const loadPackages = async () => {
     try {
@@ -167,7 +178,7 @@ export function Home() {
               className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 -mx-4 px-4"
               style={{ scrollSnapType: 'x mandatory' }}
             >
-              {packages.map((pkg) => (
+              {featuredPackages.map((pkg) => (
                 <Link
                   key={pkg.id}
                   to={`/packages/${pkg.id}`}
@@ -182,7 +193,7 @@ export function Home() {
                         className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
                       />
                       <Badge variant="accent" className="absolute top-3 left-3">
-                        {pkg.durationDays} Days
+                        Featured #{pkg.featuredRank}
                       </Badge>
                     </div>
                     <div className="p-5">
