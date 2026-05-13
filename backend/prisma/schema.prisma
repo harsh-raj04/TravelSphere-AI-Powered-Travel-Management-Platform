@@ -47,16 +47,40 @@ enum PayoutStatus {
   paid
 }
 
+enum WithdrawalStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+enum TicketPriority {
+  low
+  medium
+  high
+  urgent
+}
+
 model User {
-  id           String        @id @default(cuid())
-  name         String
-  email        String        @unique
-  passwordHash String
-  role         Role
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  agentProfile AgentProfile?
-  bookings     Booking[]
+  id             String          @id @default(cuid())
+  name           String
+  email          String          @unique
+  passwordHash   String
+  role           Role
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  agentProfile   AgentProfile?
+  bookings       Booking[]
+  notifications  Notification[]
+  supportTickets SupportTicket[]
+  ticketMessages TicketMessage[] @relation("TicketMessageSender")
 
   @@index([role])
   @@map("users")
@@ -80,6 +104,8 @@ model AgentProfile {
   assignedBookings Booking[]    @relation("AssignedAgentBookings")
   applications  AgentApplication[]
   packageInterests PackageInterest[]
+  paymentMethods PaymentMethod[]
+  withdrawals    AgentWithdrawal[]
 
   @@map("agent_profiles")
 }
@@ -96,6 +122,7 @@ model TravelPackage {
   category              String    @default("group_tours") // group_tours, personal_tours, couple_tours, etc.
   isActive              Boolean   @default(true)
   featuredRank          Int?
+  rating                Float?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   agent                 AgentProfile? @relation(fields: [agentId], references: [id], onDelete: SetNull)
@@ -204,14 +231,14 @@ model PackageInterest {
 
 model Transaction {
   id                   String            @id @default(cuid())
-  bookingId            String            @unique
+  bookingId            String?           @unique
   amount               Decimal           @db.Decimal(10, 2)
   paymentMethod        String
   status               TransactionStatus
   transactionReference String
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
-  booking              Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking              Booking?          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([createdAt])
@@ -296,4 +323,125 @@ model PackageAddOn {
 
   @@index([packageId])
   @@map("package_addons")
+}
+
+model OtpVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // 'email_change' | 'phone_change'
+  otpHash   String   // bcrypt hash of the 6-digit OTP
+  newValue  String   // the new email or phone being verified
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, type])
+  @@map("otp_verifications")
+}
+
+model PaymentMethod {
+  id                String       @id @default(cuid())
+  agentId           String
+  agent             AgentProfile @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  type              String       // 'bank_account' | 'upi' | 'card'
+  accountHolderName String?
+  accountNumber     String?      // last 4 digits only
+  ifscCode          String?
+  bankName          String?
+  upiId             String?
+  cardHolderName    String?
+  cardLastFour      String?
+  expiryDate        String?
+  isDefault         Boolean      @default(false)
+  isVerified        Boolean      @default(false)
+  isDeleted         Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  withdrawals       AgentWithdrawal[]
+
+  @@index([agentId])
+  @@map("payment_methods")
+}
+
+model AgentWithdrawal {
+  id              String           @id @default(cuid())
+  agentId         String
+  agent           AgentProfile     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  paymentMethodId String?
+  paymentMethod   PaymentMethod?   @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  amount          Decimal          @db.Decimal(10, 2)
+  status          WithdrawalStatus @default(pending)
+  transactionId   String           @unique
+  methodSnapshot  Json?
+  expectedAt      DateTime
+  processedAt     DateTime?
+  failureReason   String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([agentId])
+  @@index([agentId, status])
+  @@index([status])
+  @@map("agent_withdrawals")
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  title      String
+  message    String
+  entityId   String?
+  entityType String?
+  actionUrl  String?
+  isRead     Boolean  @default(false)
+  priority   String   @default("normal")
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model SupportTicket {
+  id              String          @id @default(cuid())
+  ticketNumber    String          @unique
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userRole        String
+  subject         String
+  description     String
+  issueType       String
+  priority        TicketPriority  @default(medium)
+  status          TicketStatus    @default(open)
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  resolutionNotes String?
+  messages        TicketMessage[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([userRole])
+  @@index([ticketNumber])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id         String        @id @default(cuid())
+  ticketId   String
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User          @relation("TicketMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  senderRole String
+  message    String
+  isInternal Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+
+  @@index([ticketId])
+  @@map("ticket_messages")
 }

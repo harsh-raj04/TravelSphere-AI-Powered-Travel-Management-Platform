@@ -106,10 +106,10 @@ async function assignBookingAgent(req, res) {
       return res.status(400).json({ success: false, message: "Agent not found", errors: [] });
     }
 
-    if (![BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.OPEN_FOR_AGENTS].includes(booking.status)) {
+    if ([BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CLOSED, BOOKING_STATUS.CANCELLED].includes(booking.status)) {
       return res.status(400).json({
         success: false,
-        message: "Only confirmed or open bookings can be assigned",
+        message: "Cannot assign agent to a completed or cancelled booking",
         errors: [],
       });
     }
@@ -126,9 +126,8 @@ async function assignBookingAgent(req, res) {
     const updated = await prisma.booking.update({
       where: { id: booking.id },
       data: {
-        assignedAgentId: agentId,
+        assignedAgent: { connect: { id: agentId } },
         status: BOOKING_STATUS.ASSIGNED,
-        assignedAt: new Date(),
         agentPayout,
         adminMargin: Number((total - agentPayout).toFixed(2)),
       },
@@ -147,6 +146,24 @@ async function assignBookingAgent(req, res) {
         },
       },
     });
+
+    // Notify the assigned agent
+    if (updated.assignedAgent) {
+      try {
+        const { notify } = require("../services/notificationService");
+        await notify(updated.assignedAgent.user.id, {
+          type: "agent_assigned",
+          title: "New Booking Assignment",
+          message: `You have been assigned to booking #${booking.id.slice(-8).toUpperCase()}. Please review and accept.`,
+          entityId: booking.id,
+          entityType: "booking",
+          actionUrl: "/agent/bookings",
+          priority: "high",
+        });
+      } catch (notifyErr) {
+        console.error("[assignBookingAgent] notify failed:", notifyErr.message);
+      }
+    }
 
     return ok(res, "Agent assigned and notified", updated);
   } catch (_error) {
@@ -226,8 +243,7 @@ async function updateBookingStatus(req, res) {
         return res.status(400).json({ success: false, message: "Selected agent has not opted in for this package", errors: [] });
       }
 
-      updateData.assignedAgentId = agentId;
-      updateData.assignedAt = booking.assignedAt || now;
+      updateData.assignedAgent = { connect: { id: agentId } };
       updateData.agentPayout = financials.payout;
       updateData.adminMargin = Number((financials.commission + financials.gst).toFixed(2));
       updateData.confirmedAt = booking.confirmedAt || now;
@@ -272,6 +288,30 @@ async function updateBookingStatus(req, res) {
         },
       },
     });
+
+    // Notify the assigned agent about status change
+    if (updated.assignedAgentId) {
+      try {
+        const { notify } = require("../services/notificationService");
+        const agentProfile = await prisma.agentProfile.findUnique({
+          where: { id: updated.assignedAgentId },
+          select: { userId: true },
+        });
+        if (agentProfile) {
+          await notify(agentProfile.userId, {
+            type: "booking_status_changed",
+            title: "Booking Status Updated",
+            message: `Booking #${booking.id.slice(-8).toUpperCase()} status changed to ${parsed.data.status}.`,
+            entityId: booking.id,
+            entityType: "booking",
+            actionUrl: "/agent/bookings",
+            priority: "normal",
+          });
+        }
+      } catch (notifyErr) {
+        console.error("[updateBookingStatus] notify failed:", notifyErr.message);
+      }
+    }
 
     return ok(res, "Booking status updated successfully", updated);
   } catch (_error) {
@@ -520,7 +560,6 @@ async function listBookingApplications(req, res) {
           id: true,
           assignedAgentId: true,
           status: true,
-          feedbackRating: true,
         },
       }),
     ]);
@@ -536,8 +575,6 @@ async function listBookingApplications(req, res) {
         statsByAgent.set(item.assignedAgentId, {
           completedTrips: 0,
           activeTrips: 0,
-          ratingSum: 0,
-          ratingCount: 0,
         });
       }
 
@@ -548,23 +585,15 @@ async function listBookingApplications(req, res) {
       if ([BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CLOSED].includes(item.status)) {
         stats.completedTrips += 1;
       }
-      if (typeof item.feedbackRating === "number") {
-        stats.ratingSum += item.feedbackRating;
-        stats.ratingCount += 1;
-      }
     }
 
     const items = interests.map((interest) => {
       const agentStats = statsByAgent.get(interest.agentId) || {
         completedTrips: 0,
         activeTrips: 0,
-        ratingSum: 0,
-        ratingCount: 0,
       };
 
-      const rating = agentStats.ratingCount
-        ? Number((agentStats.ratingSum / agentStats.ratingCount).toFixed(2))
-        : 4.5;
+      const rating = Number(interest.agent.agentRating || 4.5).toFixed(2);
 
       return {
         ...interest,
@@ -633,7 +662,6 @@ async function listPackageInterests(req, res) {
           id: true,
           assignedAgentId: true,
           status: true,
-          feedbackRating: true,
         },
       }),
     ]);
@@ -649,8 +677,6 @@ async function listPackageInterests(req, res) {
         statsByAgent.set(item.assignedAgentId, {
           completedTrips: 0,
           activeTrips: 0,
-          ratingSum: 0,
-          ratingCount: 0,
         });
       }
 
@@ -661,23 +687,15 @@ async function listPackageInterests(req, res) {
       if ([BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CLOSED].includes(item.status)) {
         stats.completedTrips += 1;
       }
-      if (typeof item.feedbackRating === "number") {
-        stats.ratingSum += item.feedbackRating;
-        stats.ratingCount += 1;
-      }
     }
 
     const items = interests.map((interest) => {
       const agentStats = statsByAgent.get(interest.agentId) || {
         completedTrips: 0,
         activeTrips: 0,
-        ratingSum: 0,
-        ratingCount: 0,
       };
 
-      const rating = agentStats.ratingCount
-        ? Number((agentStats.ratingSum / agentStats.ratingCount).toFixed(2))
-        : 4.5;
+      const rating = Number(interest.agent.agentRating || 4.5).toFixed(2);
 
       return {
         ...interest,
@@ -731,7 +749,7 @@ async function selectBookingApplication(req, res) {
       return res.status(404).json({ success: false, message: "Application not found", errors: [] });
     }
 
-    if (![BOOKING_STATUS.PENDING, BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.OPEN_FOR_AGENTS, BOOKING_STATUS.ASSIGNED].includes(booking.status)) {
+    if (![BOOKING_STATUS.PENDING, BOOKING_STATUS.CONFIRMED, BOOKING_STATUS.OPEN_FOR_AGENTS, BOOKING_STATUS.ASSIGNED, BOOKING_STATUS.ACCEPTED, BOOKING_STATUS.IN_PROGRESS].includes(booking.status)) {
       return res.status(400).json({
         success: false,
         message: "Booking is not ready for agent assignment",
@@ -753,10 +771,8 @@ async function selectBookingApplication(req, res) {
       return tx.booking.update({
         where: { id: booking.id },
         data: {
-          assignedAgentId: interest.agentId,
+          assignedAgent: { connect: { id: interest.agentId } },
           status: BOOKING_STATUS.ASSIGNED,
-          assignedAt: new Date(),
-          confirmedAt: booking.confirmedAt || new Date(),
           publishedAt: booking.publishedAt || new Date(),
           agentPayout: financials.payout,
           adminMargin: Number((financials.commission + financials.gst).toFixed(2)),
@@ -780,9 +796,10 @@ async function selectBookingApplication(req, res) {
 
     return ok(res, "Agent application selected and booking assigned", result);
   } catch (_error) {
+    console.error("selectBookingApplication failed:", _error?.message || _error);
     return res.status(500).json({
       success: false,
-      message: "Failed to select booking application",
+      message: `Failed to select booking application: ${_error?.message || 'Unknown error'}`,
       errors: [],
     });
   }
@@ -1052,9 +1069,14 @@ async function listAllAgents(_req, res) {
       name: agent.user.name,
       email: agent.user.email,
       phone: agent.contactNumber,
+      phone: agent.contactNumber,
+      rating: agent.agentRating,
       status: agent.isVerified ? "active" : "pending",
       packages_count: agent._count.packages,
       bookings_handled: bookingsMap.get(agent.id) || 0,
+      completedTrips: 0,
+      activeTrips: agent.tripAcceptedCount,
+      rejectedTrips: agent.tripRejectedCount,
       revenue: Number((revenueMap.get(agent.id) || 0).toFixed(2)),
       joined_date: agent.createdAt,
       agency_name: agent.agencyName,
@@ -1277,20 +1299,14 @@ async function getPackageById(req, res) {
       return res.status(404).json({ success: false, message: "Package not found", errors: [] });
     }
 
-    const ratingAgg = await prisma.booking.aggregate({
+    const reviewCount = await prisma.booking.count({
       where: { packageId: travelPackage.id, feedbackRating: { not: null } },
-      _avg: { feedbackRating: true },
-      _count: true,
     });
-
-    const rating = ratingAgg._avg.feedbackRating
-      ? Number(Number(ratingAgg._avg.feedbackRating).toFixed(2))
-      : null;
 
     return ok(res, "Package fetched successfully", {
       ...travelPackage,
-      rating,
-      reviewCount: ratingAgg._count,
+      rating: travelPackage.rating ?? null,
+      reviewCount,
     });
   } catch (_error) {
     return res.status(500).json({ success: false, message: "Failed to fetch package", errors: [] });
@@ -1573,7 +1589,7 @@ async function listPackageAgents(req, res) {
       }),
       prisma.booking.findMany({
         where: { packageId: req.params.id },
-        select: { assignedAgentId: true, status: true, feedbackRating: true },
+        select: { assignedAgentId: true, status: true },
       }),
     ]);
 
@@ -1581,17 +1597,16 @@ async function listPackageAgents(req, res) {
     for (const b of allBookings) {
       if (!b.assignedAgentId) continue;
       if (!statsByAgent.has(b.assignedAgentId)) {
-        statsByAgent.set(b.assignedAgentId, { completedTrips: 0, activeTrips: 0, ratingSum: 0, ratingCount: 0, rejectionCount: 0 });
+        statsByAgent.set(b.assignedAgentId, { completedTrips: 0, activeTrips: 0, rejectionCount: 0 });
       }
       const s = statsByAgent.get(b.assignedAgentId);
       if ([BOOKING_STATUS.ACCEPTED, BOOKING_STATUS.IN_PROGRESS, BOOKING_STATUS.ASSIGNED].includes(b.status)) s.activeTrips++;
       if ([BOOKING_STATUS.COMPLETED, BOOKING_STATUS.CLOSED].includes(b.status)) s.completedTrips++;
       if ([BOOKING_STATUS.REJECTED, BOOKING_STATUS.CANCELLED].includes(b.status)) s.rejectionCount++;
-      if (b.feedbackRating) { s.ratingSum += b.feedbackRating; s.ratingCount++; }
     }
 
     const items = interests.map((i) => {
-      const s = statsByAgent.get(i.agentId) || { completedTrips: 0, activeTrips: 0, ratingSum: 0, ratingCount: 0, rejectionCount: 0 };
+      const s = statsByAgent.get(i.agentId) || { completedTrips: 0, activeTrips: 0, rejectionCount: 0 };
       return {
         ...i,
         agent: {
@@ -1599,7 +1614,7 @@ async function listPackageAgents(req, res) {
           name: i.agent.user.name,
           email: i.agent.user.email,
           contactNumber: i.agent.contactNumber,
-          rating: s.ratingCount ? Number((s.ratingSum / s.ratingCount).toFixed(2)) : null,
+          rating: Number(i.agent.agentRating || null),
           completedTrips: s.completedTrips,
           activeTrips: s.activeTrips,
           rejectionCount: s.rejectionCount,
@@ -1742,9 +1757,7 @@ async function getAgentById(req, res) {
       [BOOKING_STATUS.REJECTED, BOOKING_STATUS.CANCELLED].includes(b.status),
     ).length;
 
-    const rating = bookings
-      .filter((b) => b.feedbackRating)
-      .reduce((sum, b, _, arr) => sum + b.feedbackRating / arr.length, 0);
+    const rating = Number(agent.agentRating || 0);
 
     return ok(res, "Agent profile fetched successfully", {
       id: agent.id,

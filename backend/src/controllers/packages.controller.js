@@ -5,11 +5,41 @@ const { ok, fail } = require("../utils/apiResponse");
 const packageSchema = z.object({
   title: z.string().min(2),
   destination: z.string().min(2).optional(),
-  duration_days: z.number().int().positive(),
+  durationDays: z.number().int().positive(),
   price: z.number().positive(),
   description: z.string().min(10),
-  itinerary: z.array(z.string().min(1)).optional(),
-  image_urls: z.array(z.string().url()).optional(),
+  category: z.string().optional(),
+  bannerImage: z.string().optional(),
+  itineraries: z.array(z.object({
+    dayNumber: z.number().int().positive(),
+    title: z.string().min(1),
+    description: z.string().nullable().optional(),
+    morningActivity: z.string().nullable().optional(),
+    afternoonActivity: z.string().nullable().optional(),
+    eveningActivity: z.string().nullable().optional(),
+    nightActivity: z.string().nullable().optional(),
+    locations: z.union([z.array(z.string()), z.string()]).transform((v) => typeof v === 'string' ? JSON.parse(v) : v).optional(),
+    activities: z.union([z.array(z.string()), z.string()]).transform((v) => typeof v === 'string' ? JSON.parse(v) : v).optional(),
+  })).optional(),
+  pricingOptions: z.array(z.object({
+    roomType: z.string().min(1),
+    price: z.number().positive(),
+  })).optional(),
+  departures: z.array(z.object({
+    departureDate: z.string().nullable().optional().transform((v) => v || null),
+    availableSeats: z.number().int().positive().optional(),
+    price: z.number().positive().optional(),
+    isActive: z.boolean().optional(),
+  })).optional(),
+  inclusions: z.array(z.object({
+    type: z.string().min(1),
+    description: z.string().min(1),
+  })).optional(),
+  addOns: z.array(z.object({
+    title: z.string().min(1),
+    description: z.string().nullable().optional(),
+    price: z.number().positive(),
+  })).optional(),
 });
 
 const packageInterestSchema = z.object({
@@ -140,20 +170,40 @@ async function createPackage(req, res) {
   }
 
   try {
-    const itinerary = Array.isArray(parsed.data.itinerary) ? parsed.data.itinerary : [];
-    if (itinerary.length > 0 && itinerary.length !== parsed.data.duration_days) {
-      return fail(res, "Validation failed", [{ field: "itinerary", issue: "Itinerary day count must match duration" }], 400);
-    }
-
+    const data = parsed.data;
     const created = await prisma.travelPackage.create({
       data: {
-        title: parsed.data.title,
-        destination: parsed.data.destination,
-        durationDays: parsed.data.duration_days,
-        price: parsed.data.price,
-        description: parsed.data.description,
-        itinerary: itinerary.length > 0 ? itinerary : null,
-        imageUrls: (parsed.data.image_urls || []).length > 0 ? parsed.data.image_urls : null,
+        title: data.title,
+        destination: data.destination,
+        durationDays: data.durationDays,
+        price: data.price,
+        description: data.description,
+        category: data.category || null,
+        bannerImage: data.bannerImage || null,
+        itineraries: data.itineraries?.length ? data.itineraries : undefined,
+        pricingOptions: data.pricingOptions?.length ? data.pricingOptions : undefined,
+        departures: data.departures?.length ? { create: data.departures.map((d) => ({
+          departureDate: d.departureDate ? new Date(d.departureDate) : null,
+          availableSeats: d.availableSeats || 20,
+          price: d.price || data.price,
+          isActive: d.isActive !== false,
+        })) } : undefined,
+        inclusions: data.inclusions?.length ? { create: data.inclusions.map((inc) => ({
+          type: inc.type,
+          description: inc.description,
+        })) } : undefined,
+        addOns: data.addOns?.length ? { create: data.addOns.map((ao) => ({
+          title: ao.title,
+          description: ao.description || null,
+          price: ao.price,
+        })) } : undefined,
+      },
+      include: {
+        itineraries: true,
+        pricingOptions: true,
+        departures: true,
+        inclusions: true,
+        addOns: true,
       },
     });
 
@@ -289,6 +339,44 @@ async function optInForPackage(req, res) {
   }
 }
 
+async function optOutForPackage(req, res) {
+  try {
+    const agentProfile = await prisma.agentProfile.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (!agentProfile) {
+      return fail(res, "Agent profile not found", [], 403);
+    }
+
+    const interest = await prisma.packageInterest.findUnique({
+      where: {
+        packageId_agentId: {
+          packageId: req.params.id,
+          agentId: agentProfile.id,
+        },
+      },
+    });
+
+    if (!interest) {
+      return fail(res, "You have not opted in for this package", [], 404);
+    }
+
+    await prisma.packageInterest.delete({
+      where: {
+        packageId_agentId: {
+          packageId: req.params.id,
+          agentId: agentProfile.id,
+        },
+      },
+    });
+
+    return ok(res, "Successfully opted out of package", null, 200);
+  } catch (_error) {
+    return fail(res, "Failed to opt out of package", [], 500);
+  }
+}
+
 async function myPackageInterests(req, res) {
   try {
     const agentProfile = await prisma.agentProfile.findUnique({
@@ -413,5 +501,6 @@ module.exports = {
   updatePackage,
   deletePackage,
   optInForPackage,
+  optOutForPackage,
   myPackageInterests,
 };

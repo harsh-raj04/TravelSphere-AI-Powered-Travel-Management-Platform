@@ -24,6 +24,19 @@ const {
   getUserById,
   getAgentById,
 } = require("../controllers/admin.controller");
+const {
+  listWithdrawals,
+  approveWithdrawal,
+  completeWithdrawal,
+  failWithdrawal,
+} = require("../controllers/adminWithdrawals.controller");
+const {
+  listTickets,
+  getTicketStats,
+  getTicket,
+  adminReply,
+  updateTicket,
+} = require("../controllers/adminTickets.controller");
 const { authenticate } = require("../middlewares/authenticate");
 const { authorize } = require("../middlewares/authorize");
 const { ROLES } = require("../constants/roles");
@@ -55,5 +68,19 @@ adminRouter.get("/users/:id", getUserById);
 adminRouter.get("/customers", listAllCustomers);
 adminRouter.get("/transactions", listAllTransactions);
 adminRouter.get("/analytics/overview", analyticsOverview);
+
+// ─── Agent withdrawal management ──────────────────────────────────────────────
+adminRouter.get("/withdrawals", listWithdrawals);
+adminRouter.patch("/withdrawals/:id/approve", approveWithdrawal);
+adminRouter.patch("/withdrawals/:id/complete", completeWithdrawal);
+adminRouter.patch("/withdrawals/:id/fail", failWithdrawal);
+
+// ─── Support tickets (admin) ───────────────────────────────────────────────────
+// Note: stats route BEFORE :id to prevent conflict
+adminRouter.get("/tickets/stats", getTicketStats);
+adminRouter.get("/tickets", listTickets);
+adminRouter.get("/tickets/:id", getTicket);
+adminRouter.post("/tickets/:id/messages", adminReply);
+adminRouter.patch("/tickets/:id", updateTicket);
 
 module.exports = { adminRouter };

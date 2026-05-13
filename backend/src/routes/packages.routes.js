@@ -9,6 +9,7 @@ const {
   updatePackage,
   deletePackage,
   optInForPackage,
+  optOutForPackage,
   myPackageInterests,
 } = require("../controllers/packages.controller");
 const { authenticate } = require("../middlewares/authenticate");
@@ -23,6 +24,7 @@ packagesRouter.get("/", listPackages);
 packagesRouter.get("/interests/my", authenticate, authorize(ROLES.AGENT), myPackageInterests);
 packagesRouter.get("/:id/details", getPackageDetails);
 packagesRouter.post("/:id/interest", authenticate, authorize(ROLES.AGENT), optInForPackage);
+packagesRouter.delete("/:id/interest", authenticate, authorize(ROLES.AGENT), optOutForPackage);
 packagesRouter.get("/:id", getPackageById);
 packagesRouter.post("/", authenticate, authorize(ROLES.ADMIN), createPackage);
 packagesRouter.put("/:id", authenticate, authorize(ROLES.ADMIN), updatePackage);

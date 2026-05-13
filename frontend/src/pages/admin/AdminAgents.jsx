@@ -83,9 +83,6 @@ export function AdminAgents() {
 
       if (['completed', 'closed'].includes(booking.status)) row.completed += 1;
       if (['accepted', 'assigned', 'in_progress'].includes(booking.status)) row.ongoing += 1;
-      if ((booking.feedbackRating || 5) <= 2 || booking.agentRequestRemark || booking.agentDecisionRemark?.toLowerCase()?.includes('issue')) {
-        row.complaints += 1;
-      }
     }
 
     return stats;
@@ -104,14 +101,14 @@ export function AdminAgents() {
           trips: [],
         };
 
-        const rating = Math.max(1, Math.min(5, 5 - s.complaints * 0.2 + s.completed * 0.02));
+        const rating = agent.agentRating || 0;
 
         return {
           ...agent,
           computedRating: Number(rating.toFixed(1)),
           completedTrips: s.completed,
           ongoingTrips: s.ongoing,
-          complaints: s.complaints,
+          complaints: agent.tripRejectedCount || 0,
           computedRevenue: Number(s.revenue.toFixed(2)),
           dueAmount: Number(s.due.toFixed(2)),
           paidAmount: Number(s.paid.toFixed(2)),
@@ -312,7 +309,6 @@ export function AdminAgents() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-semibold text-gray-900 capitalize">{trip.status}</p>
-                          <p className="text-xs text-gray-500">Feedback: {trip.feedbackRating || 'N/A'} / 5</p>
                         </div>
                       </div>
                       {trip.feedbackComment && <p className="text-sm text-gray-700 mt-2">Remark: {trip.feedbackComment}</p>}

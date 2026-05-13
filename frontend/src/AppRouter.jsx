@@ -35,6 +35,13 @@ import { AgentBookings } from './pages/agent/AgentBookings';
 import { AgentBookingsNew } from './pages/agent/AgentBookingsNew';
 import { AgentBookingDetail } from './pages/agent/AgentBookingDetail';
 import { AgentAnalytics } from './pages/agent/AgentAnalytics';
+import { AgentPayments } from './pages/agent/AgentPayments';
+import { AgentProfile } from './pages/agent/AgentProfile';
+import { AgentSettings } from './pages/agent/AgentSettings';
+import { AgentNotifications } from './pages/agent/AgentNotifications';
+import { AgentDocuments } from './pages/agent/AgentDocuments';
+import { AgentSecurity } from './pages/agent/AgentSecurity';
+import { AgentSupport } from './pages/agent/AgentSupport';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminBookingsNew } from './pages/admin/AdminBookingsNew';
 import { AdminBookingDetail } from './pages/admin/AdminBookingDetail';
@@ -44,7 +51,8 @@ import { AdminCustomerProfile } from './pages/admin/AdminCustomerProfile';
 import { AdminAgentProfile } from './pages/admin/AdminAgentProfile';
 import { AdminAgents } from './pages/admin/AdminAgents';
 import { AdminCustomers } from './pages/admin/AdminCustomers';
-import { AdminPayments } from './pages/admin/AdminPayments';
+import { AdminTransactions } from './pages/admin/AdminTransactions';
+import { AdminWithdrawals } from './pages/admin/AdminWithdrawals';
 import { AdminAnalytics } from './pages/admin/AdminAnalytics';
 import { AdminSupport } from './pages/admin/AdminSupport';
 import { AdminSettings } from './pages/admin/AdminSettings';
@@ -223,6 +231,62 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/agent/payments"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AgentLayout><AgentPayments /></AgentLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/profile"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AgentLayout><AgentProfile /></AgentLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/settings"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AgentLayout><AgentSettings /></AgentLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/notifications"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AgentLayout><AgentNotifications /></AgentLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/documents"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AgentLayout><AgentDocuments /></AgentLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/security"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AgentLayout><AgentSecurity /></AgentLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/support"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <AgentLayout><AgentSupport /></AgentLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
         path="/admin/dashboard"
         element={
           <RoleRoute allowedRoles={['admin']}>
@@ -295,10 +359,18 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/admin/payments"
+        path="/admin/transactions"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminPayments /></AdminLayout>
+            <AdminLayout><AdminTransactions /></AdminLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/admin/withdrawals"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminWithdrawals /></AdminLayout>
           </RoleRoute>
         }
       />

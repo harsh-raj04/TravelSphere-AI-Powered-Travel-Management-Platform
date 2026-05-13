@@ -1,15 +1,92 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ColorfulCard } from '../../components/ui/ColorfulCard';
 import { StatCard } from '../../components/ui/StatCard';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { packagesAPI, agentAPI } from '../../services/api';
-import { MapPin, Calendar, Users, IndianRupee, Search, Filter, Eye } from 'lucide-react';
+import { getImageUrl } from '../../services/packageService';
+import { MapPin, Calendar, Users, IndianRupee, Search, Filter, Eye, Image } from 'lucide-react';
 
 const formatINR = (value) =>
   `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
+// ─── Package card with real image ─────────────────────────────────────────────
+function PackageBrowseCard({ pkg, hasApplied, onViewDetails }) {
+  const [imgError, setImgError] = useState(false);
+  const imageUrl = pkg.bannerImage ? getImageUrl(pkg.bannerImage) : null;
+
+  return (
+    <div className="group rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 bg-white border border-gray-200">
+      {/* Image / fallback header */}
+      <div className="relative h-48 overflow-hidden">
+        {imageUrl && !imgError ? (
+          <img
+            src={imageUrl}
+            alt={pkg.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+            decoding="async"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center">
+            <Image className="w-10 h-10 text-white/60" />
+          </div>
+        )}
+
+        {/* Gradient overlay for text legibility */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+
+        {/* Title + destination on image */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+          <h3 className="text-lg font-bold leading-tight mb-0.5">{pkg.title}</h3>
+          <div className="flex items-center gap-1.5 text-sm text-white/90">
+            <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>{pkg.destination}</span>
+          </div>
+        </div>
+
+        {/* "Already Applied" badge */}
+        {hasApplied && (
+          <div className="absolute top-3 right-3">
+            <Badge variant="success" className="shadow-md">
+              Already Applied
+            </Badge>
+          </div>
+        )}
+      </div>
+
+      {/* Card body */}
+      <div className="p-5">
+        {/* Duration + Price stats */}
+        <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-100">
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-0.5">Duration</p>
+            <p className="text-2xl font-bold text-gray-900">{pkg.durationDays}D</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-0.5">Price</p>
+            <p className="text-2xl font-bold text-green-600">{formatINR(pkg.price)}</p>
+          </div>
+        </div>
+
+        {/* Description */}
+        <p className="text-gray-600 text-sm mb-5 line-clamp-2">{pkg.description}</p>
+
+        {/* CTA */}
+        <Button
+          onClick={onViewDetails}
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center gap-2"
+        >
+          <Eye className="w-4 h-4" />
+          View Details
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
 export function AgentPackagesBrowse() {
   const navigate = useNavigate();
   const [packages, setPackages] = useState([]);
@@ -131,63 +208,14 @@ export function AgentPackagesBrowse() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredPackages.map((pkg) => {
-            const hasApplied = appliedPackageIds.has(pkg.id);
-            return (
-              <div
-                key={pkg.id}
-                className="group rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 bg-white border border-gray-200"
-              >
-                {/* Header with gradient */}
-                <div className="h-32 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-6 text-white relative overflow-hidden">
-                  <div className="absolute inset-0 opacity-20">
-                    <div className="absolute top-2 right-2 w-24 h-24 bg-white rounded-full blur-3xl" />
-                  </div>
-                  <div className="relative z-10 flex flex-col h-full justify-between">
-                    <div>
-                      <h3 className="text-xl font-bold mb-1">{pkg.title}</h3>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-                        <span className="text-sm">{pkg.destination}</span>
-                      </div>
-                    </div>
-                    {hasApplied && (
-                      <Badge variant="success" className="self-start">
-                        Already Applied
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-100">
-                    <div>
-                      <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold mb-1">Duration</p>
-                      <p className="text-2xl font-bold text-gray-900">{pkg.durationDays}D</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold mb-1">Price</p>
-                      <p className="text-2xl font-bold text-green-600">{formatINR(pkg.price)}</p>
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-gray-700 text-sm mb-6 line-clamp-2">{pkg.description}</p>
-
-                  {/* Button */}
-                  <Button
-                    onClick={() => navigate(`/agent/packages/${pkg.id}`)}
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center gap-2"
-                  >
-                    <Eye className="w-4 h-4" />
-                    View Details
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
+          {filteredPackages.map((pkg) => (
+            <PackageBrowseCard
+              key={pkg.id}
+              pkg={pkg}
+              hasApplied={appliedPackageIds.has(pkg.id)}
+              onViewDetails={() => navigate(`/agent/packages/${pkg.id}`)}
+            />
+          ))}
         </div>
       )}
     </div>

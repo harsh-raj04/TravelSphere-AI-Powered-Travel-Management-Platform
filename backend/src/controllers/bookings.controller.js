@@ -494,8 +494,7 @@ async function updateBookingStatus(req, res) {
           where: { id: req.params.id },
           data: {
             status: BOOKING_STATUS.OPEN_FOR_AGENTS,
-            assignedAgentId: null,
-            assignedAt: null,
+            assignedAgent: { disconnect: true },
             acceptedAt: null,
             agentDecisionRemark: parsed.data.decision_remark,
             agentRejectionReason: parsed.data.rejection_reason,
@@ -608,13 +607,29 @@ async function submitBookingFeedback(req, res) {
       return fail(res, "Feedback can be submitted only after trip completion", [], 400);
     }
 
-    const updated = await prisma.booking.update({
-      where: { id: booking.id },
-      data: {
-        feedbackRating: rating,
-        feedbackComment: comment,
-        feedbackSubmittedAt: new Date(),
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          feedbackRating: rating,
+          feedbackComment: comment,
+          feedbackSubmittedAt: new Date(),
+        },
+      });
+
+      const avgResult = await tx.booking.aggregate({
+        where: { packageId: booking.packageId, feedbackRating: { not: null } },
+        _avg: { feedbackRating: true },
+      });
+
+      if (avgResult._avg.feedbackRating != null) {
+        await tx.travelPackage.update({
+          where: { id: booking.packageId },
+          data: { rating: Number(Number(avgResult._avg.feedbackRating).toFixed(2)) },
+        });
+      }
+
+      return result;
     });
 
     return ok(res, "Feedback submitted successfully", updated);

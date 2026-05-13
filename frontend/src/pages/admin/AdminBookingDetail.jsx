@@ -6,10 +6,11 @@ import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
+import { TabNavigation } from '../../components/ui/TabNavigation';
 import { adminAPI } from '../../services/api';
 import {
   ArrowLeft, Calendar, Users, MapPin, Phone, Mail, CreditCard,
-  DollarSign, CheckCircle2, Clock, AlertCircle, Star, RotateCcw, ChevronDown
+  DollarSign, CheckCircle2, Clock, AlertCircle, Star, RotateCcw, RefreshCw
 } from 'lucide-react';
 
 const formatINR = (value) =>
@@ -23,6 +24,7 @@ export function AdminBookingDetail() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('booking_info');
   
+  const [transaction, setTransaction] = useState(null);
   const [applicants, setApplicants] = useState([]);
   const [showAgentSelect, setShowAgentSelect] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState('');
@@ -67,6 +69,23 @@ export function AdminBookingDetail() {
   useEffect(() => {
     if (booking?.id) {
       loadApplicants(booking.id);
+      loadTransaction(booking.id);
+    }
+  }, [booking?.id]);
+
+  const loadTransaction = async (bookingId) => {
+    try {
+      const res = await adminAPI.transactions({ booking_id: bookingId, limit: 1 });
+      setTransaction(res.data?.data?.items?.[0] || null);
+    } catch {
+      setTransaction(null);
+    }
+  };
+
+  useEffect(() => {
+    if (booking?.id) {
+      loadApplicants(booking.id);
+      loadTransaction(booking.id);
     }
   }, [booking?.id]);
 
@@ -114,8 +133,10 @@ export function AdminBookingDetail() {
 
     try {
       setAssigningId(selectedAgentId);
+      // Use selectBookingApplication - selectedAgentId is a PackageInterest ID from opted-in agents
       await adminAPI.selectBookingApplication(booking.id, selectedAgentId);
       await loadBooking();
+      await loadApplicants(booking.id);
       setShowAgentSelect(false);
       setSelectedAgentId('');
     } catch (err) {
@@ -159,6 +180,7 @@ export function AdminBookingDetail() {
       setAssigningId(selectedAgentId);
       await adminAPI.selectBookingApplication(booking.id, selectedAgentId);
       await loadBooking();
+      await loadApplicants(booking.id);
       setShowAgentSelect(false);
       setSelectedAgentId('');
       alert('Agent reassigned successfully');
@@ -191,15 +213,12 @@ export function AdminBookingDetail() {
   }
 
   const statusOptions = [
-    { value: 'pending', label: 'Pending' },
     { value: 'confirmed', label: 'Confirmed' },
     { value: 'open_for_agents', label: 'Open for Agents' },
     { value: 'assigned', label: 'Assigned' },
-    { value: 'accepted', label: 'Accepted' },
-    { value: 'rejected', label: 'Rejected' },
     { value: 'in_progress', label: 'In Progress' },
     { value: 'completed', label: 'Completed' },
-    { value: 'closed', label: 'Closed' },
+    { value: 'cancelled', label: 'Cancelled' },
   ];
 
   return (
@@ -227,163 +246,223 @@ export function AdminBookingDetail() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <StatCard icon={Users} label="Travelers" value={booking.travelersCount} variant="blue" />
         <StatCard icon={DollarSign} label="Total Amount" value={formatINR(booking.totalAmount)} variant="green" />
         <StatCard icon={Calendar} label="Travel Date" value={new Date(booking.travelDate).toLocaleDateString()} variant="purple" />
         <StatCard icon={CheckCircle2} label="Agent Payout" value={formatINR(booking.agentPayout)} variant="orange" />
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* Left Column - Booking Info */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Customer Details */}
-          <ColorfulCard variant="blue">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Users className="w-5 h-5 text-blue-600" /> Customer Details
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 text-gray-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Email</p>
-                  <p className="font-semibold text-gray-900">{booking.contactEmail}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-gray-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Phone</p>
-                  <p className="font-semibold text-gray-900">{booking.contactPhone}</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Name</p>
-                <p className="font-semibold text-gray-900">{booking.customerName}</p>
-              </div>
-            </div>
-          </ColorfulCard>
+      {/* Tabs */}
+      <TabNavigation
+        tabs={[
+          { id: 'booking_info', label: 'Booking Info' },
+          { id: 'payment', label: 'Payment' },
+        ]}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
 
-          {/* Travel Details */}
-          <ColorfulCard variant="green">
-            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-emerald-600" /> Travel Details
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-600">Package</p>
-                <p className="font-semibold text-gray-900">{booking.package?.title}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Destination</p>
-                <p className="font-semibold text-gray-900">{booking.package?.destination}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Travel Date</p>
-                <p className="font-semibold text-gray-900">{new Date(booking.travelDate).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Duration</p>
-                <p className="font-semibold text-gray-900">{booking.package?.durationDays} days</p>
-              </div>
-            </div>
-          </ColorfulCard>
-        </div>
-
-        {/* Right Column - Manage Booking */}
-        <div className="space-y-6">
-          {/* Manage Booking Card */}
-          <ColorfulCard variant="orange">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Manage Booking</h3>
-
-            {(booking.agentRejectionReason || booking.agentDecisionRemark) && (
-              <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
-                <p className="font-semibold mb-1">Latest agent response</p>
-                {booking.agentRejectionReason && <p>Rejection reason: {booking.agentRejectionReason}</p>}
-                {booking.agentDecisionRemark && <p>Remark: {booking.agentDecisionRemark}</p>}
-              </div>
-            )}
-            
-            {/* Status Update */}
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-2">Update Status</label>
-                <select
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select new status...</option>
-                  {statusOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {newStatus && (
-                <>
+      {/* BOOKING INFO TAB */}
+      {activeTab === 'booking_info' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+          {/* Left - Customer & Travel */}
+          <div className="lg:col-span-2 space-y-6">
+            <ColorfulCard variant="blue">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" /> Customer Details
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Mail className="w-4 h-4 text-gray-600" />
                   <div>
-                    <label className="text-sm font-semibold text-gray-700 block mb-2">Note/Message</label>
-                    <textarea
-                      value={rejectionMessage}
-                      onChange={(e) => setRejectionMessage(e.target.value)}
-                      placeholder="Add rejection reason, notes, or remarks..."
-                      rows="3"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
+                    <p className="text-sm text-gray-600">Email</p>
+                    <p className="font-semibold text-gray-900">{booking.contactEmail}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-gray-600" />
+                  <div>
+                    <p className="text-sm text-gray-600">Phone</p>
+                    <p className="font-semibold text-gray-900">{booking.contactPhone}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Name</p>
+                  <p className="font-semibold text-gray-900">{booking.customerName}</p>
+                </div>
+              </div>
+            </ColorfulCard>
+
+            <ColorfulCard variant="green">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-emerald-600" /> Travel Details
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-600">Package</p>
+                  <p className="font-semibold text-gray-900">{booking.package?.title}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Destination</p>
+                  <p className="font-semibold text-gray-900">{booking.package?.destination}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Travel Date</p>
+                  <p className="font-semibold text-gray-900">{new Date(booking.travelDate).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Duration</p>
+                  <p className="font-semibold text-gray-900">{booking.package?.durationDays} days</p>
+                </div>
+              </div>
+            </ColorfulCard>
+          </div>
+
+          {/* Right - Update Status */}
+          <div>
+            <ColorfulCard variant="orange">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Update Status</h3>
+
+              {(booking.agentRejectionReason || booking.agentDecisionRemark) && (
+                <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
+                  <p className="font-semibold mb-1">Latest agent response</p>
+                  {booking.agentRejectionReason && <p>Rejection reason: {booking.agentRejectionReason}</p>}
+                  {booking.agentDecisionRemark && <p>Remark: {booking.agentDecisionRemark}</p>}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-semibold text-gray-700 block mb-2">New Status</label>
+                  <select
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="">Select new status...</option>
+                    {statusOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {newStatus && (
+                  <>
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700 block mb-2">Note</label>
+                      <textarea
+                        value={rejectionMessage}
+                        onChange={(e) => setRejectionMessage(e.target.value)}
+                        placeholder="Add notes or remarks..."
+                        rows="3"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+                    <Button
+                      onClick={handleStatusUpdate}
+                      disabled={statusUpdating}
+                      className="w-full bg-teal-600 text-white hover:bg-teal-700"
+                    >
+                      {statusUpdating ? 'Updating...' : 'Update Status'}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </ColorfulCard>
+
+            {/* Agent Assignment */}
+            <ColorfulCard variant="purple">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Agent Assignment</h3>
+              <p className="text-sm text-gray-600 mb-3">{applicants.length} agents opted in for this booking</p>
+              
+              {booking.assignedAgent ? (
+                <>
+                  <div className="bg-purple-50 p-3 rounded-lg mb-3">
+                    <p className="font-semibold text-gray-900">{booking.assignedAgent.user?.name}</p>
+                    <p className="text-sm text-gray-600">{booking.assignedAgent.city || booking.assignedAgent.agencyName}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                      <span className="font-semibold text-gray-900">{Number(booking.assignedAgent.agentRating || 5).toFixed(1)}/5</span>
+                    </div>
                   </div>
                   <Button
-                    onClick={handleStatusUpdate}
-                    disabled={statusUpdating}
-                    className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white hover:from-orange-600 hover:to-red-700"
+                    onClick={() => setShowAgentSelect(true)}
+                    variant="outline"
+                    className="w-full"
                   >
-                    {statusUpdating ? 'Updating...' : 'Update Status'}
+                    <RefreshCw className="w-4 h-4 mr-2" /> Reassign Agent
                   </Button>
                 </>
-              )}
-            </div>
-          </ColorfulCard>
-
-          {/* Agent Assignment Card */}
-          <ColorfulCard variant="purple">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Agent Assignment</h3>
-            <p className="text-sm text-gray-600 mb-3">{applicants.length} agents opted in</p>
-            
-            {booking.assignedAgent ? (
-              <>
-                <div className="bg-purple-50 p-3 rounded-lg mb-3">
-                  <p className="font-semibold text-gray-900">{booking.assignedAgent.user?.name}</p>
-                  <p className="text-sm text-gray-600">{booking.assignedAgent.city}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                    <span className="font-semibold text-gray-900">{booking.assignedAgent.agentRating}/5</span>
-                  </div>
-                </div>
+              ) : (
                 <Button
                   onClick={() => setShowAgentSelect(true)}
-                  variant="outline"
-                  className="w-full"
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white"
                 >
-                  <RotateCcw className="w-4 h-4 mr-2" /> Reassign Agent
+                  Assign Agent
                 </Button>
-              </>
+              )}
+            </ColorfulCard>
+          </div>
+        </div>
+      )}
+
+      {/* PAYMENT TAB */}
+      {activeTab === 'payment' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+          {/* Transaction Details */}
+          <ColorfulCard variant="light">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <CreditCard className="w-5 h-5" /> Transaction
+            </h3>
+            {transaction ? (
+              <div className="space-y-3">
+                <div className="flex justify-between pb-2 border-b border-gray-200">
+                  <span className="text-gray-600">Transaction ID</span>
+                  <span className="font-mono text-sm font-semibold">{transaction.transactionReference || transaction.id?.slice(0, 12) || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between pb-2 border-b border-gray-200">
+                  <span className="text-gray-600">Payment Method</span>
+                  <span className="font-semibold capitalize">{transaction.paymentMethod || 'Razorpay'}</span>
+                </div>
+                <div className="flex justify-between pb-2 border-b border-gray-200">
+                  <span className="text-gray-600">Status</span>
+                  <Badge variant={transaction.status === 'completed' ? 'success' : 'warning'}>{transaction.status || 'N/A'}</Badge>
+                </div>
+                <div className="flex justify-between pb-2 border-b border-gray-200">
+                  <span className="text-gray-600">Date</span>
+                  <span className="font-semibold">{new Date(transaction.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between pb-2">
+                  <span className="text-gray-600">Amount</span>
+                  <span className="font-bold text-lg text-green-600">{formatINR(transaction.amount)}</span>
+                </div>
+              </div>
             ) : (
-              <Button
-                onClick={() => setShowAgentSelect(true)}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white"
-              >
-                Assign Agent
-              </Button>
+              <div className="space-y-3">
+                {booking.razorpayPaymentId && (
+                  <div className="flex justify-between pb-2 border-b border-gray-200">
+                    <span className="text-gray-600">Razorpay Payment ID</span>
+                    <span className="font-mono text-sm font-semibold">{booking.razorpayPaymentId}</span>
+                  </div>
+                )}
+                {booking.razorpayOrderId && (
+                  <div className="flex justify-between pb-2 border-b border-gray-200">
+                    <span className="text-gray-600">Razorpay Order ID</span>
+                    <span className="font-mono text-sm font-semibold">{booking.razorpayOrderId}</span>
+                  </div>
+                )}
+                <p className="text-sm text-gray-500 italic">No transaction record found — showing booking payment IDs.</p>
+              </div>
             )}
           </ColorfulCard>
 
           {/* Payment Breakdown */}
           <ColorfulCard variant="light">
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <CreditCard className="w-5 h-5" /> Payment Breakdown
+              <DollarSign className="w-5 h-5" /> Payment Breakdown
             </h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between pb-2 border-b border-gray-200">
@@ -405,7 +484,7 @@ export function AdminBookingDetail() {
             </div>
           </ColorfulCard>
         </div>
-      </div>
+      )}
 
       {/* Agent Selection Modal */}
       <Modal
@@ -432,7 +511,7 @@ export function AdminBookingDetail() {
       >
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {applicants.length === 0 ? (
-            <p className="text-center text-gray-600 py-8">No agents have opted in for this booking yet</p>
+            <p className="text-center text-gray-600 py-8">No agents have opted in for this booking yet. Publish the booking to agents first.</p>
           ) : (
             applicants.map((app) => {
               const agent = app.agentProfile;
@@ -447,15 +526,13 @@ export function AdminBookingDetail() {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <p className="font-bold text-gray-900">{agent.name}</p>
-                      <p className="text-sm text-gray-600">{agent.city}</p>
+                      <p className="font-bold text-gray-900">{agent?.name || 'Unknown Agent'}</p>
+                      <p className="text-sm text-gray-600">{agent?.city || agent?.email}</p>
                     </div>
                     <div className={`px-3 py-1 rounded-full text-sm font-bold ${reputationText(rep.score)}`}>
                       {rep.score.toFixed(0)}/100
                     </div>
                   </div>
-
-                  {/* Agent Stats Grid */}
                   <div className="grid grid-cols-4 gap-2 text-xs">
                     <div className="bg-white p-2 rounded-lg border border-gray-200">
                       <p className="text-gray-600">Rating</p>
@@ -474,19 +551,10 @@ export function AdminBookingDetail() {
                       <p className="font-bold text-red-600">{rep.rejectedTrips}</p>
                     </div>
                   </div>
-
-                  {/* Acceptance Rate */}
                   <div className="mt-2 bg-white p-2 rounded-lg border border-gray-200 text-center">
                     <p className="text-xs text-gray-600">Acceptance Rate</p>
                     <p className="font-bold text-gray-900">{rep.acceptanceRate}%</p>
                   </div>
-
-                  {/* Availability Message */}
-                  {(app.message || app.availability) && (
-                    <p className="mt-2 text-sm text-gray-600 italic border-t border-gray-200 pt-2">
-                      {app.availability ? `${app.availability.toUpperCase()}: ` : ''}{app.message || 'No message provided'}
-                    </p>
-                  )}
                 </div>
               );
             })

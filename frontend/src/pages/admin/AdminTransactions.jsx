@@ -3,7 +3,7 @@ import { IndianRupee, AlertCircle, CheckCircle2, Download, XCircle } from 'lucid
 import { adminAPI } from '../../services/api';
 import { StatusBadge } from '../../components/admin/StatusBadge';
 
-export function AdminPayments() {
+export function AdminTransactions() {
   const [payments, setPayments] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);

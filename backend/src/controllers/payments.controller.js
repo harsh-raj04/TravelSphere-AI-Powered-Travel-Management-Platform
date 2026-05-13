@@ -57,6 +57,15 @@ async function createOrder(req, res) {
       },
     });
 
+    await prisma.transaction.create({
+      data: {
+        amount: room_price * travelers,
+        paymentMethod: "razorpay",
+        status: "initiated",
+        transactionReference: order.id,
+      },
+    }).catch(() => {});
+
     return ok(res, "Razorpay order created", {
       order_id: order.id,
       amount: order.amount,
@@ -105,6 +114,15 @@ async function verifyPayment(req, res) {
     .digest("hex");
 
   if (generatedSignature !== razorpay_signature) {
+    const totalAmount = booking_details.room_price * booking_details.travelers;
+    await prisma.transaction.create({
+      data: {
+        amount: totalAmount,
+        paymentMethod: "razorpay",
+        status: "failed",
+        transactionReference: razorpay_payment_id,
+      },
+    }).catch(() => {});
     return fail(res, "Payment verification failed — signature mismatch", [], 400);
   }
 
@@ -152,6 +170,16 @@ async function verifyPayment(req, res) {
           data: { bookedSeats: { increment: travelers } },
         });
       }
+
+      await tx.transaction.create({
+        data: {
+          bookingId: created.id,
+          amount: totalAmount,
+          paymentMethod: "razorpay",
+          status: "success",
+          transactionReference: razorpay_payment_id,
+        },
+      });
 
       return created;
     });
