@@ -154,6 +154,9 @@ export function Navbar() {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsOpen(!isOpen)}
+              aria-expanded={isOpen}
+              aria-controls="mobile-menu"
+              aria-label="Toggle navigation menu"
               className="lg:hidden p-2 rounded-lg hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary"
             >
               {isOpen ? (
@@ -167,7 +170,7 @@ export function Navbar() {
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="lg:hidden pb-4 flex flex-col gap-2">
+          <div id="mobile-menu" className="lg:hidden pb-4 flex flex-col gap-2">
             {user ? (
               <>
                 {displayNavItems.map((item) => {

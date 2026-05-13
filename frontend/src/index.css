@@ -2,26 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── TravelSphere Design Tokens ── */
 :root {
-  --travel-bg: #F0FDFA;
-  --travel-surface: #ffffff;
-  --travel-text: #022C22;
-  --travel-muted: #0D6E63;
-  --travel-border: #A7F3D0;
-  --travel-primary: #0F766E;
-  --travel-primary-strong: #064E48;
-  --travel-accent: #14B8A6;
+  /* Brand */
+  --ts-primary:           #0F766E;
+  --ts-primary-strong:    #064E48;
+  --ts-primary-hover:     #0D635C;
+  --ts-secondary:         #14B8A6;
+  --ts-accent:            #22D3EE;
+
+  /* Light surfaces */
+  --travel-bg:            #F0FDFA;
+  --travel-surface:       #ffffff;
+  --travel-text:          #022C22;
+  --travel-muted:         #0D6E63;
+  --travel-border:        #A7F3D0;
+  --travel-primary:       #0F766E;
+  --travel-primary-strong:#064E48;
+  --travel-accent:        #14B8A6;
+
+  /* Shadows */
+  --ts-shadow-teal:    0 10px 30px -10px rgba(15, 118, 110, 0.45);
+  --ts-shadow-teal-sm: 0 4px 12px -2px rgba(15, 118, 110, 0.35);
+
+  /* Motion */
+  --ts-ease-out:     cubic-bezier(0.16, 1, 0.3, 1);
+  --ts-ease-in-out:  cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dark {
-  --agent-bg: #022C22;
-  --agent-surface: #0F4C3A;
-  --agent-text: #D0F0ED;
-  --agent-muted: #A7F3D0;
-  --agent-border: #14B8A6;
-  --agent-primary: #0F766E;
-  --agent-primary-strong: #064E48;
-  --agent-accent: #22d3ee;
+  --agent-bg:           #022C22;
+  --agent-surface:      #0F4C3A;
+  --agent-text:         #D0F0ED;
+  --agent-muted:        #A7F3D0;
+  --agent-border:       #14B8A6;
+  --agent-primary:      #0F766E;
+  --agent-primary-strong:#064E48;
+  --agent-accent:       #22d3ee;
 }
 
 html {
@@ -35,29 +52,47 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-.agent-ui {
-  color: var(--agent-text);
-}
-
- .travel-ui h1,
+/* ── Typography rhythm ── */
+.travel-ui h1,
 .travel-ui h2,
 .travel-ui h3,
 .travel-ui h4 {
   letter-spacing: -0.01em;
 }
 
- .travel-ui .travel-hero {
+/* Gradient text utility */
+.ts-gradient-text {
+  background: linear-gradient(90deg, #0F766E 0%, #14B8A6 50%, #22D3EE 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.travel-ui .travel-hero {
   background-image: linear-gradient(120deg, var(--travel-primary-strong), var(--travel-primary), var(--travel-accent));
   box-shadow: 0 20px 50px -35px rgba(15, 118, 110, 0.8);
 }
 
- .travel-ui .travel-panel {
+.travel-ui .travel-panel {
   background: var(--agent-surface);
   border: 1px solid var(--agent-border);
 }
 
- .travel-ui .travel-muted {
+.travel-ui .travel-muted {
   color: var(--agent-muted);
+}
+
+.agent-ui {
+  color: var(--agent-text);
+}
+
+/* ── Scrollbar hide ── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 @layer base {
@@ -66,18 +101,15 @@ body {
   }
 }
 
+/* ── Custom animations ── */
 @keyframes slide-in {
   from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(0);    opacity: 1; }
 }
-.animate-slide-in {
-  animation: slide-in 0.3s ease-out;
-}
+.animate-slide-in { animation: slide-in 0.3s ease-out; }
 
 @keyframes scale-up {
   from { transform: scale(0.85); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  to   { transform: scale(1);    opacity: 1; }
 }
-.animate-scale-up {
-  animation: scale-up 0.25s ease-out;
-}
+.animate-scale-up { animation: scale-up 0.25s ease-out; }

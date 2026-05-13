@@ -33,7 +33,7 @@ const formatINR = (amount) =>
 
 function StatCard({ title, value, change, icon: Icon, iconGradient }) {
   return (
-    <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-xl hover:shadow-teal-500/10 hover:scale-105 transition-all duration-200 cursor-default">
+    <div className="bg-white dark:bg-dark-bg-secondary rounded-xl p-6 border border-gray-200 dark:border-dark-border hover:shadow-xl hover:shadow-teal-500/10 hover:-translate-y-0.5 transition-all duration-300 cursor-default">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-sm text-gray-600 mb-1">{title}</p>

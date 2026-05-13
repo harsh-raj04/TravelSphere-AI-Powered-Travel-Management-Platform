@@ -111,7 +111,7 @@ export function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-teal-900/60 to-emerald-900/80" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 w-full text-center">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight tracking-tight">
             Discover Your Next
             <span className="block text-teal-300">Great Adventure</span>
           </h1>
@@ -182,7 +182,7 @@ export function Home() {
                 <Link
                   key={pkg.id}
                   to={`/packages/${pkg.id}`}
-                  className="flex-shrink-0 w-[300px] sm:w-[340px]"
+                  className="flex-shrink-0 w-[300px] sm:w-[340px] group"
                   style={{ scrollSnapAlign: 'start' }}
                 >
                   <Card hover className="h-full overflow-hidden rounded-2xl">
@@ -190,7 +190,7 @@ export function Home() {
                       <img
                         src={getImageUrl(pkg.bannerImage)}
                         alt={pkg.title}
-                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                       <Badge variant="accent" className="absolute top-3 left-3">
                         Featured #{pkg.featuredRank}
@@ -343,7 +343,7 @@ export function Home() {
                       <img
                         src={getImageUrl(pkg.bannerImage)}
                         alt={pkg.title}
-                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       />
                       <Badge variant="accent" className="absolute top-3 left-3">
                         {pkg.durationDays} Days
@@ -378,7 +378,7 @@ export function Home() {
 
           <div className="text-center mt-10">
             <Link to="/packages">
-              <Button variant="primary" size="lg" className="rounded-full">
+              <Button variant="pill" size="lg">
                 View All Packages
               </Button>
             </Link>

@@ -23,11 +23,13 @@ export function KPICard({ title, value, icon: Icon, trend, iconColor = 'text-blu
         </div>
         <div
           className={cn(
-            'p-3 rounded-lg bg-opacity-10',
-            iconColor === 'text-blue-500' && 'bg-blue-500',
-            iconColor === 'text-emerald-500' && 'bg-emerald-500',
-            iconColor === 'text-purple-500' && 'bg-purple-500',
-            iconColor === 'text-amber-500' && 'bg-amber-500'
+            'p-3 rounded-lg',
+            iconColor === 'text-blue-500'    && 'bg-blue-500/10',
+            iconColor === 'text-emerald-500' && 'bg-emerald-500/10',
+            iconColor === 'text-purple-500'  && 'bg-purple-500/10',
+            iconColor === 'text-amber-500'   && 'bg-amber-500/10',
+            iconColor === 'text-teal-500'    && 'bg-teal-500/10',
+            iconColor === 'text-red-500'     && 'bg-red-500/10',
           )}
         >
           <Icon className={cn('w-6 h-6', iconColor)} />

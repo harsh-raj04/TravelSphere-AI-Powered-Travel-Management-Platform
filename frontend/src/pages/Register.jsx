@@ -63,7 +63,7 @@ export function Register() {
   };
 
   return (
-    <div className="travel-ui min-h-screen bg-gradient-to-br from-[#fff5eb] via-white to-[#fff1e6] dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center px-4 py-12">
+    <div className="travel-ui min-h-screen bg-gradient-to-br from-teal-50 via-white to-teal-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-12 h-12 bg-gradient-brand rounded-lg flex items-center justify-center mx-auto mb-4">

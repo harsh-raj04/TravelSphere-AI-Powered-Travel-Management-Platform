@@ -61,12 +61,15 @@ export default {
         xl: '1.5rem',    // 24px
       },
       boxShadow: {
-        xs: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        sm: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-        md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-        xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-        premium: '0 20px 40px -10px rgba(37, 99, 235, 0.15)',
+        xs:      '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        sm:      '0 1px 3px 0 rgba(0,0,0,0.10), 0 1px 2px 0 rgba(0,0,0,0.06)',
+        md:      '0 4px 6px -1px rgba(0,0,0,0.10), 0 2px 4px -1px rgba(0,0,0,0.06)',
+        lg:      '0 10px 15px -3px rgba(0,0,0,0.10), 0 4px 6px -2px rgba(0,0,0,0.05)',
+        xl:      '0 20px 25px -5px rgba(0,0,0,0.10), 0 10px 10px -5px rgba(0,0,0,0.04)',
+        '2xl':   '0 25px 50px -12px rgba(0,0,0,0.25)',
+        premium: '0 20px 40px -10px rgba(15, 118, 110, 0.25)',
+        teal:    '0 10px 30px -10px rgba(15, 118, 110, 0.45)',
+        'teal-sm':'0 4px 12px -2px rgba(15, 118, 110, 0.35)',
       },
       backgroundImage: {
         'gradient-brand': 'linear-gradient(135deg, #0F766E 0%, #14B8A6 100%)',
