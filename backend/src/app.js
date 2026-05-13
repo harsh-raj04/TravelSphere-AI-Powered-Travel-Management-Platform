@@ -16,8 +16,15 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
 
-// Serve uploaded images
-app.use("/images", express.static(path.join(__dirname, "..", "public", "images")));
+// Serve uploaded images with caching headers
+app.use("/images", express.static(path.join(__dirname, "..", "public", "images"), {
+  maxAge: "7d",
+  etag: true,
+  lastModified: true,
+  setHeaders(res) {
+    res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
+  },
+}));
 
 app.get("/health", (_req, res) => {
   res.status(200).json({

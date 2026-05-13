@@ -5,6 +5,8 @@ const { bookingsRouter } = require("./bookings.routes");
 const { paymentsRouter } = require("./payments.routes");
 const { transactionsRouter } = require("./transactions.routes");
 const { adminRouter } = require("./admin.routes");
+const { agentRouter } = require("./agent.routes");
+const { ticketsRouter } = require("./tickets.routes");
 
 const apiRouter = express.Router();
 
@@ -14,5 +16,7 @@ apiRouter.use("/bookings", bookingsRouter);
 apiRouter.use("/payments", paymentsRouter);
 apiRouter.use("/transactions", transactionsRouter);
 apiRouter.use("/admin", adminRouter);
+apiRouter.use("/agent", agentRouter);
+apiRouter.use("/tickets", ticketsRouter);
 
 module.exports = { apiRouter };

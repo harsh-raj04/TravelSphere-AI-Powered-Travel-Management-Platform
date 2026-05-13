@@ -55,8 +55,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  /**
+   * Merges a partial user object into the current auth state.
+   * Used after profile updates (name, email, phone) so the navbar
+   * and other consumers reflect the new values without a page reload.
+   */
+  const updateUser = (partial) => {
+    setUser((prev) => (prev ? { ...prev, ...partial } : prev));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, variant }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, variant }}>
       {children}
     </AuthContext.Provider>
   );

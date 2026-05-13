@@ -31,9 +31,9 @@ const formatINR = (amount) =>
     maximumFractionDigits: 0,
   })}`;
 
-function StatCard({ title, value, change, icon: Icon, iconColor, iconBg }) {
+function StatCard({ title, value, change, icon: Icon, iconGradient }) {
   return (
-    <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+    <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-xl hover:shadow-teal-500/10 hover:scale-105 transition-all duration-200 cursor-default">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-sm text-gray-600 mb-1">{title}</p>
@@ -43,8 +43,8 @@ function StatCard({ title, value, change, icon: Icon, iconColor, iconBg }) {
             <span className="text-sm text-gray-500">vs last month</span>
           </div>
         </div>
-        <div className={`${iconBg} p-3 rounded-lg`}>
-          <Icon className={`w-6 h-6 ${iconColor}`} />
+        <div className={`bg-gradient-to-br ${iconGradient} p-3 rounded-lg`}>
+          <Icon className="w-6 h-6 text-white" />
         </div>
       </div>
     </div>
@@ -218,32 +218,28 @@ export function AgentDashboard() {
           value={formatINR(stats.revenue)}
           change="18.2%"
           icon={DollarSign}
-          iconColor="text-green-600"
-          iconBg="bg-green-100"
+          iconGradient="from-green-500 to-emerald-600"
         />
         <StatCard
           title="Active Packages"
           value={String(stats.packages)}
           change="12%"
           icon={Package}
-          iconColor="text-blue-600"
-          iconBg="bg-blue-100"
+          iconGradient="from-blue-500 to-indigo-600"
         />
         <StatCard
           title="Total Bookings"
           value={String(stats.bookings)}
           change="8.5%"
           icon={Users}
-          iconColor="text-purple-600"
-          iconBg="bg-purple-100"
+          iconGradient="from-purple-500 to-violet-600"
         />
         <StatCard
           title="Conversion Rate"
           value={`${stats.conversionRate}%`}
           change="3.2%"
           icon={TrendingUp}
-          iconColor="text-orange-600"
-          iconBg="bg-orange-100"
+          iconGradient="from-orange-500 to-amber-600"
         />
       </div>
 

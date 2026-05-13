@@ -1,8 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Star, Eye, EyeOff, Plus, X, AlertCircle, Edit, ExternalLink, ChevronDown } from 'lucide-react';
+import { Star, Eye, EyeOff, Plus, X, AlertCircle, Edit, ExternalLink, ChevronDown, Trash2, MapPin, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
 import { getImageUrl } from '../../services/packageService';
+
+const blankDraft = () => ({
+  title: '',
+  destination: '',
+  durationDays: 1,
+  price: '',
+  description: '',
+  category: 'group_tours',
+  bannerImage: '',
+  isActive: true,
+  itineraries: [],
+  pricingOptions: [],
+  departures: [],
+  inclusions: [],
+  addOns: [],
+});
 
 export function AdminPackages() {
   const navigate = useNavigate();
@@ -13,17 +29,7 @@ export function AdminPackages() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [openFeature, setOpenFeature] = useState(null);
-  const [form, setForm] = useState({
-    title: '',
-    destination: '',
-    duration_days: '',
-    price: '',
-    description: '',
-    category: 'group_tours',
-    bannerImage: '',
-    itinerary: [],
-    image_urls: [''],
-  });
+  const [form, setForm] = useState(blankDraft());
 
   useEffect(() => {
     (async () => {
@@ -54,17 +60,7 @@ export function AdminPackages() {
 
   const openCreateModal = () => {
     setCreateError('');
-    setForm({
-      title: '',
-      destination: '',
-      duration_days: '',
-      price: '',
-      description: '',
-      category: 'group_tours',
-      bannerImage: '',
-      itinerary: [],
-      image_urls: [''],
-    });
+    setForm(blankDraft());
     setIsCreateOpen(true);
   };
 
@@ -74,67 +70,93 @@ export function AdminPackages() {
     setCreateError('');
   };
 
-  const handleDurationChange = (value) => {
-    const nextDuration = Math.max(1, Number(value) || 1);
+  const updateDraftField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+  const updateArrayDraft = (field, index, key, value) => {
     setForm((prev) => {
-      const nextItinerary = Array.from({ length: nextDuration }, (_, index) => prev.itinerary[index] || '');
-      return { ...prev, duration_days: String(nextDuration), itinerary: nextItinerary };
+      const arr = [...prev[field]];
+      arr[index] = { ...arr[index], [key]: value };
+      return { ...prev, [field]: arr };
     });
   };
-
-  const updateItineraryDay = (dayIndex, value) => {
-    setForm((prev) => ({
-      ...prev,
-      itinerary: prev.itinerary.map((dayPlan, index) => (index === dayIndex ? value : dayPlan)),
-    }));
+  const addArrayRow = (field, template) => {
+    setForm((prev) => ({ ...prev, [field]: [...prev[field], { ...template }] }));
+  };
+  const removeArrayRow = (field, index) => {
+    setForm((prev) => ({ ...prev, [field]: prev[field].filter((_, i) => i !== index) }));
   };
 
-  const updateImageField = (index, value) => {
-    setForm((prev) => ({
-      ...prev,
-      image_urls: prev.image_urls.map((item, idx) => (idx === index ? value : item)),
-    }));
-  };
-
-  const addImageField = () => setForm((prev) => ({ ...prev, image_urls: [...prev.image_urls, ''] }));
-  const removeImageField = (index) => {
-    setForm((prev) => ({
-      ...prev,
-      image_urls: prev.image_urls.length <= 1 ? [''] : prev.image_urls.filter((_, idx) => idx !== index),
-    }));
+  const handleDurationChange = (value) => {
+    const nextDur = Math.max(1, Number(value) || 1);
+    const currentLen = form.itineraries.length;
+    setForm((prev) => {
+      if (nextDur > currentLen) {
+        const add = Array.from({ length: nextDur - currentLen }, (_, i) => ({
+          dayNumber: currentLen + i + 1,
+          title: '',
+          description: '',
+          morningActivity: '',
+          afternoonActivity: '',
+          eveningActivity: '',
+          nightActivity: '',
+          locations: [],
+          activities: [],
+        }));
+        return { ...prev, durationDays: nextDur, itineraries: [...prev.itineraries, ...add] };
+      }
+      return { ...prev, durationDays: nextDur, itineraries: prev.itineraries.slice(0, nextDur) };
+    });
   };
 
   const submitCreatePackage = async (event) => {
     event.preventDefault();
     setCreateError('');
-
-    if (!form.title.trim() || !form.description.trim()) { setCreateError('Please fill all required fields.'); return; }
-    const durationDays = Number(form.duration_days);
-    const priceValue = Number(form.price);
-    if (!Number.isInteger(durationDays) || durationDays <= 0) { setCreateError('Duration must be a positive whole number.'); return; }
-    if (!Number.isFinite(priceValue) || priceValue <= 0) { setCreateError('Price must be a positive number.'); return; }
-    if (form.description.trim().length < 10) { setCreateError('Description must be at least 10 characters.'); return; }
-    if (form.itinerary.length !== durationDays || form.itinerary.some((item) => !item.trim())) { setCreateError('Please provide itinerary details for each day.'); return; }
+    if (!form.title.trim() || !form.description.trim() || !form.destination.trim()) {
+      setCreateError('Title, description, and destination are required.'); return;
+    }
+    const priceVal = Number(form.price);
+    if (!Number.isFinite(priceVal) || priceVal <= 0) {
+      setCreateError('Price must be positive.'); return;
+    }
+    if (!Number.isInteger(form.durationDays) || form.durationDays < 1) {
+      setCreateError('Duration must be at least 1 day.'); return;
+    }
 
     setIsCreating(true);
     try {
-      const imageUrls = form.image_urls.filter((url) => String(url || '').trim().length > 0);
       const payload = {
         title: form.title.trim(),
-        destination: form.destination.trim() || undefined,
-        duration_days: durationDays,
-        price: priceValue,
         description: form.description.trim(),
+        destination: form.destination.trim(),
+        durationDays: form.durationDays,
+        price: priceVal,
         category: form.category,
-        bannerImage: imageUrls[0] || undefined,
-        itinerary: form.itinerary,
-        image_urls: imageUrls,
+        bannerImage: form.bannerImage || undefined,
+        itineraries: form.itineraries.map((it) => ({
+          dayNumber: it.dayNumber,
+          title: it.title || '',
+          description: it.description || null,
+          morningActivity: it.morningActivity || null,
+          afternoonActivity: it.afternoonActivity || null,
+          eveningActivity: it.eveningActivity || null,
+          nightActivity: it.nightActivity || null,
+          locations: it.locations || [],
+          activities: it.activities || [],
+        })),
+        pricingOptions: form.pricingOptions,
+        departures: form.departures.map((d) => ({
+          departureDate: d.departureDate || null,
+          availableSeats: d.availableSeats || 20,
+          price: Number(d.price) || priceVal,
+          isActive: d.isActive !== false,
+        })),
+        inclusions: form.inclusions.filter((inc) => inc.description.trim()),
+        addOns: form.addOns.filter((ao) => ao.title.trim()),
       };
 
       const res = await adminAPI.createPackage(payload);
       const created = res.data?.data;
       if (created) {
-        setPackages((prev) => [{ ...created, rating: null, reviewCount: 0 }, ...prev]);
+        setPackages((prev) => [created, ...prev]);
       }
       setIsCreateOpen(false);
     } catch (err) {
@@ -373,15 +395,15 @@ export function AdminPackages() {
 
       {isCreateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-3xl rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900 z-10">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Add New Package</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Create package details, itinerary, and gallery</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Full package details with itinerary, pricing, departures</p>
               </div>
               <button onClick={closeCreateModal} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Close"><X className="w-4 h-4" /></button>
             </div>
-            <form onSubmit={submitCreatePackage} className="p-6 space-y-4">
+            <form onSubmit={submitCreatePackage} className="p-6 space-y-5">
               {createError && (
                 <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 mt-0.5" /><span>{createError}</span>
@@ -390,23 +412,23 @@ export function AdminPackages() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Title</label>
-                  <input type="text" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="e.g. Kerala Backwaters" required />
+                  <input type="text" value={form.title} onChange={(e) => updateDraftField('title', e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="e.g. Kerala Backwaters" required />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Destination</label>
-                  <input type="text" value={form.destination} onChange={(e) => setForm((p) => ({ ...p, destination: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="e.g. Kerala" />
+                  <input type="text" value={form.destination} onChange={(e) => updateDraftField('destination', e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="e.g. Kerala, India" required />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Duration (days)</label>
-                  <input type="number" min="1" value={form.duration_days} onChange={(e) => handleDurationChange(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="5" required />
+                  <input type="number" min="1" value={form.durationDays} onChange={(e) => handleDurationChange(e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" required />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Price</label>
-                  <input type="number" min="1" step="0.01" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="12999" required />
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Starting Price (₹)</label>
+                  <input type="number" min="1" step="0.01" value={form.price} onChange={(e) => updateDraftField('price', e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="12999" required />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
-                  <select value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white">
+                  <select value={form.category} onChange={(e) => updateDraftField('category', e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white">
                     <option value="group_tours">Group Tour</option>
                     <option value="weekend_trips">Weekend Trip</option>
                     <option value="family_tours">Family Tour</option>
@@ -415,36 +437,118 @@ export function AdminPackages() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Banner Image URL</label>
-                  <input type="text" value={form.bannerImage} onChange={(e) => setForm((p) => ({ ...p, bannerImage: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="https://..." />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
-                  <textarea rows={4} value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="Describe package highlights..." required />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Itinerary (dynamic by duration)</label>
-                  <div className="mt-2 space-y-2 max-h-56 overflow-auto pr-1">
-                    {(form.itinerary || []).map((dayPlan, index) => (
-                      <div key={`day-${index}`}>
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Day {index + 1}</label>
-                        <input type="text" value={dayPlan} onChange={(e) => updateItineraryDay(index, e.target.value)} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder={`Plan for Day ${index + 1}`} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Package Images (URLs)</label>
-                  <div className="mt-2 space-y-2">
-                    {form.image_urls.map((url, index) => (
-                      <div key={`img-${index}`} className="flex gap-2">
-                        <input type="url" value={url} onChange={(e) => updateImageField(index, e.target.value)} className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="https://..." />
-                        <button type="button" onClick={() => removeImageField(index)} className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-600">Remove</button>
-                      </div>
-                    ))}
-                    <button type="button" onClick={addImageField} className="text-sm font-medium text-teal-600 hover:text-teal-700">+ Add another image</button>
-                  </div>
+                  <input type="text" value={form.bannerImage} onChange={(e) => updateDraftField('bannerImage', e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="https://..." />
                 </div>
               </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                <textarea rows={4} value={form.description} onChange={(e) => updateDraftField('description', e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="Describe package highlights..." required />
+              </div>
+
+              {/* Itinerary */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Itinerary</h3>
+                  <button type="button" onClick={() => addArrayRow('itineraries', { dayNumber: form.itineraries.length + 1, title: '', description: '', morningActivity: '', afternoonActivity: '', eveningActivity: '', nightActivity: '', locations: [], activities: [] })} className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Add Day</button>
+                </div>
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                  {form.itineraries.map((it, i) => (
+                    <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-sm text-gray-900 dark:text-white">Day {it.dayNumber}</span>
+                        <button type="button" onClick={() => removeArrayRow('itineraries', i)} className="text-red-500 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input value={it.title} onChange={(e) => updateArrayDraft('itineraries', i, 'title', e.target.value)} placeholder="Title" className="col-span-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                        <textarea value={it.description || ''} onChange={(e) => updateArrayDraft('itineraries', i, 'description', e.target.value)} placeholder="Day description" rows={2} className="col-span-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-xs text-gray-900 dark:text-white" />
+                        <input value={it.morningActivity || ''} onChange={(e) => updateArrayDraft('itineraries', i, 'morningActivity', e.target.value)} placeholder="Morning" className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                        <input value={it.afternoonActivity || ''} onChange={(e) => updateArrayDraft('itineraries', i, 'afternoonActivity', e.target.value)} placeholder="Afternoon" className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                        <input value={it.eveningActivity || ''} onChange={(e) => updateArrayDraft('itineraries', i, 'eveningActivity', e.target.value)} placeholder="Evening" className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                        <input value={it.nightActivity || ''} onChange={(e) => updateArrayDraft('itineraries', i, 'nightActivity', e.target.value)} placeholder="Night" className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pricing Options */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Pricing Options</h3>
+                  <button type="button" onClick={() => addArrayRow('pricingOptions', { roomType: 'sharing', price: 0 })} className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Add</button>
+                </div>
+                <div className="space-y-2">
+                  {form.pricingOptions.map((po, i) => (
+                    <div key={i} className="flex gap-2">
+                      <select value={po.roomType} onChange={(e) => updateArrayDraft('pricingOptions', i, 'roomType', e.target.value)} className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white">
+                        <option value="sharing">Sharing</option>
+                        <option value="triple">Triple</option>
+                        <option value="double">Double</option>
+                        <option value="single">Single</option>
+                      </select>
+                      <input type="number" value={po.price} onChange={(e) => updateArrayDraft('pricingOptions', i, 'price', Number(e.target.value))} placeholder="Price" className="w-28 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                      <button type="button" onClick={() => removeArrayRow('pricingOptions', i)} className="text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Departures */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Departures</h3>
+                  <button type="button" onClick={() => addArrayRow('departures', { departureDate: '', availableSeats: 20, price: Number(form.price) || 0, isActive: true })} className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Add</button>
+                </div>
+                <div className="space-y-2">
+                  {form.departures.map((d, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <input type="date" value={d.departureDate} onChange={(e) => updateArrayDraft('departures', i, 'departureDate', e.target.value)} className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                      <input type="number" value={d.availableSeats} onChange={(e) => updateArrayDraft('departures', i, 'availableSeats', Number(e.target.value))} placeholder="Seats" className="w-16 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                      <input type="number" value={d.price} onChange={(e) => updateArrayDraft('departures', i, 'price', Number(e.target.value))} placeholder="Price" className="w-24 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                      <button type="button" onClick={() => removeArrayRow('departures', i)} className="text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Inclusions / Exclusions */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Inclusions / Exclusions</h3>
+                  <button type="button" onClick={() => addArrayRow('inclusions', { type: 'inclusion', description: '' })} className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Add</button>
+                </div>
+                <div className="space-y-2">
+                  {form.inclusions.map((inc, i) => (
+                    <div key={i} className="flex gap-2">
+                      <select value={inc.type} onChange={(e) => updateArrayDraft('inclusions', i, 'type', e.target.value)} className="w-28 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white">
+                        <option value="inclusion">Inclusion</option>
+                        <option value="exclusion">Exclusion</option>
+                      </select>
+                      <input value={inc.description} onChange={(e) => updateArrayDraft('inclusions', i, 'description', e.target.value)} placeholder="Description" className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                      <button type="button" onClick={() => removeArrayRow('inclusions', i)} className="text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add-Ons */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Add-Ons</h3>
+                  <button type="button" onClick={() => addArrayRow('addOns', { title: '', description: '', price: 0 })} className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"><Plus className="w-3.5 h-3.5" /> Add</button>
+                </div>
+                <div className="space-y-2">
+                  {form.addOns.map((ao, i) => (
+                    <div key={i} className="flex gap-2">
+                      <input value={ao.title} onChange={(e) => updateArrayDraft('addOns', i, 'title', e.target.value)} placeholder="Title" className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                      <input value={ao.description || ''} onChange={(e) => updateArrayDraft('addOns', i, 'description', e.target.value)} placeholder="Description" className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                      <input type="number" value={ao.price} onChange={(e) => updateArrayDraft('addOns', i, 'price', Number(e.target.value))} placeholder="Price" className="w-24 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-xs text-gray-900 dark:text-white" />
+                      <button type="button" onClick={() => removeArrayRow('addOns', i)} className="text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={closeCreateModal} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-600" disabled={isCreating}>Cancel</button>
                 <button type="submit" className="px-4 py-2 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-70" disabled={isCreating}>{isCreating ? 'Creating...' : 'Create Package'}</button>

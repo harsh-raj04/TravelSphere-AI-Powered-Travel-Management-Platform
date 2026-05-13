@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { adminAPI } from '../../services/api';
 import {
-  Calendar, MapPin, Users, DollarSign, Search, Filter, ArrowRight,
+  Calendar, MapPin, Users, IndianRupee, Search, Filter, ArrowRight,
   AlertCircle, CheckCircle2, Clock
 } from 'lucide-react';
 
@@ -168,7 +168,7 @@ export function AdminBookingsNew() {
                           <span className="text-sm text-gray-600">{booking.travelersCount} travelers</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                          <IndianRupee className="w-4 h-4 text-gray-600 flex-shrink-0" />
                           <span className="text-sm font-semibold text-green-600">{formatINR(booking.totalAmount)}</span>
                         </div>
                       </div>
@@ -195,33 +195,6 @@ export function AdminBookingsNew() {
                   </div>
                   
                   <div className="flex gap-2 flex-wrap">
-                    {booking.status === 'pending' && (
-                      <Button
-                        onClick={() => navigate(`/admin/bookings/${booking.id}`)}
-                        size="sm"
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        Confirm
-                      </Button>
-                    )}
-                    {booking.status === 'confirmed' && (
-                      <Button
-                        onClick={() => navigate(`/admin/bookings/${booking.id}`)}
-                        size="sm"
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                      >
-                        Open to Agents
-                      </Button>
-                    )}
-                    {booking.status === 'open_for_agents' && (
-                      <Button
-                        onClick={() => navigate(`/admin/bookings/${booking.id}`)}
-                        size="sm"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                      >
-                        Assign Agent
-                      </Button>
-                    )}
                     <Button
                       onClick={() => navigate(`/admin/bookings/${booking.id}`)}
                       size="sm"

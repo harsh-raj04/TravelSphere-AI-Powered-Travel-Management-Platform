@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ColorfulCard } from '../../components/ui/ColorfulCard';
-import { StatCard } from '../../components/ui/StatCard';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
-import { Badge } from '../../components/ui/Badge';
 import { agentAPI, bookingsAPI } from '../../services/api';
+import { useToast } from '../../components/ui/Toast';
 import {
   Calendar, Users, MapPin, DollarSign, CheckCircle2, XCircle,
-  Clock, AlertCircle, ThumbsUp, ThumbsDown, MessageSquare, Sparkles, ArrowRight
+  Clock, AlertCircle, ThumbsUp, ThumbsDown, Sparkles, ArrowRight,
+  TrendingUp, Package, RefreshCw, IndianRupee,
 } from 'lucide-react';
 
 const formatINR = (value) =>
@@ -23,112 +22,182 @@ const REJECT_REASONS = [
   'Other reason',
 ];
 
-function BookingCard({ booking, onAccept, onReject, onView }) {
-  const canAccept = booking.status === 'assigned';
-  const isInProgress = booking.status === 'in_progress' || booking.status === 'accepted';
-  // agent can mark complete when trip is in progress and not already completed or marked completed by agent
-  const canComplete = isInProgress && booking.status !== 'completed' && booking.status !== 'completed_by_agent';
-  const isCancelled = booking.status === 'cancelled';
-  const statusLabel = booking.status === 'accepted' || booking.status === 'in_progress'
-    ? 'IN PROGRESS'
-    : booking.status.replace(/_/g, ' ').toUpperCase();
-  
+// ─── Status config ─────────────────────────────────────────────────────────────
+
+const STATUS_CONFIG = {
+  assigned:          { accent: 'border-l-blue-400',    badge: 'bg-blue-100 text-blue-700 border-blue-200',       label: 'PENDING ACTION' },
+  in_progress:       { accent: 'border-l-amber-400',   badge: 'bg-amber-100 text-amber-700 border-amber-200',     label: 'IN PROGRESS' },
+  accepted:          { accent: 'border-l-teal-400',    badge: 'bg-teal-100 text-teal-700 border-teal-200',        label: 'IN PROGRESS' },
+  completed:         { accent: 'border-l-emerald-400', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: 'COMPLETED' },
+  completed_by_agent:{ accent: 'border-l-yellow-400',  badge: 'bg-yellow-100 text-yellow-700 border-yellow-200',  label: 'AWAITING ADMIN' },
+  rejected:          { accent: 'border-l-red-400',     badge: 'bg-red-100 text-red-700 border-red-200',           label: 'REJECTED' },
+  cancelled:         { accent: 'border-l-gray-300',    badge: 'bg-gray-100 text-gray-600 border-gray-200',        label: 'CANCELLED' },
+};
+
+// ─── SkeletonCard ─────────────────────────────────────────────────────────────
+
+function SkeletonCard() {
   return (
-    <ColorfulCard variant="light" className="border-2 border-gray-200">
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex-1">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">{booking.package?.title}</h3>
-          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-            <div className="flex items-center gap-1">
-              <MapPin className="w-4 h-4" />
-              {booking.package?.destination}
-            </div>
-            <div className="flex items-center gap-1">
-              <Calendar className="w-4 h-4" />
-              {new Date(booking.travelDate).toLocaleDateString()}
-            </div>
-            <div className="flex items-center gap-1">
-              <Users className="w-4 h-4" />
-              {booking.travelersCount} travelers
-            </div>
+    <div className="animate-pulse rounded-xl border border-gray-200 bg-white p-5 border-l-4 border-l-gray-200 space-y-4">
+      <div className="flex items-start justify-between">
+        <div className="space-y-2 flex-1">
+          <div className="h-5 bg-gray-200 rounded w-2/3" />
+          <div className="flex gap-4">
+            <div className="h-3.5 bg-gray-200 rounded w-24" />
+            <div className="h-3.5 bg-gray-200 rounded w-20" />
+            <div className="h-3.5 bg-gray-200 rounded w-16" />
           </div>
         </div>
-        <Badge variant={
-          booking.status === 'accepted' || booking.status === 'in_progress' ? 'success' :
-          booking.status === 'rejected' ? 'error' :
-          'info'
-        }>
-          {statusLabel}
-        </Badge>
+        <div className="h-6 bg-gray-200 rounded-full w-24" />
       </div>
-
-      <div className="grid grid-cols-2 gap-4 py-4 border-t border-b border-gray-200 mb-4">
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded-lg">
-          <p className="text-xs text-gray-600 font-semibold mb-1">YOUR PAYOUT</p>
-          <p className="text-2xl font-bold text-purple-600">{formatINR(booking.agentPayout)}</p>
-        </div>
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg">
-          <p className="text-xs text-gray-600 font-semibold mb-1">TOTAL PACKAGE</p>
-          <p className="text-2xl font-bold text-blue-600">{formatINR(booking.totalAmount)}</p>
-        </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="h-16 bg-gray-200 rounded-xl" />
+        <div className="h-16 bg-gray-200 rounded-xl" />
       </div>
-
-      {canAccept && (
-        <div className="flex gap-3">
-          <Button
-            onClick={() => onAccept(booking)}
-            className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 flex items-center justify-center gap-2"
-          >
-            <ThumbsUp className="w-4 h-4" />
-            Accept
-          </Button>
-          <Button
-            onClick={() => onReject(booking)}
-            variant="outline"
-            className="flex-1 border-2 border-red-300 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
-          >
-            <ThumbsDown className="w-4 h-4" />
-            Reject
-          </Button>
-        </div>
-      )}
-      {!canAccept && onView && (
-        <div className="flex gap-3">
-          <Button size="sm" onClick={() => onView(booking)} className="flex-1">
-            View
-          </Button>
-          {canComplete && typeof onView === 'function' && (
-            <Button size="sm" onClick={() => onView(booking, { action: 'complete' })} className="flex-1 bg-amber-600 text-white hover:bg-amber-700">
-              Mark Complete
-            </Button>
-          )}
-        </div>
-      )}
-
-      {isInProgress && (
-        <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-700">
-          Trip is in progress. Mark it completed after the service ends.
-        </div>
-      )}
-
-      {isCancelled && (
-        <div className="mt-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">
-          This booking was cancelled by admin.
-        </div>
-      )}
-    </ColorfulCard>
+      <div className="flex gap-2">
+        <div className="h-9 bg-gray-200 rounded-lg w-28" />
+        <div className="h-9 bg-gray-200 rounded-lg w-28" />
+      </div>
+    </div>
   );
 }
 
+// ─── BookingCard ──────────────────────────────────────────────────────────────
+
+function BookingCard({ booking, onAccept, onReject, onView }) {
+  const canAccept = booking.status === 'assigned';
+  const isInProgress = booking.status === 'in_progress' || booking.status === 'accepted';
+  const canComplete = isInProgress;
+  const isCancelled = booking.status === 'cancelled';
+  const cfg = STATUS_CONFIG[booking.status] || STATUS_CONFIG.cancelled;
+
+  return (
+    <div className={`rounded-xl bg-white border border-gray-200 border-l-4 ${cfg.accent} shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200 overflow-hidden`}>
+      <div className="p-5">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-bold text-gray-900 truncate mb-1.5">
+              {booking.package?.title}
+            </h3>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                {booking.package?.destination || 'Destination TBD'}
+              </span>
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                {new Date(booking.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
+              <span className="flex items-center gap-1">
+                <Users className="w-3.5 h-3.5 text-gray-400" />
+                {booking.travelersCount} travelers
+              </span>
+            </div>
+          </div>
+          <span className={`flex-shrink-0 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${cfg.badge}`}>
+            {cfg.label}
+          </span>
+        </div>
+
+        {/* Payout / Total row */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-purple-50 border border-purple-100 rounded-xl p-3">
+            <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1">Your Payout</p>
+            <p className="text-xl font-bold text-purple-700">{formatINR(booking.agentPayout)}</p>
+          </div>
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-1">Total Package</p>
+            <p className="text-xl font-bold text-blue-700">{formatINR(booking.totalAmount)}</p>
+          </div>
+        </div>
+
+        {/* Inline actions row */}
+        {!canAccept && onView && (
+          <div className="flex items-center justify-end gap-3 mt-3">
+            {canComplete && (
+              <button
+                onClick={() => onView(booking, { action: 'complete' })}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 transition-colors"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Mark Complete
+              </button>
+            )}
+            <button
+              onClick={() => onView(booking)}
+              className="flex items-center gap-1.5 text-teal-600 hover:text-teal-800 text-sm font-semibold transition-colors"
+            >
+              View Details
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+
+        {/* Accept / Decline — only for assigned bookings, stays below */}
+        {canAccept && (
+          <div className="flex gap-2.5 mt-3">
+            <button
+              onClick={() => onAccept(booking)}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-semibold rounded-xl hover:from-emerald-600 hover:to-teal-700 shadow-sm hover:shadow transition-all"
+            >
+              <ThumbsUp className="w-4 h-4" />
+              Accept Trip
+            </button>
+            <button
+              onClick={() => onReject(booking)}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-all"
+            >
+              <ThumbsDown className="w-4 h-4" />
+              Decline
+            </button>
+          </div>
+        )}
+
+        {/* Info banners */}
+        {isInProgress && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700">
+            <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+            Trip is in progress. Mark it completed after the service ends.
+          </div>
+        )}
+        {isCancelled && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-xs text-red-700">
+            <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+            This booking was cancelled by admin.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Section Header ───────────────────────────────────────────────────────────
+
+function SectionHeader({ icon: Icon, iconColor, title, count, badgeColor }) {
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconColor}`}>
+        <Icon className="w-4.5 h-4.5" />
+      </div>
+      <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${badgeColor}`}>
+        {count}
+      </span>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function AgentBookingsNew() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [stats, setStats] = useState(null);
 
-  // Modals
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
@@ -150,49 +219,30 @@ export function AgentBookingsNew() {
     }
   };
 
-  useEffect(() => {
-    loadBookings();
-  }, []);
+  useEffect(() => { loadBookings(); }, []);
 
   const groupedBookings = useMemo(() => {
-    const assigned = bookings.filter((b) => b.status === 'assigned');
-    const inProgress = bookings.filter((b) => ['in_progress', 'accepted'].includes(b.status));
-    const agentCompleted = bookings.filter((b) => b.status === 'completed_by_agent');
-    const rejected = bookings.filter((b) => b.status === 'rejected');
-    const completed = bookings.filter((b) => b.status === 'completed');
-    const cancelled = bookings.filter((b) => b.status === 'cancelled');
-
+    const assigned        = bookings.filter((b) => b.status === 'assigned');
+    const inProgress      = bookings.filter((b) => ['in_progress', 'accepted'].includes(b.status));
+    const agentCompleted  = bookings.filter((b) => b.status === 'completed_by_agent');
+    const rejected        = bookings.filter((b) => b.status === 'rejected');
+    const completed       = bookings.filter((b) => b.status === 'completed');
+    const cancelled       = bookings.filter((b) => b.status === 'cancelled');
     return { assigned, inProgress, agentCompleted, rejected, completed, cancelled };
   }, [bookings]);
 
   const statsData = useMemo(() => ({
-    assigned: groupedBookings.assigned.length,
-    inProgress: groupedBookings.inProgress.length,
-    rejected: groupedBookings.rejected.length,
+    assigned:      groupedBookings.assigned.length,
+    inProgress:    groupedBookings.inProgress.length,
+    rejected:      groupedBookings.rejected.length,
     totalEarnings: groupedBookings.completed.reduce((sum, b) => sum + Number(b.agentPayout || 0), 0),
   }), [groupedBookings]);
 
-  const handleAcceptClick = (booking) => {
-    setSelectedBooking(booking);
-    setShowAcceptModal(true);
-  };
-
-  const handleViewClick = (booking, opts) => {
-    // if invoked with action complete, open the confirm complete modal
-    if (opts && opts.action === 'complete') {
-      setSelectedBooking(booking);
-      setShowCompleteModal(true);
-      return;
-    }
-
+  const handleAcceptClick  = (booking) => { setSelectedBooking(booking); setShowAcceptModal(true); };
+  const handleRejectClick  = (booking) => { setSelectedBooking(booking); setRejectReason(''); setRejectMessage(''); setShowRejectModal(true); };
+  const handleViewClick    = (booking, opts) => {
+    if (opts?.action === 'complete') { setSelectedBooking(booking); setShowCompleteModal(true); return; }
     navigate(`/agent/bookings/${booking.id}`, { state: { booking } });
-  };
-
-  const handleRejectClick = (booking) => {
-    setSelectedBooking(booking);
-    setRejectReason('');
-    setRejectMessage('');
-    setShowRejectModal(true);
   };
 
   const confirmAccept = async () => {
@@ -210,18 +260,10 @@ export function AgentBookingsNew() {
   };
 
   const confirmReject = async () => {
-    if (!rejectReason) {
-      alert('Please select a reason');
-      return;
-    }
-
+    if (!rejectReason) { toast('Please select a reason for rejection', 'warning'); return; }
     try {
       setProcessingBookingId(selectedBooking.id);
-      await bookingsAPI.updateStatus(selectedBooking.id, {
-        status: 'rejected',
-        rejection_reason: rejectReason,
-        decision_remark: rejectMessage || undefined,
-      });
+      await bookingsAPI.updateStatus(selectedBooking.id, { status: 'rejected', rejection_reason: rejectReason, decision_remark: rejectMessage || undefined });
       await loadBookings();
       setShowRejectModal(false);
       setSelectedBooking(null);
@@ -238,7 +280,6 @@ export function AgentBookingsNew() {
     if (!selectedBooking) return;
     try {
       setProcessingBookingId(selectedBooking.id);
-      // mark as completed by agent — use existing 'completed' status and include remark so admin can differentiate
       await bookingsAPI.updateStatus(selectedBooking.id, { status: 'completed', decision_remark: 'Marked completed by agent' });
       await loadBookings();
       setShowCompleteModal(false);
@@ -251,333 +292,303 @@ export function AgentBookingsNew() {
   };
 
   return (
-    <div className="p-8 bg-gradient-to-b from-gray-50 to-white min-h-screen">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Your Bookings</h1>
-        <p className="text-gray-600">Manage assigned trips, move them to in progress, and close them out.</p>
+    <div className="min-h-screen bg-gray-50 p-6 lg:p-8">
+
+      {/* ── Page Header ───────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Your Bookings</h1>
+          <p className="text-gray-500 mt-1 text-sm">Manage assigned trips, move them to in progress, and close them out.</p>
+        </div>
+        <button
+          onClick={loadBookings}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
       </div>
 
+      {/* ── Error Banner ─────────────────────────────────────────────────────── */}
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+        <div className="mb-6 flex items-center gap-3 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
+          <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600">
+            <XCircle className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <StatCard icon={Clock} label="Pending Action" value={statsData.assigned} variant="blue" />
-        <StatCard icon={CheckCircle2} label="In Progress" value={statsData.inProgress} variant="green" />
-        <StatCard icon={XCircle} label="Rejected" value={statsData.rejected} variant="orange" />
-        <StatCard icon={DollarSign} label="Total Earnings" value={formatINR(statsData.totalEarnings)} variant="purple" />
+      {/* ── Stat Cards ────────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+        <div className="rounded-2xl p-6 text-white shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 hover:-translate-y-1 hover:shadow-xl transition-all duration-200 cursor-default">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-white" />
+            </div>
+            <TrendingUp className="w-4 h-4 text-white/50" />
+          </div>
+          <p className="text-4xl font-bold leading-none mb-1">{statsData.assigned}</p>
+          <p className="text-sm text-white/80">Pending Action</p>
+        </div>
+
+        <div className="rounded-2xl p-6 text-white shadow-lg bg-gradient-to-br from-emerald-500 to-teal-600 hover:-translate-y-1 hover:shadow-xl transition-all duration-200 cursor-default">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5 text-white" />
+            </div>
+            <TrendingUp className="w-4 h-4 text-white/50" />
+          </div>
+          <p className="text-4xl font-bold leading-none mb-1">{statsData.inProgress}</p>
+          <p className="text-sm text-white/80">In Progress</p>
+        </div>
+
+        <div className="rounded-2xl p-6 text-white shadow-lg bg-gradient-to-br from-red-500 to-orange-500 hover:-translate-y-1 hover:shadow-xl transition-all duration-200 cursor-default">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <XCircle className="w-5 h-5 text-white" />
+            </div>
+            <TrendingUp className="w-4 h-4 text-white/50" />
+          </div>
+          <p className="text-4xl font-bold leading-none mb-1">{statsData.rejected}</p>
+          <p className="text-sm text-white/80">Rejected</p>
+        </div>
+
+        <div className="rounded-2xl p-6 text-white shadow-lg bg-gradient-to-br from-purple-500 to-violet-600 hover:-translate-y-1 hover:shadow-xl transition-all duration-200 cursor-default">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <IndianRupee className="w-5 h-5 text-white" />
+            </div>
+            <TrendingUp className="w-4 h-4 text-white/50" />
+          </div>
+          <p className="text-3xl font-bold leading-none mb-1">{formatINR(statsData.totalEarnings)}</p>
+          <p className="text-sm text-white/80">Total Earnings</p>
+        </div>
       </div>
 
+      {/* ── Booking Lists ────────────────────────────────────────────────────── */}
       {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500" />
+        <div className="space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      ) : bookings.length === 0 ? (
+        /* ── Empty State ── */
+        <div className="rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 p-8 text-white overflow-hidden relative">
+          <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+          <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-widest mb-4">
+                <Sparkles className="w-4 h-4" />
+                No assigned trips yet
+              </div>
+              <h3 className="text-3xl font-bold mb-3">You're ready for assignments.</h3>
+              <p className="text-white/85 text-base leading-relaxed">
+                Browse the package catalog, opt in on trips you can handle, and wait for admin to assign you a booking.
+                Once assigned, this page will show accept and reject actions.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/agent/packages')}
+              className="flex items-center gap-2 px-5 py-3 bg-white text-gray-900 text-sm font-semibold rounded-xl hover:bg-gray-100 shadow transition-colors shrink-0"
+            >
+              Browse Packages
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="space-y-8">
-          {/* Pending Assignments */}
+        <div className="space-y-10">
+
+          {/* Pending Action */}
           {groupedBookings.assigned.length > 0 && (
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <Clock className="w-6 h-6 text-blue-600" />
-                <h2 className="text-2xl font-bold text-gray-900">Pending Your Action</h2>
-                <Badge variant="info">{groupedBookings.assigned.length}</Badge>
-              </div>
+              <SectionHeader icon={Clock} iconColor="bg-blue-100 text-blue-600" title="Pending Your Action" count={groupedBookings.assigned.length} badgeColor="bg-blue-100 text-blue-700" />
               <div className="space-y-4">
-                {groupedBookings.assigned.map((booking) => (
-                  <BookingCard
-                    key={booking.id}
-                    booking={booking}
-                    onAccept={handleAcceptClick}
-                    onReject={handleRejectClick}
-                    onView={handleViewClick}
-                  />
+                {groupedBookings.assigned.map((b) => (
+                  <BookingCard key={b.id} booking={b} onAccept={handleAcceptClick} onReject={handleRejectClick} onView={handleViewClick} />
                 ))}
               </div>
             </div>
           )}
 
-          {/* In Progress Bookings */}
+          {/* In Progress */}
           {groupedBookings.inProgress.length > 0 && (
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <CheckCircle2 className="w-6 h-6 text-green-600" />
-                <h2 className="text-2xl font-bold text-gray-900">In Progress</h2>
-                <Badge variant="success">{groupedBookings.inProgress.length}</Badge>
-              </div>
+              <SectionHeader icon={CheckCircle2} iconColor="bg-teal-100 text-teal-600" title="In Progress" count={groupedBookings.inProgress.length} badgeColor="bg-teal-100 text-teal-700" />
               <div className="space-y-4">
-                {groupedBookings.inProgress.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} onView={handleViewClick} />
+                {groupedBookings.inProgress.map((b) => (
+                  <BookingCard key={b.id} booking={b} onView={handleViewClick} />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Bookings Marked Completed By Agent (Awaiting Admin finalization) */}
-          {groupedBookings.agentCompleted && groupedBookings.agentCompleted.length > 0 && (
+          {/* Awaiting Admin */}
+          {groupedBookings.agentCompleted.length > 0 && (
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <CheckCircle2 className="w-6 h-6 text-yellow-600" />
-                <h2 className="text-2xl font-bold text-gray-900">Awaiting Admin Finalization</h2>
-                <Badge variant="info">{groupedBookings.agentCompleted.length}</Badge>
-              </div>
+              <SectionHeader icon={Package} iconColor="bg-yellow-100 text-yellow-600" title="Awaiting Admin Finalization" count={groupedBookings.agentCompleted.length} badgeColor="bg-yellow-100 text-yellow-700" />
               <div className="space-y-4">
-                {groupedBookings.agentCompleted.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} onView={handleViewClick} />
+                {groupedBookings.agentCompleted.map((b) => (
+                  <BookingCard key={b.id} booking={b} onView={handleViewClick} />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Completed Bookings */}
+          {/* Completed */}
           {groupedBookings.completed.length > 0 && (
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                <h2 className="text-2xl font-bold text-gray-900">Completed</h2>
-                <Badge variant="success">{groupedBookings.completed.length}</Badge>
-              </div>
+              <SectionHeader icon={CheckCircle2} iconColor="bg-emerald-100 text-emerald-600" title="Completed" count={groupedBookings.completed.length} badgeColor="bg-emerald-100 text-emerald-700" />
               <div className="space-y-4">
-                {groupedBookings.completed.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} onView={handleViewClick} />
+                {groupedBookings.completed.map((b) => (
+                  <BookingCard key={b.id} booking={b} onView={handleViewClick} />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Cancelled Bookings */}
+          {/* Cancelled */}
           {groupedBookings.cancelled.length > 0 && (
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <XCircle className="w-6 h-6 text-red-600" />
-                <h2 className="text-2xl font-bold text-gray-900">Cancelled</h2>
-                <Badge variant="error">{groupedBookings.cancelled.length}</Badge>
-              </div>
+              <SectionHeader icon={XCircle} iconColor="bg-gray-100 text-gray-500" title="Cancelled" count={groupedBookings.cancelled.length} badgeColor="bg-gray-100 text-gray-600" />
               <div className="space-y-4">
-                {groupedBookings.cancelled.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} onView={handleViewClick} />
+                {groupedBookings.cancelled.map((b) => (
+                  <BookingCard key={b.id} booking={b} onView={handleViewClick} />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Rejected Bookings */}
+          {/* Rejected */}
           {groupedBookings.rejected.length > 0 && (
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <XCircle className="w-6 h-6 text-red-600" />
-                <h2 className="text-2xl font-bold text-gray-900">Rejected</h2>
-                <Badge variant="error">{groupedBookings.rejected.length}</Badge>
-              </div>
+              <SectionHeader icon={XCircle} iconColor="bg-red-100 text-red-500" title="Rejected" count={groupedBookings.rejected.length} badgeColor="bg-red-100 text-red-700" />
               <div className="space-y-4">
-                {groupedBookings.rejected.map((booking) => (
-                  <BookingCard key={booking.id} booking={booking} />
+                {groupedBookings.rejected.map((b) => (
+                  <BookingCard key={b.id} booking={b} />
                 ))}
               </div>
             </div>
           )}
 
-          {bookings.length === 0 && (
-            <ColorfulCard variant="gradient" className="overflow-hidden relative">
-              <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white/15 blur-3xl" />
-              <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-                <div className="max-w-2xl">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] mb-4">
-                    <Sparkles className="w-4 h-4" />
-                    No assigned trips yet
-                  </div>
-                  <h3 className="text-3xl font-bold mb-3">You are ready for assignments.</h3>
-                  <p className="text-white/90 text-base leading-relaxed">
-                    Browse the package catalog, opt in on trips you can handle, and wait for admin to assign you a booking.
-                    Once assigned, this page will show the accept and reject actions here.
-                  </p>
-                </div>
-                <div className="flex gap-3 shrink-0">
-                  <Button
-                    onClick={() => navigate('/agent/packages')}
-                    className="bg-white text-gray-900 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    Browse Packages
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </ColorfulCard>
-          )}
         </div>
       )}
 
-      {/* Accept Modal */}
+      {/* ── Accept Modal ─────────────────────────────────────────────────────── */}
       <Modal
         isOpen={showAcceptModal}
         title="Accept Booking"
-        onClose={() => {
-          setShowAcceptModal(false);
-          setSelectedBooking(null);
-        }}
+        onClose={() => { setShowAcceptModal(false); setSelectedBooking(null); }}
         size="md"
         actions={[
-          <Button key="cancel" variant="outline" onClick={() => setShowAcceptModal(false)}>
-            Cancel
-          </Button>,
-          <Button
-            key="confirm"
-            onClick={confirmAccept}
-            disabled={processingBookingId}
-            className="bg-green-600 text-white hover:bg-green-700"
-          >
+          <Button key="cancel" variant="outline" onClick={() => setShowAcceptModal(false)}>Cancel</Button>,
+          <Button key="confirm" onClick={confirmAccept} disabled={!!processingBookingId} className="bg-green-600 text-white hover:bg-green-700">
             {processingBookingId ? 'Processing...' : 'Confirm Accept'}
           </Button>,
         ]}
       >
         {selectedBooking && (
           <div className="space-y-6">
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-lg border border-green-200">
-              <p className="text-sm text-green-700 font-semibold mb-2">YOU WILL EARN</p>
-              <p className="text-4xl font-bold text-green-600 mb-2">{formatINR(selectedBooking.agentPayout)}</p>
-              <p className="text-sm text-gray-700">for serving {selectedBooking.travelersCount} travelers</p>
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
+              <p className="text-sm text-green-700 font-semibold mb-1">YOU WILL EARN</p>
+              <p className="text-4xl font-bold text-green-600 mb-1">{formatINR(selectedBooking.agentPayout)}</p>
+              <p className="text-sm text-gray-600">for serving {selectedBooking.travelersCount} travelers</p>
             </div>
-
             <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <MapPin className="w-5 h-5 text-gray-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Destination</p>
-                  <p className="font-semibold text-gray-900">{selectedBooking.package?.destination}</p>
+              {[
+                { icon: MapPin,    label: 'Destination', value: selectedBooking.package?.destination },
+                { icon: Calendar,  label: 'Travel Date', value: new Date(selectedBooking.travelDate).toLocaleDateString() },
+                { icon: Users,     label: 'Travelers',   value: `${selectedBooking.travelersCount} people` },
+              ].map(({ icon: Icon, label, value }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <Icon className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="text-xs text-gray-500">{label}</p>
+                    <p className="text-sm font-semibold text-gray-900">{value}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-gray-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Travel Date</p>
-                  <p className="font-semibold text-gray-900">{new Date(selectedBooking.travelDate).toLocaleDateString()}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-gray-600" />
-                <div>
-                  <p className="text-sm text-gray-600">Travelers</p>
-                  <p className="font-semibold text-gray-900">{selectedBooking.travelersCount} people</p>
-                </div>
-              </div>
+              ))}
             </div>
-
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-              <p className="text-sm text-blue-700">
-                <strong>Note:</strong> Once you accept, you'll be responsible for customer satisfaction and on-time service delivery.
-              </p>
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl text-sm text-blue-700">
+              <strong>Note:</strong> Once you accept, you'll be responsible for customer satisfaction and on-time service delivery.
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Reject Modal */}
+      {/* ── Reject Modal ─────────────────────────────────────────────────────── */}
       <Modal
         isOpen={showRejectModal}
         title="Reject Booking"
-        onClose={() => {
-          setShowRejectModal(false);
-          setSelectedBooking(null);
-          setRejectReason('');
-          setRejectMessage('');
-        }}
+        onClose={() => { setShowRejectModal(false); setSelectedBooking(null); setRejectReason(''); setRejectMessage(''); }}
         size="md"
         actions={[
-          <Button key="cancel" variant="outline" onClick={() => setShowRejectModal(false)}>
-            Cancel
-          </Button>,
-          <Button
-            key="confirm"
-            onClick={confirmReject}
-            disabled={processingBookingId || !rejectReason}
-            className="bg-red-600 text-white hover:bg-red-700"
-          >
+          <Button key="cancel" variant="outline" onClick={() => setShowRejectModal(false)}>Cancel</Button>,
+          <Button key="confirm" onClick={confirmReject} disabled={processingBookingId || !rejectReason} className="bg-red-600 text-white hover:bg-red-700">
             {processingBookingId ? 'Processing...' : 'Confirm Rejection'}
           </Button>,
         ]}
       >
         <div className="space-y-4">
-          <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
-            <p className="text-sm text-red-700">
-              Please let the admin know why you're rejecting this booking. This helps them better understand agent availability.
-            </p>
+          <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-sm text-red-700">
+            Please let the admin know why you're rejecting this booking. This helps them better understand agent availability.
           </div>
-
           <div>
             <label className="text-sm font-semibold text-gray-900 block mb-2">Reason for Rejection</label>
             <div className="space-y-2">
               {REJECT_REASONS.map((reason) => (
-                <label key={reason} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="radio"
-                    value={reason}
-                    checked={rejectReason === reason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-gray-700">{reason}</span>
+                <label key={reason} className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors">
+                  <input type="radio" value={reason} checked={rejectReason === reason} onChange={(e) => setRejectReason(e.target.value)} className="w-4 h-4 accent-teal-600" />
+                  <span className="text-sm text-gray-700">{reason}</span>
                 </label>
               ))}
             </div>
           </div>
-
           <div>
             <label className="text-sm font-semibold text-gray-900 block mb-2">Additional Details (Optional)</label>
             <textarea
               value={rejectMessage}
               onChange={(e) => setRejectMessage(e.target.value)}
-              placeholder="Please provide any additional context..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Any additional context..."
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-400 focus:border-transparent resize-none"
               rows={3}
             />
           </div>
         </div>
       </Modal>
 
-      {/* Complete Modal */}
+      {/* ── Complete Modal ───────────────────────────────────────────────────── */}
       <Modal
         isOpen={showCompleteModal}
         title="Mark Booking Completed"
-        onClose={() => {
-          setShowCompleteModal(false);
-          setSelectedBooking(null);
-        }}
+        onClose={() => { setShowCompleteModal(false); setSelectedBooking(null); }}
         size="md"
         actions={[
-          <Button key="cancel" variant="outline" onClick={() => setShowCompleteModal(false)}>
-            Cancel
-          </Button>,
-          <Button
-            key="confirm"
-            onClick={confirmComplete}
-            disabled={processingBookingId}
-            className="bg-amber-600 text-white hover:bg-amber-700"
-          >
+          <Button key="cancel" variant="outline" onClick={() => setShowCompleteModal(false)}>Cancel</Button>,
+          <Button key="confirm" onClick={confirmComplete} disabled={!!processingBookingId} className="bg-amber-600 text-white hover:bg-amber-700">
             {processingBookingId ? 'Processing...' : 'Confirm Complete'}
           </Button>,
         ]}
       >
         {selectedBooking && (
           <div className="space-y-4">
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
-              <p className="text-sm text-amber-700">
-                You're about to mark this trip as completed. This indicates you have finished the service and requests admin to finalize payout.
-              </p>
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-sm text-amber-700">
+              You're about to mark this trip as completed. This requests admin to finalize your payout.
             </div>
-
-            <div>
-              <p className="text-sm text-gray-600">Package</p>
-              <p className="font-semibold text-gray-900">{selectedBooking.package?.title}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5 text-gray-600" />
+            <div className="space-y-3">
               <div>
-                <p className="text-sm text-gray-600">Travel Date</p>
-                <p className="font-semibold text-gray-900">{new Date(selectedBooking.travelDate).toLocaleDateString()}</p>
+                <p className="text-xs text-gray-500">Package</p>
+                <p className="text-sm font-semibold text-gray-900">{selectedBooking.package?.title}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="w-5 h-5 text-gray-400" />
+                <div>
+                  <p className="text-xs text-gray-500">Travel Date</p>
+                  <p className="text-sm font-semibold text-gray-900">{new Date(selectedBooking.travelDate).toLocaleDateString()}</p>
+                </div>
               </div>
             </div>
           </div>

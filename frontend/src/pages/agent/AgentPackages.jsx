@@ -4,14 +4,84 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { packagesAPI } from '../../services/api';
+import { getImageUrl } from '../../services/packageService';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, Pencil, Trash2, MapPin, Clock, Search, Filter, Users, Star } from 'lucide-react';
+import { Plus, Pencil, Trash2, MapPin, Clock, Search, Filter, Users, Star, Image } from 'lucide-react';
 
 const formatINR = (amount) =>
   `₹${Number(amount || 0).toLocaleString('en-IN', {
     maximumFractionDigits: 0,
   })}`;
 
+// ─── Package card with image thumbnail ────────────────────────────────────────
+function AgentPackageCard({ pkg, deletingId, onEdit, onDelete }) {
+  const [imgError, setImgError] = useState(false);
+  const imageUrl = pkg.bannerImage ? getImageUrl(pkg.bannerImage) : null;
+
+  return (
+    <Card variant="elevated" className="overflow-hidden bg-white border border-gray-200">
+      {/* Image thumbnail */}
+      <div className="relative h-40 overflow-hidden">
+        {imageUrl && !imgError ? (
+          <img
+            src={imageUrl}
+            alt={pkg.title}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-teal-600 to-teal-400 flex items-center justify-center">
+            <Image className="w-8 h-8 text-white/60" />
+          </div>
+        )}
+        <div className="absolute top-3 right-3">
+          <Badge variant={pkg.isActive ? 'success' : 'warning'}>
+            {pkg.isActive ? 'active' : 'inactive'}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Card content */}
+      <div className="p-5">
+        <h3 className="text-xl font-bold text-gray-900 mb-2">{pkg.title}</h3>
+
+        <p className="text-sm text-gray-600 inline-flex items-center gap-2 mb-1">
+          <MapPin className="w-4 h-4" /> {pkg.destination}
+        </p>
+        <p className="text-sm text-gray-600 inline-flex items-center gap-2 mb-4">
+          <Clock className="w-4 h-4" /> {pkg.durationDays} days
+        </p>
+
+        <div className="flex items-center gap-3 text-xs text-gray-600 mb-4">
+          <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" /> flexible groups</span>
+          <span className="inline-flex items-center gap-1"><Star className="w-3 h-3" /> top rated</span>
+        </div>
+
+        <p className="text-2xl font-bold text-gray-900 mb-4">{formatINR(pkg.price)}</p>
+
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+          <div
+            className="h-2 rounded-full bg-gradient-to-r from-sky-600 via-indigo-600 to-cyan-500"
+            style={{ width: `${Math.min(95, 30 + Number(pkg.durationDays || 0) * 8)}%` }}
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={onEdit}>
+            <Pencil className="w-4 h-4 mr-1" /> Edit
+          </Button>
+          <Button variant="outline" size="sm" disabled={deletingId === pkg.id} onClick={onDelete}>
+            <Trash2 className="w-4 h-4 mr-1" /> {deletingId === pkg.id ? 'Deleting...' : 'Delete'}
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
 export function AgentPackages() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -147,42 +217,13 @@ export function AgentPackages() {
       ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredPackages.map((pkg) => (
-            <Card key={pkg.id} variant="elevated" className="p-5 overflow-hidden bg-white border border-gray-200">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <h3 className="text-xl font-bold text-gray-900">{pkg.title}</h3>
-                <Badge variant={pkg.isActive ? 'success' : 'warning'}>{pkg.isActive ? 'active' : 'inactive'}</Badge>
-              </div>
-
-              <p className="text-sm text-gray-600 inline-flex items-center gap-2 mb-2">
-                <MapPin className="w-4 h-4" /> {pkg.destination}
-              </p>
-              <p className="text-sm text-gray-600 inline-flex items-center gap-2 mb-4">
-                <Clock className="w-4 h-4" /> {pkg.durationDays} days
-              </p>
-
-              <div className="flex items-center gap-3 text-xs text-gray-600 mb-4">
-                <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" /> flexible groups</span>
-                <span className="inline-flex items-center gap-1"><Star className="w-3 h-3" /> top rated</span>
-              </div>
-
-              <p className="text-2xl font-bold text-gray-900 mb-4">{formatINR(pkg.price)}</p>
-
-              <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                <div
-                  className="h-2 rounded-full bg-gradient-to-r from-sky-600 via-indigo-600 to-cyan-500"
-                  style={{ width: `${Math.min(95, 30 + Number(pkg.durationDays || 0) * 8)}%` }}
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="secondary" size="sm" onClick={() => navigate(`/agent/packages/${pkg.id}/edit`)}>
-                  <Pencil className="w-4 h-4 mr-1" /> Edit
-                </Button>
-                <Button variant="outline" size="sm" disabled={deletingId === pkg.id} onClick={() => onDelete(pkg.id)}>
-                  <Trash2 className="w-4 h-4 mr-1" /> {deletingId === pkg.id ? 'Deleting...' : 'Delete'}
-                </Button>
-              </div>
-            </Card>
+            <AgentPackageCard
+              key={pkg.id}
+              pkg={pkg}
+              deletingId={deletingId}
+              onEdit={() => navigate(`/agent/packages/${pkg.id}/edit`)}
+              onDelete={() => onDelete(pkg.id)}
+            />
           ))}
         </div>
       )}

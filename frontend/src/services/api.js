@@ -83,8 +83,37 @@ export const agentAPI = {
   myApplications: () => apiClient.get('/bookings/applications/my'),
   myPackageInterests: () => apiClient.get('/packages/interests/my'),
   optInPackage: (id, payload) => apiClient.post(`/packages/${id}/interest`, payload),
+  optOutPackage: (id) => apiClient.delete(`/packages/${id}/interest`),
   updateBookingStatus: (id, payload) => apiClient.patch(`/bookings/${id}/status`, payload),
   requestChange: (id, remark) => apiClient.patch(`/bookings/${id}/request-change`, { remark }),
+  // Profile
+  getProfile: () => apiClient.get('/agent/profile'),
+  updateProfile: (data) => apiClient.put('/agent/profile', data),
+  requestEmailChange: (newEmail) => apiClient.post('/agent/profile/request-email-change', { newEmail }),
+  verifyEmailChange: (newEmail, otp) => apiClient.post('/agent/profile/verify-email-change', { newEmail, otp }),
+  requestPhoneChange: (newPhone) => apiClient.post('/agent/profile/request-phone-change', { newPhone }),
+  verifyPhoneChange: (newPhone, otp) => apiClient.post('/agent/profile/verify-phone-change', { newPhone, otp }),
+  // Payment methods
+  getPaymentMethods: () => apiClient.get('/agent/payment-methods'),
+  addPaymentMethod: (data) => apiClient.post('/agent/payment-methods', data),
+  updatePaymentMethod: (id, data) => apiClient.put(`/agent/payment-methods/${id}`, data),
+  deletePaymentMethod: (id) => apiClient.delete(`/agent/payment-methods/${id}`),
+  // Earnings & withdrawals
+  getEarningsSummary: () => apiClient.get('/agent/earnings/summary'),
+  getWithdrawalHistory: () => apiClient.get('/agent/earnings/withdrawals'),
+  createWithdrawal: (amount, paymentMethodId) =>
+    apiClient.post('/agent/earnings/withdraw', { amount, paymentMethodId }),
+  // Notifications
+  getNotifications: (params) => apiClient.get('/agent/notifications', { params }),
+  getUnreadCount: () => apiClient.get('/agent/notifications/unread-count'),
+  markNotificationRead: (id) => apiClient.patch(`/agent/notifications/${id}/read`),
+  markAllNotificationsRead: () => apiClient.patch('/agent/notifications/mark-all-read'),
+  // Support tickets
+  createTicket: (data) => apiClient.post('/tickets', data),
+  getMyTickets: () => apiClient.get('/tickets'),
+  getTicket: (id) => apiClient.get(`/tickets/${id}`),
+  addTicketMessage: (id, message) => apiClient.post(`/tickets/${id}/messages`, { message }),
+  updateTicketStatus: (id, status) => apiClient.patch(`/tickets/${id}/status`, { status }),
 };
 
 export const adminAPI = {
@@ -112,6 +141,17 @@ export const adminAPI = {
   customers: () => apiClient.get('/admin/customers'),
   getUser: (id) => apiClient.get(`/admin/users/${id}`),
   transactions: (params) => apiClient.get('/admin/transactions', { params }),
+  // Agent withdrawal management
+  getWithdrawals: (params) => apiClient.get('/admin/withdrawals', { params }),
+  approveWithdrawal: (id) => apiClient.patch(`/admin/withdrawals/${id}/approve`),
+  completeWithdrawal: (id, reference) => apiClient.patch(`/admin/withdrawals/${id}/complete`, { reference }),
+  failWithdrawal: (id, reason) => apiClient.patch(`/admin/withdrawals/${id}/fail`, { reason }),
+  // Support tickets
+  adminTickets: (params) => apiClient.get('/admin/tickets', { params }),
+  adminTicketStats: () => apiClient.get('/admin/tickets/stats'),
+  adminGetTicket: (id) => apiClient.get(`/admin/tickets/${id}`),
+  adminReplyTicket: (id, data) => apiClient.post(`/admin/tickets/${id}/messages`, data),
+  adminUpdateTicket: (id, data) => apiClient.patch(`/admin/tickets/${id}`, data),
 };
 
 export default apiClient;
