@@ -93,12 +93,13 @@ export function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+              <label htmlFor="login-email" className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
                 Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 w-5 h-5 text-light-text-tertiary dark:text-dark-text-tertiary" />
                 <input
+                  id="login-email"
                   type="email"
                   value={form.email}
                   onChange={(e) => {
@@ -118,12 +119,13 @@ export function Login() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+              <label htmlFor="login-password" className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
                 Password
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 w-5 h-5 text-light-text-tertiary dark:text-dark-text-tertiary" />
                 <input
+                  id="login-password"
                   type="password"
                   value={form.password}
                   onChange={(e) => {

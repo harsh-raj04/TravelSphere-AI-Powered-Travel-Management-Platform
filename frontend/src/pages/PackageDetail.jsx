@@ -5,7 +5,10 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
-import { MapPin, Clock, Users, CheckCircle, X, ArrowRight, Calendar, AlertCircle, ChevronLeft, Heart } from 'lucide-react';
+import {
+  MapPin, Clock, Users, CheckCircle, X, ArrowRight, Calendar,
+  AlertCircle, ChevronLeft, Heart, Check, Star,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function PackageDetail() {
@@ -162,7 +165,6 @@ export function PackageDetail() {
         },
         modal: {
           ondismiss: function () {
-            // Only show error if booking didn't already succeed
             setBookingResult(prev => {
               if (!prev) {
                 setBookingError('Payment was not completed.');
@@ -186,506 +188,482 @@ export function PackageDetail() {
     }
   };
 
+  // Default inclusions if none from API
+  const defaultInclusions = ['Accommodation', 'Meals (Breakfast & Dinner)', 'Guided Tours', 'Transport', 'Travel Insurance'];
+
   return (
     <div className="min-h-screen bg-light-bg-primary dark:bg-dark-bg-primary">
-      {/* Hero Banner */}
-      <div className="relative h-96 bg-gradient-to-br from-[#022C22] via-[#0F766E] to-[#14B8A6] overflow-hidden">
+      {/* Hero Section */}
+      <div className="relative h-96 overflow-hidden">
         {bannerImage ? (
-          <>
-            <img src={bannerImage} alt={pkg.title} className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-black/35" />
-          </>
+          <img src={bannerImage} alt={pkg.title} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
-          <div className="absolute inset-0 bg-gradient-brand opacity-60" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#022C22] via-[#0F766E] to-[#14B8A6]" />
         )}
-        <div className="absolute inset-0 flex items-start justify-start pt-12">
+        {/* Dark gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+        {/* Back button */}
+        <div className="absolute top-6 left-6 z-10">
           <button
             onClick={() => navigate('/packages')}
-            className="ml-4 sm:ml-6 lg:ml-8 flex items-center gap-2 text-white hover:text-blue-100 transition"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/95 backdrop-blur-sm text-teal-700 font-medium text-sm hover:bg-white transition-all shadow-md"
           >
-            <ChevronLeft className="w-5 h-5" />
-            Back
+            <ChevronLeft className="w-4 h-4" />
+            Back to packages
           </button>
         </div>
 
-        {/* Wishlist Button */}
+        {/* Wishlist button */}
         <button
           onClick={() => setWishlist(!wishlist)}
-          className="absolute top-12 right-4 sm:right-6 lg:right-8 p-3 bg-white/20 backdrop-blur-lg rounded-lg hover:bg-white/30 transition"
+          className="absolute top-6 right-6 z-10 p-3 bg-white/20 backdrop-blur-sm rounded-full hover:bg-white/30 transition"
         >
-          <Heart className={`w-6 h-6 ${wishlist ? 'fill-red-400 text-red-400' : 'text-white'}`} />
+          <Heart className={`w-5 h-5 ${wishlist ? 'fill-red-400 text-red-400' : 'text-white'}`} />
         </button>
 
+        {/* Hero bottom content */}
+        <div className="absolute bottom-0 left-0 right-0 px-6 pb-8 z-10">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center gap-2 mb-3">
+              <Badge variant="success" size="sm">{pkg.category?.replace(/_/g, ' ')}</Badge>
+              <Badge variant="accent" size="sm">{pkg.durationDays} Days</Badge>
+            </div>
+            <h1 className="text-3xl sm:text-5xl font-bold text-white tracking-tight mb-3 leading-tight">
+              {pkg.title}
+            </h1>
+            <div className="flex items-center gap-4 text-teal-100 text-sm">
+              <span className="flex items-center gap-1.5">
+                <MapPin className="w-4 h-4" />
+                {pkg.destination}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                4.8 rating
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Users className="w-4 h-4" />
+                2-20 travelers
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-40 mb-12 relative z-10">
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Title Card */}
-            <Card variant="elevated" className="p-8">
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h1 className="text-4xl font-bold text-light-text-primary dark:text-dark-text-primary mb-2">
-                      {pkg.title}
-                    </h1>
-                    <div className="flex items-center gap-2 text-light-text-secondary dark:text-dark-text-secondary">
-                      <MapPin className="w-5 h-5" />
-                      <span className="text-lg">{pkg.destination}</span>
-                    </div>
-                  </div>
-                  <Badge variant="success" size="lg">
-                    ⭐ 4.8
-                  </Badge>
+          {/* Left column */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* About this trip */}
+            <div className="bg-white dark:bg-dark-bg-secondary rounded-2xl p-7 border border-teal-100/60 dark:border-dark-border shadow-sm">
+              <h2 className="text-2xl font-bold tracking-tight text-light-text-primary dark:text-dark-text-primary mb-4">
+                About this trip
+              </h2>
+              <p className="text-light-text-secondary dark:text-dark-text-secondary leading-relaxed">
+                {pkg.description}
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-light-border dark:border-dark-border">
+                <div className="bg-teal-50/50 dark:bg-dark-bg-tertiary rounded-xl p-4 text-center">
+                  <Clock className="w-5 h-5 text-teal-600 mx-auto mb-1" />
+                  <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-0.5">Duration</p>
+                  <p className="font-bold text-light-text-primary dark:text-dark-text-primary text-sm">{pkg.durationDays} Days</p>
                 </div>
-
-                <div className="flex flex-wrap gap-6 pt-4 border-t border-light-border dark:border-dark-border">
-                  <div className="flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-brand-primary" />
-                    <div>
-                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary">Duration</p>
-                      <p className="font-semibold text-light-text-primary dark:text-dark-text-primary">
-                        {pkg.durationDays} Days & Nights
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Users className="w-5 h-5 text-brand-primary" />
-                    <div>
-                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary">
-                        Group Size
-                      </p>
-                      <p className="font-semibold text-light-text-primary dark:text-dark-text-primary">
-                        2-20 Travelers
-                      </p>
-                    </div>
-                  </div>
+                <div className="bg-teal-50/50 dark:bg-dark-bg-tertiary rounded-xl p-4 text-center">
+                  <MapPin className="w-5 h-5 text-teal-600 mx-auto mb-1" />
+                  <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-0.5">Destination</p>
+                  <p className="font-bold text-light-text-primary dark:text-dark-text-primary text-sm">{pkg.destination}</p>
+                </div>
+                <div className="bg-teal-50/50 dark:bg-dark-bg-tertiary rounded-xl p-4 text-center">
+                  <Users className="w-5 h-5 text-teal-600 mx-auto mb-1" />
+                  <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-0.5">Group Size</p>
+                  <p className="font-bold text-light-text-primary dark:text-dark-text-primary text-sm">2-20 pax</p>
                 </div>
               </div>
-            </Card>
+            </div>
 
             {/* Tabs */}
             <div className="border-b border-light-border dark:border-dark-border overflow-x-auto">
               <div className="flex gap-6 min-w-max">
-                {['overview', 'itinerary', 'pricing', 'inclusions', 'departures'].map((tab) => (
+                {['itinerary', 'pricing', 'inclusions', 'departures'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={`pb-4 font-semibold capitalize transition ${
                       activeTab === tab
-                        ? 'text-brand-primary dark:text-brand-secondary border-b-2 border-brand-primary dark:border-brand-secondary'
+                        ? 'text-teal-700 dark:text-teal-400 border-b-2 border-teal-600 dark:border-teal-400'
                         : 'text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text-primary dark:hover:text-dark-text-primary'
                     }`}
                   >
-                    {tab}
+                    {tab === 'inclusions' ? 'Inclusions' : tab.charAt(0).toUpperCase() + tab.slice(1)}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Tab Content */}
-            <Card variant="elevated" className="p-8 space-y-6">
-              {/* Overview */}
-              {activeTab === 'overview' && (
-                <div className="space-y-5">
-                  <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary">About This Trip</h3>
-                  <p className="text-light-text-secondary dark:text-dark-text-secondary leading-relaxed">
-                    {pkg.description}
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-light-border dark:border-dark-border">
-                    <div className="bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-lg p-4 text-center">
-                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-1">Duration</p>
-                      <p className="font-bold text-light-text-primary dark:text-dark-text-primary">{pkg.durationDays} Days</p>
-                    </div>
-                    <div className="bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-lg p-4 text-center">
-                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-1">Destination</p>
-                      <p className="font-bold text-light-text-primary dark:text-dark-text-primary">{pkg.destination}</p>
-                    </div>
-                    <div className="bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-lg p-4 text-center">
-                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mb-1">Base Price</p>
-                      <p className="font-bold text-brand-primary">₹{pkg.price?.toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Itinerary */}
-              {activeTab === 'itinerary' && (
-                <div className="space-y-5">
-                  <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary">Day-wise Itinerary</h3>
-                  {itinerary.length > 0 ? (
-                    <div className="space-y-0 border-l-2 border-light-border dark:border-dark-border ml-2">
-                      {itinerary.map((day) => (
-                        <div key={day.dayNumber} className="relative pl-8 pb-8 last:pb-0">
-                          <div className="absolute left-0 top-0 -translate-x-1/2 w-4 h-4 rounded-full bg-brand-primary dark:bg-brand-secondary border-2 border-white dark:border-dark-bg-primary" />
-                          <h4 className="font-bold text-light-text-primary dark:text-dark-text-primary text-lg mb-2">
-                            Day {day.dayNumber}: {day.title}
-                          </h4>
-                          <div className="space-y-3">
+            {/* Day-by-day itinerary */}
+            {activeTab === 'itinerary' && (
+              <div className="bg-white dark:bg-dark-bg-secondary rounded-2xl p-7 border border-teal-100/60 dark:border-dark-border shadow-sm">
+                <h2 className="text-2xl font-bold tracking-tight text-light-text-primary dark:text-dark-text-primary mb-6">
+                  Day-by-day itinerary
+                </h2>
+                {itinerary.length > 0 ? (
+                  <div className="space-y-6">
+                    {itinerary.map((day, idx) => (
+                      <div key={day.dayNumber} className="flex gap-5">
+                        {/* Timeline circle + line */}
+                        <div className="flex flex-col items-center flex-shrink-0">
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-600 to-emerald-600 text-white shadow-lg shadow-teal-200 flex flex-col items-center justify-center text-center flex-shrink-0">
+                            <span className="text-[10px] font-semibold opacity-80 leading-none">Day</span>
+                            <span className="text-xl font-bold leading-none">{day.dayNumber}</span>
+                          </div>
+                          {idx < itinerary.length - 1 && (
+                            <div className="w-1 flex-1 min-h-[32px] mt-2 bg-gradient-to-b from-teal-500 to-transparent rounded-full" />
+                          )}
+                        </div>
+                        {/* Day card */}
+                        <div className="flex-1 bg-teal-50/50 rounded-xl p-5 border border-teal-100 dark:bg-dark-bg-tertiary dark:border-dark-border">
+                          <h3 className="font-bold text-light-text-primary dark:text-dark-text-primary text-base mb-2">
+                            {day.title}
+                          </h3>
+                          <div className="space-y-2 text-sm text-light-text-secondary dark:text-dark-text-secondary">
                             {day.morningActivity && (
-                              <div className="flex items-start gap-3 text-sm">
-                                <span className="mt-0.5 w-14 text-xs font-semibold text-amber-600 dark:text-amber-400 flex-shrink-0">☀️ Morning</span>
-                                <p className="text-light-text-secondary dark:text-dark-text-secondary">{day.morningActivity}</p>
-                              </div>
+                              <p><span className="font-medium text-amber-600 dark:text-amber-400">Morning:</span> {day.morningActivity}</p>
                             )}
                             {day.afternoonActivity && (
-                              <div className="flex items-start gap-3 text-sm">
-                                <span className="mt-0.5 w-14 text-xs font-semibold text-orange-600 dark:text-orange-400 flex-shrink-0">🌤️ Aftrn</span>
-                                <p className="text-light-text-secondary dark:text-dark-text-secondary">{day.afternoonActivity}</p>
-                              </div>
+                              <p><span className="font-medium text-orange-500 dark:text-orange-400">Afternoon:</span> {day.afternoonActivity}</p>
                             )}
                             {day.eveningActivity && (
-                              <div className="flex items-start gap-3 text-sm">
-                                <span className="mt-0.5 w-14 text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex-shrink-0">🌅 Evening</span>
-                                <p className="text-light-text-secondary dark:text-dark-text-secondary">{day.eveningActivity}</p>
-                              </div>
+                              <p><span className="font-medium text-indigo-600 dark:text-indigo-400">Evening:</span> {day.eveningActivity}</p>
                             )}
                             {day.nightActivity && (
-                              <div className="flex items-start gap-3 text-sm">
-                                <span className="mt-0.5 w-14 text-xs font-semibold text-slate-600 dark:text-slate-400 flex-shrink-0">🌙 Night</span>
-                                <p className="text-light-text-secondary dark:text-dark-text-secondary">{day.nightActivity}</p>
-                              </div>
+                              <p><span className="font-medium text-slate-500 dark:text-slate-400">Night:</span> {day.nightActivity}</p>
                             )}
                           </div>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-light-text-secondary dark:text-dark-text-secondary py-8 text-center">
+                    Itinerary details coming soon.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Pricing */}
+            {activeTab === 'pricing' && (
+              <div className="bg-white dark:bg-dark-bg-secondary rounded-2xl p-7 border border-teal-100/60 dark:border-dark-border shadow-sm">
+                <h2 className="text-2xl font-bold tracking-tight text-light-text-primary dark:text-dark-text-primary mb-6">
+                  Pricing & Room Options
+                </h2>
+                {pricingOptions.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-light-border dark:border-dark-border">
+                          <th className="text-left py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Room Type</th>
+                          <th className="text-right py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Price / Person</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pricingOptions.map((opt, idx) => (
+                          <tr key={idx} className="border-b border-light-border dark:border-dark-border hover:bg-teal-50/40 dark:hover:bg-dark-bg-tertiary transition-colors">
+                            <td className="py-3 px-4 text-light-text-primary dark:text-dark-text-primary capitalize font-medium">
+                              {opt.roomType?.replace(/_/g, ' ')}
+                            </td>
+                            <td className="py-3 px-4 text-right font-bold text-teal-600 dark:text-teal-400">
+                              ₹{Number(opt.price).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mt-3">
+                      * GST 5% extra. Prices may vary based on departure date.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-light-text-secondary dark:text-dark-text-secondary py-8 text-center">
+                    Pricing details coming soon.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Inclusions */}
+            {activeTab === 'inclusions' && (
+              <div className="bg-white dark:bg-dark-bg-secondary rounded-2xl p-7 border border-teal-100/60 dark:border-dark-border shadow-sm space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight text-light-text-primary dark:text-dark-text-primary mb-4">
+                    Inclusions
+                  </h2>
+                  <div className="space-y-2">
+                    {(inclusions.length > 0 ? inclusions.map(i => i.description) : defaultInclusions).map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
+                        <Check className="w-4 h-4 text-teal-600 dark:text-teal-400 flex-shrink-0" />
+                        <p className="text-light-text-primary dark:text-dark-text-primary text-sm">{item}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {exclusions.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-light-text-primary dark:text-dark-text-primary mb-4">
+                      Exclusions
+                    </h2>
+                    <div className="space-y-2">
+                      {exclusions.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/30">
+                          <X className="w-4 h-4 text-red-500 dark:text-red-400 flex-shrink-0" />
+                          <p className="text-light-text-primary dark:text-dark-text-primary text-sm">{item.description}</p>
+                        </div>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-light-text-secondary dark:text-dark-text-secondary py-8 text-center">
-                      Itinerary details coming soon.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Pricing */}
-              {activeTab === 'pricing' && (
-                <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary">Pricing & Room Options</h3>
-                  {pricingOptions.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="border-b-2 border-light-border dark:border-dark-border">
-                            <th className="text-left py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Room Type</th>
-                            <th className="text-right py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Price / Person</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pricingOptions.map((opt, idx) => (
-                            <tr key={idx} className="border-b border-light-border dark:border-dark-border hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary transition-colors">
-                              <td className="py-3 px-4 text-light-text-primary dark:text-dark-text-primary capitalize font-medium">
-                                {opt.roomType?.replace(/_/g, ' ')}
-                              </td>
-                              <td className="py-3 px-4 text-right font-bold text-brand-primary dark:text-brand-secondary">
-                                ₹{Number(opt.price).toLocaleString()}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mt-3">
-                        * GST 5% extra. Prices may vary based on departure date.
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-light-text-secondary dark:text-dark-text-secondary py-8 text-center">
-                      Pricing details coming soon.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Inclusions & Exclusions */}
-              {activeTab === 'inclusions' && (
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">✅ Inclusions</h3>
-                    {inclusions.length > 0 ? (
-                      <div className="space-y-2">
-                        {inclusions.map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
-                            <span className="text-emerald-600 dark:text-emerald-400 text-lg">✓</span>
-                            <p className="text-light-text-primary dark:text-dark-text-primary text-sm">{item.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {['Accommodation', 'Meals (Breakfast & Dinner)', 'Guided Tours', 'Transport', 'Travel Insurance'].map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
-                            <span className="text-emerald-600 dark:text-emerald-400 text-lg">✓</span>
-                            <p className="text-light-text-primary dark:text-dark-text-primary text-sm">{item}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary mb-4">❌ Exclusions</h3>
-                    {exclusions.length > 0 ? (
-                      <div className="space-y-2">
-                        {exclusions.map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/30">
-                            <span className="text-red-500 dark:text-red-400 text-lg">✗</span>
-                            <p className="text-light-text-primary dark:text-dark-text-primary text-sm">{item.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {['Flight / Train tickets', 'Personal expenses', 'Tips & gratuities', 'Travel insurance'].map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/30">
-                            <span className="text-red-500 dark:text-red-400 text-lg">✗</span>
-                            <p className="text-light-text-primary dark:text-dark-text-primary text-sm">{item}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Departures */}
-              {activeTab === 'departures' && (
-                <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-light-text-primary dark:text-dark-text-primary">Available Departures</h3>
-                  {departures.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="border-b-2 border-light-border dark:border-dark-border">
-                            <th className="text-left py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Date</th>
-                            <th className="text-center py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Available Seats</th>
-                            <th className="text-right py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Price</th>
-                            <th className="text-right py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {departures.map((dep, idx) => {
-                            const available = (dep.availableSeats - (dep.bookedSeats || 0));
-                            const soldOut = available <= 0;
-                            return (
-                              <tr key={idx} className={`border-b border-light-border dark:border-dark-border ${soldOut ? 'opacity-50' : 'hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary transition-colors'}`}>
-                                <td className="py-3 px-4 font-medium text-light-text-primary dark:text-dark-text-primary">
-                                  {new Date(dep.departureDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </td>
-                                <td className="py-3 px-4 text-center text-light-text-secondary dark:text-dark-text-secondary">
-                                  {soldOut ? '—' : available}
-                                </td>
-                                <td className="py-3 px-4 text-right font-semibold text-brand-primary dark:text-brand-secondary">
-                                  ₹{Number(dep.price).toLocaleString()}
-                                </td>
-                                <td className="py-3 px-4 text-right">
-                                  {soldOut ? (
-                                    <Badge variant="danger" size="sm">Sold Out</Badge>
-                                  ) : available < 5 ? (
-                                    <Badge variant="warning" size="sm">Only {available} left</Badge>
-                                  ) : (
-                                    <Badge variant="success" size="sm">Available</Badge>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="text-light-text-secondary dark:text-dark-text-secondary py-8 text-center">
-                      Departure dates coming soon.
-                    </p>
-                  )}
-                </div>
-              )}
-            </Card>
-          </div>
-
-          {/* Booking Card (Sticky) */}
-          <div className="lg:col-span-1">
-            <Card variant="premium" className="p-6 space-y-6 sticky top-20">
-              {/* Price */}
-              <div className="text-center pb-6 border-b border-light-border dark:border-dark-border">
-                <p className="text-light-text-tertiary dark:text-dark-text-tertiary text-sm mb-2">
-                  Starting from
-                </p>
-                <p className="text-4xl font-bold text-brand-primary dark:text-brand-secondary">
-                  ₹{pkg.price?.toLocaleString()}
-                </p>
-                <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mt-1">per person</p>
-              </div>
-
-              {/* Booking Form */}
-              <form className="space-y-5" onSubmit={submitBooking}>
-                {bookingError && (
-                  <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
-                    {bookingError}
                   </div>
                 )}
+              </div>
+            )}
 
-                {/* Departure Date Selector */}
-                <div>
-                  <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
-                    Departure Date
-                  </label>
-                  {departures.length > 0 ? (
-                    <div className="space-y-2 max-h-44 overflow-y-auto">
-                      {departures.map((dep, idx) => {
-                        const available = (dep.availableSeats - (dep.bookedSeats || 0));
-                        const soldOut = available <= 0;
-                        const isSelected = bookingForm.selectedDeparture?.id === dep.id;
-                        return (
-                          <button
-                            key={idx}
-                            type="button"
-                            disabled={soldOut}
-                            onClick={() => setBookingForm({ ...bookingForm, selectedDeparture: dep })}
-                            className={`w-full text-left px-3 py-2.5 rounded-lg border-2 transition text-sm ${
-                              soldOut
-                                ? 'border-light-border dark:border-dark-border opacity-40 cursor-not-allowed'
-                                : isSelected
-                                ? 'border-brand-primary dark:border-brand-secondary bg-teal-50 dark:bg-teal-900/20'
-                                : 'border-light-border dark:border-dark-border hover:border-brand-primary/50'
-                            }`}
-                          >
-                            <div className="flex justify-between items-center">
-                              <span className="font-medium text-light-text-primary dark:text-dark-text-primary">
+            {/* Departures */}
+            {activeTab === 'departures' && (
+              <div className="bg-white dark:bg-dark-bg-secondary rounded-2xl p-7 border border-teal-100/60 dark:border-dark-border shadow-sm">
+                <h2 className="text-2xl font-bold tracking-tight text-light-text-primary dark:text-dark-text-primary mb-6">
+                  Available Departures
+                </h2>
+                {departures.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-light-border dark:border-dark-border">
+                          <th className="text-left py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Date</th>
+                          <th className="text-center py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Available Seats</th>
+                          <th className="text-right py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Price</th>
+                          <th className="text-right py-3 px-4 font-semibold text-light-text-primary dark:text-dark-text-primary">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {departures.map((dep, idx) => {
+                          const available = (dep.availableSeats - (dep.bookedSeats || 0));
+                          const soldOut = available <= 0;
+                          return (
+                            <tr key={idx} className={`border-b border-light-border dark:border-dark-border ${soldOut ? 'opacity-50' : 'hover:bg-teal-50/40 dark:hover:bg-dark-bg-tertiary transition-colors'}`}>
+                              <td className="py-3 px-4 font-medium text-light-text-primary dark:text-dark-text-primary">
                                 {new Date(dep.departureDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                              </span>
-                              <span className={`text-xs font-medium ${soldOut ? 'text-red-500' : available < 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                                {soldOut ? 'Sold Out' : `${available} seats`}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <Input type="date" value={bookingForm.travelDate || ''} onChange={(e) => setBookingForm({ ...bookingForm, travelDate: e.target.value })} />
-                  )}
-                </div>
-
-                {/* Room Type Selector */}
-                <div>
-                  <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
-                    Room Type
-                  </label>
-                  {pricingOptions.length > 0 ? (
-                    <div className="space-y-2">
-                      {pricingOptions.map((opt, idx) => {
-                        const isSelected = bookingForm.selectedRoom?.roomType === opt.roomType;
-                        return (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => setBookingForm({ ...bookingForm, selectedRoom: opt })}
-                            className={`w-full flex justify-between items-center px-3 py-2.5 rounded-lg border-2 text-sm transition ${
-                              isSelected
-                                ? 'border-brand-primary dark:border-brand-secondary bg-teal-50 dark:bg-teal-900/20'
-                                : 'border-light-border dark:border-dark-border hover:border-brand-primary/50'
-                            }`}
-                          >
-                            <span className="font-medium capitalize text-light-text-primary dark:text-dark-text-primary">
-                              {opt.roomType?.replace(/_/g, ' ')}
-                            </span>
-                            <span className="font-bold text-brand-primary dark:text-brand-secondary">
-                              ₹{Number(opt.price).toLocaleString()}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">Loading options...</p>
-                  )}
-                </div>
-
-                {/* Travelers */}
-                <div>
-                  <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
-                    Travelers
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setBookingForm({ ...bookingForm, travelers: Math.max(1, bookingForm.travelers - 1) })}
-                      className="w-10 h-10 rounded-lg border-2 border-light-border dark:border-dark-border flex items-center justify-center text-lg font-bold text-light-text-primary dark:text-dark-text-primary hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary transition"
-                    >
-                      −
-                    </button>
-                    <span className="flex-1 text-center text-lg font-bold text-light-text-primary dark:text-dark-text-primary">
-                      {bookingForm.travelers}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setBookingForm({ ...bookingForm, travelers: Math.min(20, bookingForm.travelers + 1) })}
-                      className="w-10 h-10 rounded-lg border-2 border-light-border dark:border-dark-border flex items-center justify-center text-lg font-bold text-light-text-primary dark:text-dark-text-primary hover:bg-light-bg-secondary dark:hover:bg-dark-bg-tertiary transition"
-                    >
-                      +
-                    </button>
+                              </td>
+                              <td className="py-3 px-4 text-center text-light-text-secondary dark:text-dark-text-secondary">
+                                {soldOut ? '—' : available}
+                              </td>
+                              <td className="py-3 px-4 text-right font-semibold text-teal-600 dark:text-teal-400">
+                                ₹{Number(dep.price).toLocaleString()}
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                {soldOut ? (
+                                  <Badge variant="danger" size="sm">Sold Out</Badge>
+                                ) : available < 5 ? (
+                                  <Badge variant="warning" size="sm">Only {available} left</Badge>
+                                ) : (
+                                  <Badge variant="success" size="sm">Available</Badge>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-
-                {/* Price Breakdown */}
-                <div className="p-4 bg-light-bg-secondary dark:bg-dark-bg-tertiary rounded-lg space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-light-text-secondary dark:text-dark-text-secondary">
-                      ₹{selectedRoomPrice.toLocaleString()} × {bookingForm.travelers} {bookingForm.travelers === 1 ? 'traveler' : 'travelers'}
-                    </span>
-                    <span className="font-semibold text-light-text-primary dark:text-dark-text-primary">
-                      ₹{totalPrice.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="border-t border-light-border dark:border-dark-border pt-2 flex justify-between">
-                    <span className="font-bold text-light-text-primary dark:text-dark-text-primary">
-                      Total
-                    </span>
-                    <span className="text-xl font-bold text-brand-primary dark:text-brand-secondary">
-                      ₹{totalPrice.toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary">* GST 5% extra</p>
-                </div>
-
-                {/* Book Button */}
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  disabled={!bookingForm.selectedDeparture || !bookingForm.selectedRoom || bookingLoading}
-                >
-                  {bookingLoading ? 'Booking...' : 'Book Now'}
-                </Button>
-
-                <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary text-center">
-                  Free cancellation up to 7 days before travel
-                </p>
-              </form>
-
-              {/* Support Card */}
-              <Card variant="glass" className="p-4">
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
-                    Need Help?
+                ) : (
+                  <p className="text-light-text-secondary dark:text-dark-text-secondary py-8 text-center">
+                    Departure dates coming soon.
                   </p>
-                  <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
-                    Contact our travel experts
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Right sticky sidebar */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24 space-y-4">
+              {/* Pricing card */}
+              <div className="bg-white dark:bg-dark-bg-secondary rounded-2xl p-6 border border-teal-100/60 dark:border-dark-border shadow-sm space-y-5">
+                {/* Price */}
+                <div className="pb-5 border-b border-light-border dark:border-dark-border">
+                  <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary uppercase tracking-wide mb-1">
+                    Starting from
                   </p>
-                  <a
-                    href="tel:+917992336832"
-                    className="text-brand-primary dark:text-brand-secondary font-semibold hover:underline mt-2 inline-block"
+                  <div className="flex items-baseline gap-1">
+                    <p className="text-4xl font-bold text-teal-600 dark:text-teal-400">
+                      ₹{pkg.price?.toLocaleString()}
+                    </p>
+                    <span className="text-sm text-light-text-tertiary dark:text-dark-text-tertiary">/ person</span>
+                  </div>
+                  <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary mt-1">
+                    Taxes & inclusions covered
+                  </p>
+                </div>
+
+                {/* Booking Form */}
+                <form className="space-y-4" onSubmit={submitBooking}>
+                  {bookingError && (
+                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-sm border border-red-200 dark:border-red-800">
+                      {bookingError}
+                    </div>
+                  )}
+
+                  {/* Departure Date */}
+                  <div>
+                    <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+                      Departure Date
+                    </label>
+                    {departures.length > 0 ? (
+                      <div className="space-y-2 max-h-44 overflow-y-auto">
+                        {departures.map((dep, idx) => {
+                          const available = (dep.availableSeats - (dep.bookedSeats || 0));
+                          const soldOut = available <= 0;
+                          const isSelected = bookingForm.selectedDeparture?.id === dep.id;
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              disabled={soldOut}
+                              onClick={() => setBookingForm({ ...bookingForm, selectedDeparture: dep })}
+                              className={`w-full text-left px-3 py-2.5 rounded-lg border-2 transition text-sm ${
+                                soldOut
+                                  ? 'border-light-border dark:border-dark-border opacity-40 cursor-not-allowed'
+                                  : isSelected
+                                  ? 'border-teal-600 dark:border-teal-400 bg-teal-50 dark:bg-teal-900/20'
+                                  : 'border-light-border dark:border-dark-border hover:border-teal-400/50'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium text-light-text-primary dark:text-dark-text-primary">
+                                  {new Date(dep.departureDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </span>
+                                <span className={`text-xs font-medium ${soldOut ? 'text-red-500' : available < 5 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                  {soldOut ? 'Sold Out' : `${available} seats`}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <Input type="date" value={bookingForm.travelDate || ''} onChange={(e) => setBookingForm({ ...bookingForm, travelDate: e.target.value })} />
+                    )}
+                  </div>
+
+                  {/* Room Type */}
+                  <div>
+                    <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+                      Room Type
+                    </label>
+                    {pricingOptions.length > 0 ? (
+                      <div className="space-y-2">
+                        {pricingOptions.map((opt, idx) => {
+                          const isSelected = bookingForm.selectedRoom?.roomType === opt.roomType;
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setBookingForm({ ...bookingForm, selectedRoom: opt })}
+                              className={`w-full flex justify-between items-center px-3 py-2.5 rounded-lg border-2 text-sm transition ${
+                                isSelected
+                                  ? 'border-teal-600 dark:border-teal-400 bg-teal-50 dark:bg-teal-900/20'
+                                  : 'border-light-border dark:border-dark-border hover:border-teal-400/50'
+                              }`}
+                            >
+                              <span className="font-medium capitalize text-light-text-primary dark:text-dark-text-primary">
+                                {opt.roomType?.replace(/_/g, ' ')}
+                              </span>
+                              <span className="font-bold text-teal-600 dark:text-teal-400">
+                                ₹{Number(opt.price).toLocaleString()}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">Loading options...</p>
+                    )}
+                  </div>
+
+                  {/* Travellers */}
+                  <div>
+                    <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+                      Travellers
+                    </label>
+                    <select
+                      value={bookingForm.travelers}
+                      onChange={(e) => setBookingForm({ ...bookingForm, travelers: Number(e.target.value) })}
+                      className="w-full px-3 py-2.5 rounded-lg border-2 border-light-border dark:border-dark-border bg-white dark:bg-dark-bg-secondary text-light-text-primary dark:text-dark-text-primary focus:outline-none focus:border-teal-500 text-sm"
+                    >
+                      {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
+                        <option key={n} value={n}>{n} {n === 1 ? 'traveller' : 'travellers'}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Price breakdown */}
+                  <div className="p-4 bg-teal-50/50 dark:bg-dark-bg-tertiary rounded-xl space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-light-text-secondary dark:text-dark-text-secondary">
+                        ₹{selectedRoomPrice.toLocaleString()} × {bookingForm.travelers} {bookingForm.travelers === 1 ? 'traveller' : 'travellers'}
+                      </span>
+                      <span className="font-semibold text-light-text-primary dark:text-dark-text-primary">
+                        ₹{totalPrice.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="border-t border-light-border dark:border-dark-border pt-2 flex justify-between">
+                      <span className="font-bold text-light-text-primary dark:text-dark-text-primary">Total</span>
+                      <span className="text-xl font-bold text-teal-600 dark:text-teal-400">
+                        ₹{totalPrice.toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-light-text-tertiary dark:text-dark-text-tertiary">* GST 5% extra</p>
+                  </div>
+
+                  {/* Book button */}
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    disabled={!bookingForm.selectedDeparture || !bookingForm.selectedRoom || bookingLoading}
                   >
-                    +91-799-233-6832
-                  </a>
+                    {bookingLoading ? 'Booking...' : 'Book this trip'}
+                  </Button>
+
+                  <button
+                    type="button"
+                    onClick={() => window.location.href = 'tel:+917992336832'}
+                    className="w-full py-2.5 rounded-xl border-2 border-teal-200 text-teal-700 dark:text-teal-400 dark:border-teal-700/50 text-sm font-medium hover:bg-teal-50 dark:hover:bg-teal-900/10 transition"
+                  >
+                    Talk to an agent
+                  </button>
+                </form>
+              </div>
+
+              {/* What's included card */}
+              <div className="bg-white dark:bg-dark-bg-secondary rounded-2xl p-6 border border-teal-100/60 dark:border-dark-border shadow-sm">
+                <h3 className="font-bold text-light-text-primary dark:text-dark-text-primary mb-4">
+                  What's included
+                </h3>
+                <div className="space-y-2.5">
+                  {(inclusions.length > 0 ? inclusions.map(i => i.description) : defaultInclusions).map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2.5 text-sm">
+                      <Check className="w-4 h-4 text-teal-600 flex-shrink-0" />
+                      <span className="text-light-text-secondary dark:text-dark-text-secondary">{item}</span>
+                    </div>
+                  ))}
                 </div>
-              </Card>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Booking success modal */}
       {bookingResult && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setBookingResult(null)} />

@@ -7,24 +7,117 @@ import {
   Award,
   MapPin,
   AlertTriangle,
+  AlertCircle,
 } from 'lucide-react';
 import { KPICard } from '../../components/admin/KPICard';
 import { BookingEventContext } from '../../contexts/BookingEventContext';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
 import { adminAPI } from '../../services/api';
 
 const formatINR = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`;
+
+// Static chart data
+const svgChartData = [
+  { month: 'Dec', revenue: 180000, bookings: 24 },
+  { month: 'Jan', revenue: 240000, bookings: 31 },
+  { month: 'Feb', revenue: 195000, bookings: 26 },
+  { month: 'Mar', revenue: 320000, bookings: 42 },
+  { month: 'Apr', revenue: 280000, bookings: 37 },
+  { month: 'May', revenue: 410000, bookings: 54 },
+];
+
+// Static top packages data
+const topPackagesStatic = [
+  { name: 'Kashmir Grand Tour', bookings: 47 },
+  { name: 'Kerala Wellness Retreat', bookings: 38 },
+  { name: 'Rajasthan Royal Tour', bookings: 31 },
+  { name: 'Manali Snow Adventure', bookings: 28 },
+  { name: 'Goa Beach Paradise', bookings: 24 },
+];
+
+function InsightCard({ gradient, icon: Icon, label, title, sub }) {
+  return (
+    <div className={`bg-gradient-to-br ${gradient} rounded-xl p-6 text-white`}>
+      <div className="opacity-80 mb-3">
+        <Icon size={30} />
+      </div>
+      <p className="text-sm opacity-90 mb-1">{label}</p>
+      <p className="text-xl font-semibold mb-1 leading-tight">{title}</p>
+      <p className="text-sm opacity-80">{sub}</p>
+    </div>
+  );
+}
+
+function DualLineChart({ data }) {
+  const w = 600, h = 260;
+  const pad = { t: 20, b: 36, l: 40, r: 40 };
+  const innerW = w - pad.l - pad.r;
+  const innerH = h - pad.t - pad.b;
+  const stepX = innerW / (data.length - 1);
+  const maxRev = Math.max(...data.map(d => d.revenue));
+  const maxBook = Math.max(...data.map(d => d.bookings));
+  const revPts = data.map((d, i) => ({ x: pad.l + i * stepX, y: pad.t + innerH - (d.revenue / maxRev) * innerH, ...d }));
+  const bookPts = data.map((d, i) => ({ x: pad.l + i * stepX, y: pad.t + innerH - (d.bookings / maxBook) * innerH, ...d }));
+  const makePath = pts => pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">Revenue & Bookings</h3>
+        <div className="flex items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-1.5 rounded-full bg-emerald-500 inline-block" />
+            Revenue
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-1.5 rounded-full bg-blue-500 inline-block" />
+            Bookings
+          </span>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-64">
+        {[0, 0.25, 0.5, 0.75, 1].map(t => (
+          <line key={t} x1={pad.l} x2={w - pad.r} y1={pad.t + innerH * t} y2={pad.t + innerH * t} stroke="#E5E7EB" strokeDasharray="4 4" />
+        ))}
+        <path d={makePath(revPts)} fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={makePath(bookPts)} fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {revPts.map((p, i) => (
+          <circle key={`r${i}`} cx={p.x} cy={p.y} r="3.5" fill="white" stroke="#10B981" strokeWidth="2" />
+        ))}
+        {bookPts.map((p, i) => (
+          <circle key={`b${i}`} cx={p.x} cy={p.y} r="3.5" fill="white" stroke="#3B82F6" strokeWidth="2" />
+        ))}
+        {data.map((d, i) => (
+          <text key={i} x={pad.l + i * stepX} y={h - 12} textAnchor="middle" fontSize="11" fill="#6B7280">{d.month}</text>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function TopPackagesBar({ data }) {
+  const max = Math.max(...data.map(d => d.bookings));
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Top Packages</h3>
+      <div className="space-y-3">
+        {data.map(d => (
+          <div key={d.name}>
+            <div className="flex items-baseline justify-between mb-1">
+              <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{d.name}</span>
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 ml-2">{d.bookings}</span>
+            </div>
+            <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                style={{ width: `${(d.bookings / max) * 100}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function AdminDashboard() {
   const { on } = useContext(BookingEventContext);
@@ -33,7 +126,6 @@ export function AdminDashboard() {
   const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
-    // Fetch data function
     const fetchData = async () => {
       console.log('[AdminDashboard] Fetching data...');
       try {
@@ -51,10 +143,8 @@ export function AdminDashboard() {
       }
     };
 
-    // Initial fetch on mount
     fetchData();
 
-    // Listen for all booking/payment events and refetch
     const unsubscribeCreated = on('booking:created', () => {
       console.log('[AdminDashboard] booking:created event - refetching');
       fetchData();
@@ -83,26 +173,6 @@ export function AdminDashboard() {
     };
   }, [on]);
 
-  const revenueData = useMemo(() => {
-    const trend = overview?.revenue_trend || [];
-    const countMap = new Map((overview?.booking_trend || []).map((item) => [item.date, item.count]));
-
-    return trend.map((item) => ({
-      month: new Date(item.date).toLocaleDateString('en-IN', { month: 'short' }),
-      revenue: Number(item.revenue || 0),
-      bookings: Number(countMap.get(item.date) || 0),
-    }));
-  }, [overview]);
-
-  const packagePopularityData = useMemo(
-    () =>
-      (overview?.top_packages || []).map((pkg) => ({
-        name: pkg.package_title,
-        bookings: pkg.total_bookings,
-      })),
-    [overview]
-  );
-
   const totalRevenue = Number(overview?.total_revenue || 0);
   const totalPayout = Number(overview?.total_agent_payout || 0);
   const totalMargin = Number(overview?.total_admin_margin || 0);
@@ -117,10 +187,36 @@ export function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold text-gray-900 dark:text-white mb-2">Dashboard</h1>
+        <h1 className="text-3xl font-semibold text-gray-900 dark:text-white mb-2 tracking-tight">Dashboard</h1>
         <p className="text-gray-600 dark:text-gray-400">Welcome back! Here's what's happening with your platform.</p>
       </div>
 
+      {/* Row 0: Insight gradient cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <InsightCard
+          gradient="from-blue-500 to-cyan-500"
+          icon={TrendingUp}
+          label="This month"
+          title="₹4.2L revenue"
+          sub="+18% vs last month"
+        />
+        <InsightCard
+          gradient="from-emerald-500 to-teal-500"
+          icon={Users}
+          label="Active agents"
+          title="24 agents online"
+          sub="3 new this week"
+        />
+        <InsightCard
+          gradient="from-amber-500 to-orange-500"
+          icon={AlertCircle}
+          label="Needs attention"
+          title="7 pending payouts"
+          sub="₹82,000 total"
+        />
+      </div>
+
+      {/* Row 1: KPI stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard title="Total Revenue" value={formatINR(totalRevenue)} icon={DollarSign} iconColor="text-emerald-500" trend={{ value: 12.5, isPositive: true }} />
         <KPICard title="Agent Payouts" value={formatINR(totalPayout)} icon={Users} iconColor="text-blue-500" trend={{ value: 8.2, isPositive: true }} />
@@ -128,37 +224,17 @@ export function AdminDashboard() {
         <KPICard title="Total Bookings" value={totalBookings} icon={Calendar} iconColor="text-amber-500" trend={{ value: 3.8, isPositive: true }} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Revenue & Bookings Trend</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={revenueData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
-              <XAxis dataKey="month" stroke="#6B7280" style={{ fontSize: '12px' }} />
-              <YAxis yAxisId="left" stroke="#10B981" style={{ fontSize: '12px' }} />
-              <YAxis yAxisId="right" orientation="right" stroke="#3B82F6" style={{ fontSize: '12px' }} />
-              <Tooltip />
-              <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={2} name="Revenue (₹)" />
-              <Line yAxisId="right" type="monotone" dataKey="bookings" stroke="#3B82F6" strokeWidth={2} name="Bookings" />
-            </LineChart>
-          </ResponsiveContainer>
+      {/* Row 2: SVG Dual Line Chart + Top Packages Bar */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <DualLineChart data={svgChartData} />
         </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Top Packages</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={packagePopularityData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
-              <XAxis type="number" stroke="#6B7280" style={{ fontSize: '12px' }} />
-              <YAxis dataKey="name" type="category" stroke="#6B7280" style={{ fontSize: '12px' }} width={120} />
-              <Tooltip />
-              <Bar dataKey="bookings" fill="#3B82F6" radius={[0, 8, 8, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="lg:col-span-1">
+          <TopPackagesBar data={topPackagesStatic} />
         </div>
       </div>
 
+      {/* Row 3: Quick insights + recent bookings */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Quick Insights</h3>

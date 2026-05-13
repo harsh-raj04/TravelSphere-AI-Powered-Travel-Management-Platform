@@ -104,7 +104,7 @@ export function Home() {
     : packages.filter(pkg => pkg.category === activePackageTab);
 
   return (
-    <>
+    <div className="travel-ui">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-teal-900 via-teal-800 to-emerald-800 overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&h=600&fit=crop')] bg-cover bg-center opacity-25" />
@@ -145,7 +145,7 @@ export function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-10">
             <div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-2">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-2 tracking-tight">
                 Featured Packages
               </h2>
               <p className="text-gray-600 dark:text-dark-text-secondary">
@@ -229,7 +229,7 @@ export function Home() {
       <section className="py-20 bg-white dark:bg-dark-bg-primary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3 tracking-tight">
               Browse by Category
             </h2>
             <p className="text-gray-600 dark:text-dark-text-secondary">
@@ -240,7 +240,7 @@ export function Home() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {categories.map((cat) => (
               <Link key={cat.name} to={`/packages?category=${cat.slug}`}>
-                <Card hover className="text-center py-8 rounded-2xl">
+                <div className="bg-white rounded-2xl border border-teal-100/60 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 py-8 text-center">
                   <div className="text-4xl mb-3">{cat.icon}</div>
                   <h3 className="font-semibold text-gray-900 dark:text-dark-text-primary mb-1">
                     {cat.name}
@@ -248,7 +248,7 @@ export function Home() {
                   <p className="text-xs text-gray-500 dark:text-dark-text-secondary">
                     {cat.desc}
                   </p>
-                </Card>
+                </div>
               </Link>
             ))}
           </div>
@@ -259,7 +259,7 @@ export function Home() {
       <section className="py-20 bg-teal-50/50 dark:bg-dark-bg-secondary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3 tracking-tight">
               Top Destinations
             </h2>
             <p className="text-gray-600 dark:text-dark-text-secondary">
@@ -276,7 +276,7 @@ export function Home() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
               {destinations.map((dest) => (
                 <Link key={dest.name} to={`/packages?destination=${dest.name}`}>
-                  <Card hover className="overflow-hidden rounded-2xl p-0">
+                  <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300">
                     <div className="relative h-40 overflow-hidden">
                       <img
                         src={dest.image}
@@ -289,7 +289,7 @@ export function Home() {
                         <p className="text-teal-300 text-xs">{dest.count} package{dest.count !== 1 ? 's' : ''}</p>
                       </div>
                     </div>
-                  </Card>
+                  </div>
                 </Link>
               ))}
             </div>
@@ -301,7 +301,7 @@ export function Home() {
       <section className="py-20 bg-white dark:bg-dark-bg-primary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3 tracking-tight">
               Explore Our Packages
             </h2>
             <p className="text-gray-600 dark:text-dark-text-secondary">
@@ -390,7 +390,7 @@ export function Home() {
       <section className="py-20 bg-teal-900 dark:bg-dark-bg-primary/90">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3 tracking-tight">
               Get In Touch
             </h2>
             <p className="text-teal-200">
@@ -438,14 +438,16 @@ export function Home() {
       {/* Newsletter */}
       <section className="py-20 bg-teal-50 dark:bg-dark-bg-secondary">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3 tracking-tight">
             Stay Updated
           </h2>
           <p className="text-gray-600 dark:text-dark-text-secondary mb-8">
             Subscribe to our newsletter for exclusive deals and travel inspiration.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+            <label htmlFor="newsletter-email" className="sr-only">Email address</label>
             <input
+              id="newsletter-email"
               type="email"
               placeholder="Enter your email"
               className="flex-1 px-5 py-3 rounded-xl border border-teal-200 dark:border-dark-border bg-white dark:bg-dark-bg-secondary text-gray-700 dark:text-dark-text-primary focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -456,6 +458,6 @@ export function Home() {
           </div>
         </div>
       </section>
-    </>
+    </div>
   );
 }

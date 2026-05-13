@@ -89,12 +89,13 @@ export function Register() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name */}
             <div>
-              <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+              <label htmlFor="register-name" className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
                 Full Name
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-3 w-5 h-5 text-light-text-tertiary dark:text-dark-text-tertiary" />
                 <input
+                  id="register-name"
                   type="text"
                   value={form.name}
                   onChange={(e) => {
@@ -114,12 +115,13 @@ export function Register() {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+              <label htmlFor="register-email" className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
                 Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 w-5 h-5 text-light-text-tertiary dark:text-dark-text-tertiary" />
                 <input
+                  id="register-email"
                   type="email"
                   value={form.email}
                   onChange={(e) => {
@@ -139,12 +141,13 @@ export function Register() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+              <label htmlFor="register-password" className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
                 Password
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 w-5 h-5 text-light-text-tertiary dark:text-dark-text-tertiary" />
                 <input
+                  id="register-password"
                   type="password"
                   value={form.password}
                   onChange={(e) => {
@@ -164,12 +167,13 @@ export function Register() {
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
+              <label htmlFor="register-confirm-password" className="block text-sm font-semibold text-light-text-primary dark:text-dark-text-primary mb-2">
                 Confirm Password
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 w-5 h-5 text-light-text-tertiary dark:text-dark-text-tertiary" />
                 <input
+                  id="register-confirm-password"
                   type="password"
                   value={form.confirmPassword}
                   onChange={(e) => {

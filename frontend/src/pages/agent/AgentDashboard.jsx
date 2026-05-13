@@ -7,6 +7,10 @@ import {
   MapPin,
   Star,
   ArrowUpRight,
+  CheckCircle,
+  CreditCard,
+  MessageSquare,
+  XCircle,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { BookingEventContext } from '../../contexts/BookingEventContext';
@@ -33,19 +37,132 @@ const formatINR = (amount) =>
 
 function StatCard({ title, value, change, icon: Icon, iconGradient }) {
   return (
-    <div className="bg-white dark:bg-dark-bg-secondary rounded-xl p-6 border border-gray-200 dark:border-dark-border hover:shadow-xl hover:shadow-teal-500/10 hover:-translate-y-0.5 transition-all duration-300 cursor-default">
+    <div className="bg-white dark:bg-dark-bg-secondary rounded-xl p-6 border border-teal-100/60 dark:border-dark-border hover:shadow-xl hover:shadow-teal-500/10 hover:-translate-y-0.5 transition-all duration-300 cursor-default">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm text-gray-600 mb-1">{title}</p>
-          <h3 className="text-4xl leading-none font-bold text-gray-900 mb-3">{value}</h3>
+          <p className="text-sm text-gray-600 dark:text-dark-text-secondary mb-1">{title}</p>
+          <h3 className="text-4xl leading-none font-bold text-gray-900 dark:text-dark-text-primary mb-3">{value}</h3>
           <div className="flex items-center gap-1">
             <span className="text-sm font-medium text-green-600">↑ {change}</span>
-            <span className="text-sm text-gray-500">vs last month</span>
+            <span className="text-sm text-gray-500 dark:text-dark-text-secondary">vs last month</span>
           </div>
         </div>
         <div className={`bg-gradient-to-br ${iconGradient} p-3 rounded-lg`}>
           <Icon className="w-6 h-6 text-white" />
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Static chart data for visual display
+const chartData = [
+  { label: 'Dec', value: 85000 },
+  { label: 'Jan', value: 120000 },
+  { label: 'Feb', value: 95000 },
+  { label: 'Mar', value: 180000 },
+  { label: 'Apr', value: 145000 },
+  { label: 'May', value: 210000 },
+];
+
+// Static activity feed data
+const activityItems = [
+  {
+    text: 'New booking confirmed — Kashmir Grand Tour',
+    time: '2 hours ago',
+    bg: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
+    Icon: CheckCircle,
+  },
+  {
+    text: 'Payment received — ₹45,000',
+    time: '5 hours ago',
+    bg: 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400',
+    Icon: CreditCard,
+  },
+  {
+    text: 'Customer query from Priya Sharma',
+    time: '1 day ago',
+    bg: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
+    Icon: MessageSquare,
+  },
+  {
+    text: 'Booking cancelled — Goa Beach Paradise',
+    time: '2 days ago',
+    bg: 'bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400',
+    Icon: XCircle,
+  },
+];
+
+function RevenueChart({ data }) {
+  const max = Math.max(...data.map(d => d.value));
+  const min = Math.min(...data.map(d => d.value));
+  const width = 600, height = 220;
+  const pad = { top: 20, bottom: 30, left: 30, right: 10 };
+  const innerW = width - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+  const stepX = innerW / (data.length - 1);
+  const pts = data.map((d, i) => ({
+    x: pad.left + i * stepX,
+    y: pad.top + innerH - ((d.value - min) / (max - min || 1)) * innerH,
+    ...d,
+  }));
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const areaPath = `${linePath} L ${pts[pts.length - 1].x} ${pad.top + innerH} L ${pts[0].x} ${pad.top + innerH} Z`;
+
+  return (
+    <div className="bg-white dark:bg-dark-bg-secondary rounded-xl p-6 border border-teal-100/60 dark:border-dark-border">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="font-bold text-[#022C22] dark:text-dark-text-primary">Revenue trend</h3>
+          <p className="text-xs text-teal-700/60 mt-0.5">Last 6 months · in ₹</p>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-48">
+        <defs>
+          <linearGradient id="rev-grad-agent" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#0F766E" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#0F766E" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {[0, 0.25, 0.5, 0.75, 1].map(t => (
+          <line key={t} x1={pad.left} x2={width - pad.right}
+            y1={pad.top + innerH * t} y2={pad.top + innerH * t}
+            stroke="#CCFBF1" strokeWidth="1" />
+        ))}
+        <path d={areaPath} fill="url(#rev-grad-agent)" />
+        <path d={linePath} fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {pts.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="4" fill="white" stroke="#0F766E" strokeWidth="2" />
+        ))}
+        {pts.map((p, i) => (
+          <text key={i} x={p.x} y={height - 8} textAnchor="middle" fontSize="11" fill="#0D6E63">{p.label}</text>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function ActivityFeed({ items }) {
+  return (
+    <div className="bg-white dark:bg-dark-bg-secondary rounded-xl p-6 border border-teal-100/60 dark:border-dark-border">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-[#022C22] dark:text-dark-text-primary">Recent Activity</h3>
+      </div>
+      <div className="space-y-3">
+        {items.map((it, i) => {
+          const Icon = it.Icon;
+          return (
+            <div key={i} className="flex items-start gap-3">
+              <div className={`p-2 rounded-lg flex-shrink-0 ${it.bg}`}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-sm text-[#022C22] dark:text-dark-text-primary leading-snug">{it.text}</p>
+                <p className="text-xs text-teal-700/60 mt-0.5">{it.time}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -59,9 +176,8 @@ export function AgentDashboard() {
   const [bookings, setBookings] = useState([]);
 
   useEffect(() => {
-    if (!user?.id) return; // Only fetch if user is available
+    if (!user?.id) return;
 
-    // Fetch data function
     const fetchData = async () => {
       console.log('[AgentDashboard] Fetching data...');
       try {
@@ -83,10 +199,8 @@ export function AgentDashboard() {
       }
     };
 
-    // Initial fetch on mount
     fetchData();
 
-    // Listen for all booking events and refetch
     const unsubscribeCreated = on('booking:created', () => {
       console.log('[AgentDashboard] booking:created event - refetching');
       fetchData();
@@ -122,96 +236,24 @@ export function AgentDashboard() {
     };
   }, [myPackages, bookings]);
 
-  const revenueData = useMemo(() => {
-    const now = new Date();
-    const months = [];
-
-    for (let i = 6; i >= 0; i -= 1) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${date.getFullYear()}-${date.getMonth()}`;
-      months.push({
-        key,
-        month: date.toLocaleDateString('en-US', { month: 'short' }),
-        revenue: 0,
-      });
-    }
-
-    bookings.forEach((booking) => {
-      const date = new Date(booking.travelDate || Date.now());
-      const key = `${date.getFullYear()}-${date.getMonth()}`;
-      const bucket = months.find((item) => item.key === key);
-      if (bucket) {
-        bucket.revenue += Number(booking.totalAmount || 0);
-      }
-    });
-
-    return months;
-  }, [bookings]);
-
-  const packagePerformance = useMemo(() => {
-    const ranked = myPackages
-      .map((pkg) => {
-        const count = bookings.filter((booking) => booking.package?.id === pkg.id).length;
-        return {
-          name: pkg.title,
-          value: count,
-        };
-      })
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 4);
-
-    const total = ranked.reduce((sum, item) => sum + item.value, 0);
-    if (!total) {
-      return [
-        { name: 'Starter Packages', value: 40 },
-        { name: 'Adventure', value: 25 },
-        { name: 'Leisure', value: 20 },
-        { name: 'Premium', value: 15 },
-      ];
-    }
-
-    return ranked.map((item) => ({
-      ...item,
-      value: Math.round((item.value / total) * 100),
-    }));
-  }, [myPackages, bookings]);
-
-  const topPackages = useMemo(() => {
-    return myPackages
-      .map((pkg) => {
-        const pkgBookings = bookings.filter((booking) => booking.package?.id === pkg.id);
-        const revenue = pkgBookings.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
-
-        return {
-          id: pkg.id,
-          name: pkg.title,
-          destination: pkg.destination,
-          bookings: pkgBookings.length,
-          revenue,
-          rating: 4.8,
-        };
-      })
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 4);
-  }, [myPackages, bookings]);
-
-  const recentBookings = useMemo(() => bookings.slice(0, 4), [bookings]);
+  const recentBookings = useMemo(() => bookings.slice(0, 6), [bookings]);
 
   if (loading) {
-    return <div className="p-8 text-gray-600">Loading dashboard...</div>;
+    return <div className="p-8 text-gray-600 dark:text-dark-text-secondary">Loading dashboard...</div>;
   }
 
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-dark-text-primary mb-2 tracking-tight">
           Welcome back, {user?.name || 'Agent'}!
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-dark-text-secondary">
           Here's what's happening with your travel packages today
         </p>
       </div>
 
+      {/* Row 1: KPI Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Revenue"
@@ -243,166 +285,60 @@ export function AgentDashboard() {
         />
       </div>
 
+      {/* Row 2: Revenue Chart + Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Revenue Overview</h2>
-              <p className="text-sm text-gray-600">Monthly performance</p>
-            </div>
-            <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>Last 7 months</option>
-              <option>Last 6 months</option>
-              <option>Last year</option>
-            </select>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={revenueData}>
-              <defs>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" stroke="#9ca3af" />
-              <YAxis stroke="#9ca3af" />
-              <Tooltip formatter={(value) => [formatINR(value), 'Revenue']} />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#colorRevenue)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className="lg:col-span-2">
+          <RevenueChart data={chartData} />
         </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Package Categories</h2>
-          <p className="text-sm text-gray-600 mb-6">Distribution by type</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={packagePerformance}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={5}
-                dataKey="value"
-              >
-                {packagePerformance.map((entry, index) => (
-                  <Cell key={`${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => [`${value}%`, 'Share']} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="mt-4 space-y-2">
-            {packagePerformance.map((item, index) => (
-              <div key={item.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                  />
-                  <span className="text-sm text-gray-700">{item.name}</span>
-                </div>
-                <span className="text-sm font-medium text-gray-900">{item.value}%</span>
-              </div>
-            ))}
-          </div>
+        <div className="lg:col-span-1">
+          <ActivityFeed items={activityItems} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900">Top Performing Packages</h2>
-            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
-              View all
-              <ArrowUpRight className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="space-y-4">
-            {topPackages.length === 0 ? (
-              <p className="text-sm text-gray-500">No package performance data yet.</p>
-            ) : (
-              topPackages.map((pkg) => (
-                <div
-                  key={pkg.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900 mb-1">{pkg.name}</h3>
-                    <div className="flex items-center gap-3 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {pkg.destination}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        {pkg.rating}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">{formatINR(pkg.revenue)}</p>
-                    <p className="text-sm text-gray-600">{pkg.bookings} bookings</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+      {/* Row 3: Recent Bookings (full width) */}
+      <div className="bg-white dark:bg-dark-bg-secondary rounded-xl p-6 border border-teal-100/60 dark:border-dark-border">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-dark-text-primary">Recent Bookings</h2>
+          <a href="/agent/bookings" className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1">
+            View all
+            <ArrowUpRight className="w-4 h-4" />
+          </a>
         </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900">Recent Bookings</h2>
-            <button className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
-              View all
-              <ArrowUpRight className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="space-y-3">
-            {recentBookings.length === 0 ? (
-              <p className="text-sm text-gray-500">No bookings yet.</p>
-            ) : (
-              recentBookings.map((booking) => (
-                <div
-                  key={booking.id}
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
-                >
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">
-                      {booking.customer?.name || booking.customer?.email || 'Customer'}
-                    </h3>
-                    <p className="text-sm text-gray-600">{booking.package?.title || 'Package'}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(booking.travelDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">{formatINR(booking.totalAmount)}</p>
-                    <span
-                      className={`inline-block px-2 py-1 rounded text-xs font-medium mt-1 ${
-                        booking.status === 'confirmed'
-                          ? 'bg-green-100 text-green-700'
-                          : booking.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      {booking.status}
-                    </span>
-                  </div>
+        <div className="space-y-3">
+          {recentBookings.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-dark-text-secondary">No bookings yet.</p>
+          ) : (
+            recentBookings.map((booking) => (
+              <div
+                key={booking.id}
+                className="flex items-center justify-between p-4 border border-teal-100/60 dark:border-dark-border rounded-xl hover:bg-teal-50/30 dark:hover:bg-dark-bg-tertiary transition-colors"
+              >
+                <div className="flex-1">
+                  <h3 className="font-medium text-gray-900 dark:text-dark-text-primary">
+                    {booking.customer?.name || booking.customer?.email || 'Customer'}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-dark-text-secondary">{booking.package?.title || 'Package'}</p>
+                  <p className="text-xs text-gray-500 dark:text-dark-text-secondary mt-1">
+                    {new Date(booking.travelDate).toLocaleDateString()}
+                  </p>
                 </div>
-              ))
-            )}
-          </div>
+                <div className="text-right">
+                  <p className="font-bold text-gray-900 dark:text-dark-text-primary">{formatINR(booking.totalAmount)}</p>
+                  <span
+                    className={`inline-block px-2 py-1 rounded text-xs font-medium mt-1 ${
+                      booking.status === 'confirmed'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                        : booking.status === 'pending'
+                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-400'
+                    }`}
+                  >
+                    {booking.status}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

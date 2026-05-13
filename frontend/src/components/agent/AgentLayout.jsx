@@ -343,8 +343,8 @@ function NavItem({ item, isActive, onClick }) {
 
   const baseClass = `flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-sm ${
     isActive
-      ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
-      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+      ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-md shadow-teal-200/50'
+      : 'text-[#0D6E63] hover:bg-[#F0FDFA]'
   }`;
 
   // Hash links don't navigate — use button to show coming-soon
@@ -384,22 +384,23 @@ export function AgentLayout({ children }) {
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden">
       {/* Sidebar */}
-      <aside className="hidden md:flex w-[240px] bg-white border-r border-gray-200 flex-col">
+      <aside className="hidden md:flex w-[240px] bg-white border-r border-teal-100/70 flex-col">
         {/* Logo */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-teal-100/70">
           <Link to="/agent/dashboard" className="flex items-center gap-2">
             <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
               <Plane className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-gray-900">TravelAgent</h1>
-              <p className="text-xs text-gray-500">Pro Dashboard</p>
+              <h1 className="font-bold text-[#022C22]">TravelAgent</h1>
+              <p className="text-xs text-teal-700/60">Pro Dashboard</p>
             </div>
           </Link>
         </div>
 
         {/* Nav */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-teal-700/60">Workspace</p>
           {NAV_ITEMS.map((item) => (
             <NavItem
               key={item.name}
@@ -410,11 +411,28 @@ export function AgentLayout({ children }) {
           ))}
         </nav>
 
-        {/* Bottom: logout only (settings is now in secondary nav) */}
-        <div className="p-4 border-t border-gray-200">
+        {/* Bottom: user profile card + logout */}
+        <div className="p-4 border-t border-teal-100/70 space-y-3">
+          {/* User profile card */}
+          {(() => {
+            const initials = user?.name
+              ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+              : 'AG';
+            return (
+              <div className="mt-1 flex items-center gap-3 px-3 py-2 rounded-lg bg-teal-50/50 border border-teal-100">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-emerald-600 text-white grid place-content-center text-sm font-bold flex-shrink-0">
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[#022C22] truncate">{user?.name}</p>
+                  <p className="text-xs text-teal-700/70 truncate">Travel Agent</p>
+                </div>
+              </div>
+            );
+          })()}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all text-sm"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-[#0D6E63] hover:bg-[#F0FDFA] transition-all text-sm"
           >
             <LogOut className="w-5 h-5" />
             <span className="font-medium">Logout</span>
@@ -425,7 +443,7 @@ export function AgentLayout({ children }) {
       {/* Main area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 md:px-7 py-3.5">
+        <header className="bg-white border-b border-teal-100/70 px-6 md:px-7 py-3.5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 max-w-2xl">
               <div className="relative">

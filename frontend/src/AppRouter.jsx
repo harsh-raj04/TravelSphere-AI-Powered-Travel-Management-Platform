@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { BookingEventProvider } from './contexts/BookingEventContext';
@@ -11,6 +12,7 @@ import { Footer } from './components/Footer';
 import { AgentLayout } from './components/agent/AgentLayout';
 import { AdminLayout } from './components/admin/AdminLayout';
 
+// Customer pages — eager loaded
 import { Home } from './pages/Home';
 import { AgentHome } from './pages/AgentHome';
 import { AdminHome } from './pages/AdminHome';
@@ -27,36 +29,50 @@ import { Profile } from './pages/Profile';
 import { PackageListing } from './pages/PackageListing';
 import { PackageDetail } from './pages/PackageDetail';
 import { Packages } from './pages/Packages';
-import { AgentDashboard } from './pages/agent/AgentDashboard';
-import { AgentPackages } from './pages/agent/AgentPackages';
-import { AgentPackagesBrowse } from './pages/agent/AgentPackagesBrowse';
-import { AgentPackageDetail } from './pages/agent/AgentPackageDetail';
-import { AgentBookings } from './pages/agent/AgentBookings';
-import { AgentBookingsNew } from './pages/agent/AgentBookingsNew';
-import { AgentBookingDetail } from './pages/agent/AgentBookingDetail';
-import { AgentAnalytics } from './pages/agent/AgentAnalytics';
-import { AgentPayments } from './pages/agent/AgentPayments';
-import { AgentProfile } from './pages/agent/AgentProfile';
-import { AgentSettings } from './pages/agent/AgentSettings';
-import { AgentNotifications } from './pages/agent/AgentNotifications';
-import { AgentDocuments } from './pages/agent/AgentDocuments';
-import { AgentSecurity } from './pages/agent/AgentSecurity';
-import { AgentSupport } from './pages/agent/AgentSupport';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { AdminBookingsNew } from './pages/admin/AdminBookingsNew';
-import { AdminBookingDetail } from './pages/admin/AdminBookingDetail';
-import { AdminPackages } from './pages/admin/AdminPackages';
-import { AdminPackageDetail } from './pages/admin/AdminPackageDetail';
-import { AdminCustomerProfile } from './pages/admin/AdminCustomerProfile';
-import { AdminAgentProfile } from './pages/admin/AdminAgentProfile';
-import { AdminAgents } from './pages/admin/AdminAgents';
-import { AdminCustomers } from './pages/admin/AdminCustomers';
-import { AdminTransactions } from './pages/admin/AdminTransactions';
-import { AdminWithdrawals } from './pages/admin/AdminWithdrawals';
-import { AdminAnalytics } from './pages/admin/AdminAnalytics';
-import { AdminSupport } from './pages/admin/AdminSupport';
-import { AdminSettings } from './pages/admin/AdminSettings';
+
 import { getHomeRouteForRole, isRoleAllowedForVariant } from './utils/roleRouting';
+
+// Lazy-load agent pages
+const AgentDashboard = lazy(() => import('./pages/agent/AgentDashboard').then(m => ({ default: m.AgentDashboard })));
+const AgentPackages = lazy(() => import('./pages/agent/AgentPackages').then(m => ({ default: m.AgentPackages })));
+const AgentPackagesBrowse = lazy(() => import('./pages/agent/AgentPackagesBrowse').then(m => ({ default: m.AgentPackagesBrowse })));
+const AgentPackageDetail = lazy(() => import('./pages/agent/AgentPackageDetail').then(m => ({ default: m.AgentPackageDetail })));
+const AgentBookings = lazy(() => import('./pages/agent/AgentBookings').then(m => ({ default: m.AgentBookings })));
+const AgentBookingsNew = lazy(() => import('./pages/agent/AgentBookingsNew').then(m => ({ default: m.AgentBookingsNew })));
+const AgentBookingDetail = lazy(() => import('./pages/agent/AgentBookingDetail').then(m => ({ default: m.AgentBookingDetail })));
+const AgentAnalytics = lazy(() => import('./pages/agent/AgentAnalytics').then(m => ({ default: m.AgentAnalytics })));
+const AgentPayments = lazy(() => import('./pages/agent/AgentPayments').then(m => ({ default: m.AgentPayments })));
+const AgentProfile = lazy(() => import('./pages/agent/AgentProfile').then(m => ({ default: m.AgentProfile })));
+const AgentSettings = lazy(() => import('./pages/agent/AgentSettings').then(m => ({ default: m.AgentSettings })));
+const AgentNotifications = lazy(() => import('./pages/agent/AgentNotifications').then(m => ({ default: m.AgentNotifications })));
+const AgentDocuments = lazy(() => import('./pages/agent/AgentDocuments').then(m => ({ default: m.AgentDocuments })));
+const AgentSecurity = lazy(() => import('./pages/agent/AgentSecurity').then(m => ({ default: m.AgentSecurity })));
+const AgentSupport = lazy(() => import('./pages/agent/AgentSupport').then(m => ({ default: m.AgentSupport })));
+
+// Lazy-load admin pages
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminBookingsNew = lazy(() => import('./pages/admin/AdminBookingsNew').then(m => ({ default: m.AdminBookingsNew })));
+const AdminBookingDetail = lazy(() => import('./pages/admin/AdminBookingDetail').then(m => ({ default: m.AdminBookingDetail })));
+const AdminPackages = lazy(() => import('./pages/admin/AdminPackages').then(m => ({ default: m.AdminPackages })));
+const AdminPackageDetail = lazy(() => import('./pages/admin/AdminPackageDetail').then(m => ({ default: m.AdminPackageDetail })));
+const AdminCustomerProfile = lazy(() => import('./pages/admin/AdminCustomerProfile').then(m => ({ default: m.AdminCustomerProfile })));
+const AdminAgentProfile = lazy(() => import('./pages/admin/AdminAgentProfile').then(m => ({ default: m.AdminAgentProfile })));
+const AdminAgents = lazy(() => import('./pages/admin/AdminAgents').then(m => ({ default: m.AdminAgents })));
+const AdminCustomers = lazy(() => import('./pages/admin/AdminCustomers').then(m => ({ default: m.AdminCustomers })));
+const AdminTransactions = lazy(() => import('./pages/admin/AdminTransactions').then(m => ({ default: m.AdminTransactions })));
+const AdminWithdrawals = lazy(() => import('./pages/admin/AdminWithdrawals').then(m => ({ default: m.AdminWithdrawals })));
+const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics').then(m => ({ default: m.AdminAnalytics })));
+const AdminSupport = lazy(() => import('./pages/admin/AdminSupport').then(m => ({ default: m.AdminSupport })));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
+
+// Suspense fallback spinner
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600" />
+    </div>
+  );
+}
 
 function AppLayout({ children }) {
   return (
@@ -182,11 +198,15 @@ function AppRoutes() {
           </RoleRoute>
         }
       />
+
+      {/* Agent routes — lazy loaded */}
       <Route
         path="/agent/dashboard"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentDashboard /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentDashboard /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -194,7 +214,9 @@ function AppRoutes() {
         path="/agent/packages"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentPackagesBrowse /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentPackagesBrowse /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -202,7 +224,9 @@ function AppRoutes() {
         path="/agent/packages/:id"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentPackageDetail /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentPackageDetail /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -210,7 +234,9 @@ function AppRoutes() {
         path="/agent/bookings"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentBookingsNew /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentBookingsNew /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -218,7 +244,9 @@ function AppRoutes() {
         path="/agent/bookings/:id"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentBookingDetail /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentBookingDetail /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -226,7 +254,9 @@ function AppRoutes() {
         path="/agent/analytics"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentAnalytics /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentAnalytics /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -234,7 +264,9 @@ function AppRoutes() {
         path="/agent/payments"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentPayments /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentPayments /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -242,7 +274,9 @@ function AppRoutes() {
         path="/agent/profile"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentProfile /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentProfile /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -250,7 +284,9 @@ function AppRoutes() {
         path="/agent/settings"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentSettings /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentSettings /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -258,7 +294,9 @@ function AppRoutes() {
         path="/agent/notifications"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentNotifications /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentNotifications /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -266,7 +304,9 @@ function AppRoutes() {
         path="/agent/documents"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentDocuments /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentDocuments /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -274,7 +314,9 @@ function AppRoutes() {
         path="/agent/security"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentSecurity /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentSecurity /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -282,15 +324,21 @@ function AppRoutes() {
         path="/agent/support"
         element={
           <RoleRoute allowedRoles={['agent']}>
-            <AgentLayout><AgentSupport /></AgentLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentSupport /></AgentLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
+
+      {/* Admin routes — lazy loaded */}
       <Route
         path="/admin/dashboard"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminDashboard /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminDashboard /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -298,7 +346,9 @@ function AppRoutes() {
         path="/admin/bookings"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminBookingsNew /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminBookingsNew /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -306,7 +356,9 @@ function AppRoutes() {
         path="/admin/bookings/:id"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminBookingDetail /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminBookingDetail /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -314,7 +366,9 @@ function AppRoutes() {
         path="/admin/packages"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminPackages /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminPackages /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -322,7 +376,9 @@ function AppRoutes() {
         path="/admin/packages/:id"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminPackageDetail /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminPackageDetail /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -330,7 +386,9 @@ function AppRoutes() {
         path="/admin/customers/:id"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminCustomerProfile /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminCustomerProfile /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -338,7 +396,9 @@ function AppRoutes() {
         path="/admin/agents/:id"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminAgentProfile /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminAgentProfile /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -346,7 +406,9 @@ function AppRoutes() {
         path="/admin/agents"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminAgents /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminAgents /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -354,7 +416,9 @@ function AppRoutes() {
         path="/admin/customers"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminCustomers /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminCustomers /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -362,7 +426,9 @@ function AppRoutes() {
         path="/admin/transactions"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminTransactions /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminTransactions /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -370,7 +436,9 @@ function AppRoutes() {
         path="/admin/withdrawals"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminWithdrawals /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminWithdrawals /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -378,7 +446,9 @@ function AppRoutes() {
         path="/admin/analytics"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminAnalytics /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminAnalytics /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -386,7 +456,9 @@ function AppRoutes() {
         path="/admin/support"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminSupport /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminSupport /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />
@@ -394,7 +466,9 @@ function AppRoutes() {
         path="/admin/settings"
         element={
           <RoleRoute allowedRoles={['admin']}>
-            <AdminLayout><AdminSettings /></AdminLayout>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminSettings /></AdminLayout>
+            </Suspense>
           </RoleRoute>
         }
       />

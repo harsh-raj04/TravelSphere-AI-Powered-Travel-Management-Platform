@@ -64,7 +64,7 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-[70px]">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" aria-label="TravelSphere home" className="flex items-center gap-2">
             <div className="w-10 h-10 bg-gradient-to-br from-teal-600 to-teal-700 rounded-xl flex items-center justify-center shadow-lg shadow-teal-200/50">
               <span className="text-white font-bold">T</span>
             </div>
