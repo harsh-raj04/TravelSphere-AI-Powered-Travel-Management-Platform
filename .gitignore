@@ -21,6 +21,10 @@ coverage/
 .DS_Store
 .vscode/
 
+# Claude Code local config
+.claude/
+**/.claude/
+
 # Private design reference
 My UI/
 Travel Management Agent UI/
