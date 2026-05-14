@@ -9,6 +9,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { RoleRoute } from './components/RoleRoute';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
+import { WhatsAppButton } from './components/WhatsAppButton';
 import { AgentLayout } from './components/agent/AgentLayout';
 import { AdminLayout } from './components/admin/AdminLayout';
 
@@ -29,6 +30,15 @@ import { Profile } from './pages/Profile';
 import { PackageListing } from './pages/PackageListing';
 import { PackageDetail } from './pages/PackageDetail';
 import { Packages } from './pages/Packages';
+import { AboutPage } from './pages/AboutPage';
+import { ContactPage } from './pages/ContactPage';
+import { FaqPage } from './pages/FaqPage';
+import { TermsPage } from './pages/TermsPage';
+import { PrivacyPage } from './pages/PrivacyPage';
+import { BlogPage } from './pages/BlogPage';
+import { PressPage } from './pages/PressPage';
+import { CareersPage } from './pages/CareersPage';
+import { ComingSoonPage } from './pages/ComingSoonPage';
 
 import { getHomeRouteForRole, isRoleAllowedForVariant } from './utils/roleRouting';
 
@@ -82,6 +92,7 @@ function AppLayout({ children }) {
         {children}
       </main>
       <Footer />
+      <WhatsAppButton />
     </div>
   );
 }
@@ -488,6 +499,31 @@ function AppRoutes() {
             : <ProtectedRoute><AppLayout><PackageDetail /></AppLayout></ProtectedRoute>
         }
       />
+
+      {/* Public content pages */}
+      <Route path="/about" element={<AppLayout><AboutPage /></AppLayout>} />
+      <Route path="/contact" element={<AppLayout><ContactPage /></AppLayout>} />
+      <Route path="/faq" element={<AppLayout><FaqPage /></AppLayout>} />
+      <Route path="/terms" element={<AppLayout><TermsPage /></AppLayout>} />
+      <Route path="/privacy" element={<AppLayout><PrivacyPage /></AppLayout>} />
+      <Route path="/blog" element={<AppLayout><BlogPage /></AppLayout>} />
+      <Route path="/press" element={<AppLayout><PressPage /></AppLayout>} />
+      <Route path="/careers" element={<AppLayout><CareersPage /></AppLayout>} />
+
+      {/* Phase stubs — full implementation in Phase 2, 3, 4 */}
+      <Route
+        path="/customize-package"
+        element={<AppLayout><ComingSoonPage title="Customize Your Package" subtitle="Our custom package request system is launching soon. In the meantime, browse our curated packages." /></AppLayout>}
+      />
+      <Route
+        path="/trip-planner"
+        element={<AppLayout><ComingSoonPage title="AI Trip Planner" subtitle="Our AI-powered trip planning assistant is coming soon. It will help you build the perfect itinerary in minutes." /></AppLayout>}
+      />
+      <Route
+        path="/community/*"
+        element={<AppLayout><ComingSoonPage title="Community Chat" subtitle="The TravelSphere community chat is coming soon. Connect with fellow travelers and share experiences." /></AppLayout>}
+      />
+
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );

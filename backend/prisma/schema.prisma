@@ -458,3 +458,14 @@ model TermsSection {
   @@index([order])
   @@map("terms_sections")
 }
+
+model NewsletterSubscriber {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  isActive    Boolean  @default(true)
+  subscribedAt DateTime @default(now())
+  unsubscribedAt DateTime?
+
+  @@index([email])
+  @@map("newsletter_subscribers")
+}
