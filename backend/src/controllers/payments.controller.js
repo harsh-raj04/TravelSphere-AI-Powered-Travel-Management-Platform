@@ -4,6 +4,8 @@ const { z } = require("zod");
 const { prisma } = require("../lib/prisma");
 const { BOOKING_STATUS } = require("../constants/statuses");
 const { ok, fail } = require("../utils/apiResponse");
+const { notify } = require("../services/notificationService");
+const { sendBookingConfirmationEmail } = require("../services/emailService");
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -17,6 +19,7 @@ const createOrderSchema = z.object({
   room_price: z.coerce.number().positive(),
   travelers: z.coerce.number().int().positive(),
   travel_date: z.string().min(1),
+  add_on_ids: z.array(z.string()).optional().default([]),
 });
 
 async function createOrder(req, res) {
@@ -25,7 +28,7 @@ async function createOrder(req, res) {
     return fail(res, "Validation failed", parsed.error.issues, 400);
   }
 
-  const { package_id, departure_id, room_type, room_price, travelers, travel_date } = parsed.data;
+  const { package_id, departure_id, room_type, room_price, travelers, travel_date, add_on_ids } = parsed.data;
 
   try {
     const [pkg, departure] = await Promise.all([
@@ -41,7 +44,18 @@ async function createOrder(req, res) {
       return fail(res, "Not enough seats available", [{ field: "travelers", issue: `Only ${seatsLeft} seats left` }], 400);
     }
 
-    const amountInPaise = room_price * travelers * 100;
+    // Validate and fetch add-ons from DB (never trust client prices)
+    let addOnsData = [];
+    if (add_on_ids.length > 0) {
+      addOnsData = await prisma.packageAddOn.findMany({
+        where: { id: { in: add_on_ids }, packageId: package_id },
+        select: { id: true, title: true, price: true },
+      });
+    }
+
+    const addOnsTotal = addOnsData.reduce((sum, ao) => sum + Number(ao.price) * travelers, 0);
+    const totalAmount = room_price * travelers + addOnsTotal;
+    const amountInPaise = Math.round(totalAmount * 100);
 
     const order = await razorpay.orders.create({
       amount: amountInPaise,
@@ -57,14 +71,6 @@ async function createOrder(req, res) {
       },
     });
 
-    await prisma.transaction.create({
-      data: {
-        amount: room_price * travelers,
-        paymentMethod: "razorpay",
-        status: "initiated",
-        transactionReference: order.id,
-      },
-    }).catch(() => {});
 
     return ok(res, "Razorpay order created", {
       order_id: order.id,
@@ -78,6 +84,7 @@ async function createOrder(req, res) {
         room_price,
         travelers,
         travel_date,
+        add_ons: addOnsData.map(ao => ({ id: ao.id, title: ao.title, price: Number(ao.price) })),
       },
     });
   } catch (error) {
@@ -97,6 +104,11 @@ const verifyPaymentSchema = z.object({
     room_price: z.coerce.number().positive(),
     travelers: z.coerce.number().int().positive(),
     travel_date: z.string().min(1),
+    add_ons: z.array(z.object({
+      id: z.string(),
+      title: z.string(),
+      price: z.coerce.number(),
+    })).optional().default([]),
   }),
 });
 
@@ -114,20 +126,48 @@ async function verifyPayment(req, res) {
     .digest("hex");
 
   if (generatedSignature !== razorpay_signature) {
-    const totalAmount = booking_details.room_price * booking_details.travelers;
-    await prisma.transaction.create({
-      data: {
-        amount: totalAmount,
-        paymentMethod: "razorpay",
-        status: "failed",
-        transactionReference: razorpay_payment_id,
-      },
-    }).catch(() => {});
+    // Update the initiated transaction to failed; create a fallback record if it doesn't exist
+    const updated = await prisma.transaction.updateMany({
+      where: { transactionReference: razorpay_order_id, status: "initiated" },
+      data: { status: "failed" },
+    }).catch(() => ({ count: 0 }));
+    if (updated.count === 0) {
+      const totalAmount = booking_details.room_price * booking_details.travelers;
+      await prisma.transaction.create({
+        data: {
+          amount: totalAmount,
+          paymentMethod: "razorpay",
+          status: "failed",
+          transactionReference: razorpay_payment_id,
+        },
+      }).catch(() => {});
+    }
+
+    // Notify admins of payment failure
+    try {
+      const admins = await prisma.user.findMany({ where: { role: "admin" }, select: { id: true } });
+      await Promise.all(
+        admins.map((admin) =>
+          notify(admin.id, {
+            type: "payment_failed",
+            title: "Payment Failed",
+            message: `Payment verification failed for order ${razorpay_order_id}`,
+            entityId: razorpay_order_id,
+            entityType: "payment",
+            actionUrl: "/admin/transactions",
+            priority: "high",
+          })
+        )
+      );
+    } catch (notifyErr) {
+      console.error("[verifyPayment] admin notify (fail) error:", notifyErr.message);
+    }
+
     return fail(res, "Payment verification failed — signature mismatch", [], 400);
   }
 
   try {
-    const { package_id, departure_id, room_type, room_price, travelers, travel_date } = booking_details;
+    const { package_id, departure_id, room_type, room_price, travelers, travel_date, add_ons } = booking_details;
 
     const [pkg, departure, customer] = await Promise.all([
       prisma.travelPackage.findUnique({ where: { id: package_id } }),
@@ -139,7 +179,8 @@ async function verifyPayment(req, res) {
       return fail(res, "Package or customer not found", [], 404);
     }
 
-    const totalAmount = room_price * travelers;
+    const addOnsTotal = (add_ons || []).reduce((sum, ao) => sum + ao.price * travelers, 0);
+    const totalAmount = room_price * travelers + addOnsTotal;
 
     const booking = await prisma.$transaction(async (tx) => {
       const created = await tx.booking.create({
@@ -159,6 +200,7 @@ async function verifyPayment(req, res) {
             order_id: razorpay_order_id,
             payment_id: razorpay_payment_id,
             room_type,
+            add_ons: add_ons || [],
           }),
         },
         include: { package: true },
@@ -171,18 +213,68 @@ async function verifyPayment(req, res) {
         });
       }
 
-      await tx.transaction.create({
-        data: {
-          bookingId: created.id,
-          amount: totalAmount,
-          paymentMethod: "razorpay",
-          status: "success",
-          transactionReference: razorpay_payment_id,
-        },
+      // Resolve the initiated transaction created in createOrder, or create a fresh success record
+      const initiatedTx = await tx.transaction.findFirst({
+        where: { transactionReference: razorpay_order_id, status: "initiated" },
       });
+      if (initiatedTx) {
+        await tx.transaction.update({
+          where: { id: initiatedTx.id },
+          data: {
+            bookingId: created.id,
+            status: "success",
+            transactionReference: razorpay_payment_id,
+            amount: totalAmount,
+          },
+        });
+      } else {
+        await tx.transaction.create({
+          data: {
+            bookingId: created.id,
+            amount: totalAmount,
+            paymentMethod: "razorpay",
+            status: "success",
+            transactionReference: razorpay_payment_id,
+          },
+        });
+      }
 
       return created;
     });
+
+    // Notify admins of successful payment
+    try {
+      const admins = await prisma.user.findMany({ where: { role: "admin" }, select: { id: true } });
+      await Promise.all(
+        admins.map((admin) =>
+          notify(admin.id, {
+            type: "payment_received",
+            title: "Payment Received",
+            message: `Payment of ₹${Number(booking.totalAmount).toLocaleString("en-IN")} received for ${booking.package.title}`,
+            entityId: booking.id,
+            entityType: "booking",
+            actionUrl: `/admin/bookings/${booking.id}`,
+            priority: "normal",
+          })
+        )
+      );
+    } catch (notifyErr) {
+      console.error("[verifyPayment] admin notify (success) error:", notifyErr.message);
+    }
+
+    // Send booking confirmation email to customer
+    try {
+      await sendBookingConfirmationEmail({
+        to: booking.contactEmail || customer.email,
+        customerName: booking.customerName || customer.name,
+        packageTitle: booking.package.title,
+        travelDate: booking.travelDate,
+        totalAmount: booking.totalAmount,
+        bookingId: booking.id,
+      });
+    } catch (emailErr) {
+      console.error("[verifyPayment] confirmation email error:", emailErr.message);
+    }
 
     return ok(res, "Payment verified & booking confirmed", {
       booking_id: booking.id,

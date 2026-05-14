@@ -8,10 +8,13 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { TabNavigation } from '../../components/ui/TabNavigation';
 import { adminAPI } from '../../services/api';
+import { useToast } from '../../components/ui/Toast';
 import {
   ArrowLeft, Calendar, Users, MapPin, Phone, Mail, CreditCard,
-  DollarSign, CheckCircle2, Clock, AlertCircle, Star, RotateCcw, RefreshCw
+  DollarSign, CheckCircle2, Clock, AlertCircle, Star, RotateCcw, RefreshCw,
+  ChevronRight,
 } from 'lucide-react';
+import { humanizeStatus } from '../../utils/statusHelpers';
 
 const formatINR = (value) =>
   `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -19,6 +22,7 @@ const formatINR = (value) =>
 export function AdminBookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const addToast = useToast();
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -127,7 +131,7 @@ export function AdminBookingDetail() {
 
   const handleAssignAgent = async () => {
     if (!selectedAgentId) {
-      alert('Please select an agent');
+      addToast('Please select an agent', 'error');
       return;
     }
 
@@ -135,8 +139,8 @@ export function AdminBookingDetail() {
       setAssigningId(selectedAgentId);
       // Use selectBookingApplication - selectedAgentId is a PackageInterest ID from opted-in agents
       await adminAPI.selectBookingApplication(booking.id, selectedAgentId);
+      setApplicants(prev => prev.filter(a => a.id === selectedAgentId));
       await loadBooking();
-      await loadApplicants(booking.id);
       setShowAgentSelect(false);
       setSelectedAgentId('');
     } catch (err) {
@@ -148,7 +152,7 @@ export function AdminBookingDetail() {
 
   const handleStatusUpdate = async () => {
     if (!newStatus) {
-      alert('Please select a new status');
+      addToast('Please select a new status', 'error');
       return;
     }
 
@@ -162,9 +166,9 @@ export function AdminBookingDetail() {
       setNewStatus('');
       setRejectionMessage('');
       setShowRejectionForm(false);
-      alert('Status updated successfully');
+      addToast('Status updated successfully', 'success');
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to update status');
+      addToast(err?.response?.data?.message || 'Failed to update status', 'error');
     } finally {
       setStatusUpdating(false);
     }
@@ -172,20 +176,20 @@ export function AdminBookingDetail() {
 
   const handleReassignAgent = async () => {
     if (!selectedAgentId) {
-      alert('Please select a new agent');
+      addToast('Please select a new agent', 'error');
       return;
     }
 
     try {
       setAssigningId(selectedAgentId);
       await adminAPI.selectBookingApplication(booking.id, selectedAgentId);
+      setApplicants(prev => prev.filter(a => a.id === selectedAgentId));
       await loadBooking();
-      await loadApplicants(booking.id);
       setShowAgentSelect(false);
       setSelectedAgentId('');
-      alert('Agent reassigned successfully');
+      addToast('Agent reassigned successfully', 'success');
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to reassign agent');
+      addToast(err?.response?.data?.message || 'Failed to reassign agent', 'error');
     } finally {
       setAssigningId('');
     }
@@ -194,7 +198,7 @@ export function AdminBookingDetail() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500" />
+        <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-200 border-t-emerald-600" />
       </div>
     );
   }
@@ -212,29 +216,66 @@ export function AdminBookingDetail() {
     );
   }
 
-  const statusOptions = [
-    { value: 'confirmed', label: 'Confirmed' },
-    { value: 'open_for_agents', label: 'Open for Agents' },
-    { value: 'assigned', label: 'Assigned' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' },
-  ];
+  // State machine — only legal next statuses per current status
+  // open_for_agents is a retired status; no transitions lead to it anymore
+  const ALLOWED_TRANSITIONS = {
+    pending:         ['confirmed', 'rejected', 'cancelled'],
+    confirmed:       ['cancelled'],
+    open_for_agents: ['confirmed', 'cancelled'],
+    assigned:        ['cancelled'],
+    accepted:        ['in_progress', 'cancelled'],
+    in_progress:     ['completed', 'cancelled'],
+    completed:       ['closed'],
+    closed:          [],
+    cancelled:       ['confirmed'],
+    rejected:        ['confirmed'],
+  };
+
+  const ALL_STATUS_LABELS = {
+    pending: 'Pending', confirmed: 'Confirmed', open_for_agents: 'Open for Agents',
+    assigned: 'Assigned', accepted: 'Accepted', in_progress: 'In Progress',
+    completed: 'Completed', closed: 'Closed', cancelled: 'Cancelled', rejected: 'Rejected',
+  };
+
+  const allowedNextStatuses = (ALLOWED_TRANSITIONS[booking.status] || []).map((s) => ({
+    value: s,
+    label: ALL_STATUS_LABELS[s] || s,
+  }));
 
   return (
     <div className="p-8 bg-gradient-to-b from-gray-50 to-white min-h-screen">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-sm text-gray-500 mb-5">
+        <button onClick={() => navigate('/admin')} className="hover:text-gray-800 transition-colors">Dashboard</button>
+        <ChevronRight className="w-3.5 h-3.5" />
+        <button onClick={() => navigate('/admin/bookings')} className="hover:text-gray-800 transition-colors">Bookings</button>
+        <ChevronRight className="w-3.5 h-3.5" />
+        <span className="text-gray-800 font-medium">#{booking.id.slice(0, 8).toUpperCase()}</span>
+      </nav>
+
       <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button onClick={() => navigate(-1)} variant="ghost" className="p-2">
-            <ArrowLeft className="w-5 h-5" />
+        <div className="flex items-center gap-3">
+          <Button onClick={() => navigate('/admin/bookings')} variant="outline" size="sm" className="flex items-center gap-1.5">
+            <ArrowLeft className="w-4 h-4" /> Back to Bookings
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Booking Details</h1>
             <p className="text-gray-600">Order ID: {booking.id.slice(0, 8).toUpperCase()}</p>
           </div>
         </div>
-        <Badge variant={booking.status === 'completed' ? 'success' : booking.status === 'assigned' ? 'info' : 'warning'}>
-          {booking.status.replace(/_/g, ' ').toUpperCase()}
+        <Badge variant={
+          booking.status === 'pending'         ? 'warning' :
+          booking.status === 'confirmed'       ? 'info' :
+          booking.status === 'open_for_agents' ? 'purple' :
+          booking.status === 'assigned'        ? 'info' :
+          booking.status === 'accepted'        ? 'accent' :
+          booking.status === 'in_progress'     ? 'primary' :
+          booking.status === 'completed'       ? 'success' :
+          booking.status === 'closed'          ? 'neutral' :
+          booking.status === 'cancelled'       ? 'error' :
+          booking.status === 'rejected'        ? 'error' : 'neutral'
+        }>
+          {humanizeStatus(booking.status)}
         </Badge>
       </div>
 
@@ -335,18 +376,22 @@ export function AdminBookingDetail() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-semibold text-gray-700 block mb-2">New Status</label>
-                  <select
-                    value={newStatus}
-                    onChange={(e) => setNewStatus(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                  >
-                    <option value="">Select new status...</option>
-                    {statusOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  {allowedNextStatuses.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic py-2">No further status changes allowed for a <strong>{booking.status}</strong> booking.</p>
+                  ) : (
+                    <select
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    >
+                      <option value="">Select new status...</option>
+                      {allowedNextStatuses.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 {newStatus && (
@@ -361,13 +406,38 @@ export function AdminBookingDetail() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                       />
                     </div>
-                    <Button
-                      onClick={handleStatusUpdate}
-                      disabled={statusUpdating}
-                      className="w-full bg-teal-600 text-white hover:bg-teal-700"
-                    >
-                      {statusUpdating ? 'Updating...' : 'Update Status'}
-                    </Button>
+
+                    {(newStatus === 'cancelled' || newStatus === 'rejected') ? (
+                      <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-3">
+                        <p className="text-sm text-red-800 font-medium">
+                          This will <strong>{newStatus}</strong> the booking. This action may trigger financial reversals. Confirm?
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <Button
+                            onClick={handleStatusUpdate}
+                            disabled={statusUpdating}
+                            className="flex-1 bg-red-600 text-white hover:bg-red-700"
+                          >
+                            {statusUpdating ? 'Updating...' : 'Confirm & Update'}
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={() => setNewStatus('')}
+                            className="text-sm text-red-700 underline hover:no-underline"
+                          >
+                            Go back
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={handleStatusUpdate}
+                        disabled={statusUpdating}
+                        className="w-full bg-teal-600 text-white hover:bg-teal-700"
+                      >
+                        {statusUpdating ? 'Updating...' : 'Update Status'}
+                      </Button>
+                    )}
                   </>
                 )}
               </div>

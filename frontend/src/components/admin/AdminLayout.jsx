@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -16,10 +16,13 @@ import {
   Bell,
   Moon,
   Sun,
+  X,
+  CheckCheck,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../theme/ThemeProvider';
 import { cn } from './ui/utils';
+import { adminAPI } from '../../services/api';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
@@ -39,7 +42,72 @@ export function AdminLayout({ children }) {
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const [notifications] = useState(3);
+
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef(null);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await adminAPI.getUnreadNotificationCount();
+      setUnreadCount(res.data?.data?.count ?? 0);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await adminAPI.getNotifications();
+      setNotifications(res.data?.data?.items || []);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 60000);
+    return () => clearInterval(interval);
+  }, [fetchUnreadCount]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleBellClick = async () => {
+    if (!notifOpen) {
+      await fetchNotifications();
+    }
+    setNotifOpen((prev) => !prev);
+  };
+
+  const handleMarkRead = async (id) => {
+    try {
+      await adminAPI.markNotificationRead(id);
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch {
+      // silent
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await adminAPI.markAllNotificationsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch {
+      // silent
+    }
+  };
 
   const initials = useMemo(() => {
     const name = user?.name || 'Admin';
@@ -136,14 +204,68 @@ export function AdminLayout({ children }) {
                   )}
                 </button>
 
-                <button className="relative p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                  <Bell className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-                  {notifications > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
-                      {notifications}
-                    </span>
+                <div className="relative" ref={notifRef}>
+                  <button
+                    onClick={handleBellClick}
+                    className="relative p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <Bell className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {notifOpen && (
+                    <div className="absolute right-0 mt-2 w-80 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl z-50">
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Notifications</h3>
+                        <div className="flex items-center gap-2">
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={handleMarkAllRead}
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                            >
+                              <CheckCheck className="w-3.5 h-3.5" />
+                              Mark all read
+                            </button>
+                          )}
+                          <button onClick={() => setNotifOpen(false)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                            <X className="w-3.5 h-3.5 text-gray-500" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-72 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                        {notifications.length === 0 ? (
+                          <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">No notifications</p>
+                        ) : (
+                          notifications.map((n) => (
+                            <div
+                              key={n.id}
+                              className={`px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${!n.isRead ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
+                              onClick={() => {
+                                if (!n.isRead) handleMarkRead(n.id);
+                                if (n.actionUrl) { navigate(n.actionUrl); setNotifOpen(false); }
+                              }}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium truncate ${!n.isRead ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>{n.title}</p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">{n.message}</p>
+                                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                    {new Date(n.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                </div>
+                                {!n.isRead && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1.5" />}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   )}
-                </button>
+                </div>
 
                 <button
                   onClick={handleLogout}

@@ -40,7 +40,7 @@ export function Dashboard() {
       return d >= new Date() && booking.status !== 'cancelled';
     }).length;
     const completed = bookings.filter((booking) => ['completed', 'closed'].includes(String(booking.status))).length;
-    const spend = bookings.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
+    const spend = bookings.reduce((sum, booking) => booking.status === 'cancelled' ? sum : sum + Number(booking.totalAmount || 0), 0);
 
     return [
       { label: 'Total Bookings', value: String(total), icon: Plane, tone: 'text-blue-600 dark:text-blue-400' },

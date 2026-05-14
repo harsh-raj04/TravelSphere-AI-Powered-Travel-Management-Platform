@@ -268,6 +268,15 @@ async function updateBookingStatus(req, res) {
 
     if (nextStatus === BOOKING_STATUS.CANCELLED) {
       updateData.rejectedAt = now;
+      updateData.agentPayout = 0;
+      updateData.adminMargin = 0;
+    }
+
+    // Re-activating a cancelled booking — restore financials and flip transaction back to success
+    if (booking.status === BOOKING_STATUS.CANCELLED && nextStatus !== BOOKING_STATUS.CANCELLED) {
+      updateData.adminMargin = Number((financials.commission + financials.gst).toFixed(2));
+      updateData.agentPayout = booking.assignedAgentId ? financials.payout : 0;
+      updateData.rejectedAt = null;
     }
 
     const updated = await prisma.booking.update({
@@ -288,6 +297,20 @@ async function updateBookingStatus(req, res) {
         },
       },
     });
+
+    if (nextStatus === BOOKING_STATUS.CANCELLED) {
+      await prisma.transaction.updateMany({
+        where: { bookingId: booking.id, status: "success" },
+        data: { status: "refunded" },
+      }).catch(() => {});
+    }
+
+    if (booking.status === BOOKING_STATUS.CANCELLED && nextStatus !== BOOKING_STATUS.CANCELLED) {
+      await prisma.transaction.updateMany({
+        where: { bookingId: booking.id, status: "refunded" },
+        data: { status: "success" },
+      }).catch(() => {});
+    }
 
     // Notify the assigned agent about status change
     if (updated.assignedAgentId) {
@@ -334,7 +357,8 @@ async function listAllBookings(req, res) {
   const where = {};
 
   if (bookingStatus) {
-    where.status = bookingStatus;
+    const statuses = bookingStatus.split(',').map((s) => s.trim()).filter(Boolean);
+    where.status = statuses.length === 1 ? statuses[0] : { in: statuses };
   }
 
   if (transactionStatus) {
@@ -794,6 +818,23 @@ async function selectBookingApplication(req, res) {
       });
     });
 
+    if (result.assignedAgent?.user?.id) {
+      try {
+        const { notify } = require("../services/notificationService");
+        await notify(result.assignedAgent.user.id, {
+          type: "agent_assigned",
+          title: "New Booking Assignment",
+          message: `You have been assigned to booking #${booking.id.slice(-8).toUpperCase()}. Please review and accept.`,
+          entityId: booking.id,
+          entityType: "booking",
+          actionUrl: "/agent/bookings",
+          priority: "high",
+        });
+      } catch (notifyErr) {
+        console.error("[selectBookingApplication] notify failed:", notifyErr.message);
+      }
+    }
+
     return ok(res, "Agent application selected and booking assigned", result);
   } catch (_error) {
     console.error("selectBookingApplication failed:", _error?.message || _error);
@@ -842,9 +883,10 @@ async function analyticsOverview(_req, res) {
     ]);
 
     const totalBookings = bookings.length;
-    const totalRevenue = bookings.reduce((sum, booking) => sum + Number(booking.totalAmount), 0);
-    const totalAgentPayout = bookings.reduce((sum, booking) => sum + Number(booking.agentPayout || 0), 0);
-    const totalAdminMargin = bookings.reduce((sum, booking) => sum + Number(booking.adminMargin || 0), 0);
+    const activeBookings = bookings.filter((b) => b.status !== BOOKING_STATUS.CANCELLED);
+    const totalRevenue = activeBookings.reduce((sum, booking) => sum + Number(booking.totalAmount), 0);
+    const totalAgentPayout = activeBookings.reduce((sum, booking) => sum + Number(booking.agentPayout || 0), 0);
+    const totalAdminMargin = activeBookings.reduce((sum, booking) => sum + Number(booking.adminMargin || 0), 0);
 
     const agentMap = new Map();
     const packageMap = new Map();
@@ -879,20 +921,24 @@ async function analyticsOverview(_req, res) {
       const bookingStatus = String(booking.status || "").toLowerCase();
       const paymentStatus = String(booking.transaction?.status || "").toLowerCase();
 
-      if (agentId && !agentMap.has(agentId)) {
-        agentMap.set(agentId, { agent_id: agentId, agent_name: agentName, total_bookings: 0 });
-      }
-      if (agentId) {
-        agentMap.get(agentId).total_bookings += 1;
-      }
+      if (bookingStatus !== "cancelled") {
+        if (agentId && !agentMap.has(agentId)) {
+          agentMap.set(agentId, { agent_id: agentId, agent_name: agentName, total_bookings: 0 });
+        }
+        if (agentId) {
+          agentMap.get(agentId).total_bookings += 1;
+        }
 
-      if (!packageMap.has(packageId)) {
-        packageMap.set(packageId, { package_id: packageId, package_title: packageTitle, total_bookings: 0 });
+        if (!packageMap.has(packageId)) {
+          packageMap.set(packageId, { package_id: packageId, package_title: packageTitle, total_bookings: 0 });
+        }
+        packageMap.get(packageId).total_bookings += 1;
       }
-      packageMap.get(packageId).total_bookings += 1;
 
       bookingTrendMap.set(dateKey, (bookingTrendMap.get(dateKey) || 0) + 1);
-      revenueTrendMap.set(dateKey, (revenueTrendMap.get(dateKey) || 0) + Number(booking.totalAmount || 0));
+      if (bookingStatus !== "cancelled") {
+        revenueTrendMap.set(dateKey, (revenueTrendMap.get(dateKey) || 0) + Number(booking.totalAmount || 0));
+      }
 
       if (Object.prototype.hasOwnProperty.call(bookingStatusBreakdown, bookingStatus)) {
         bookingStatusBreakdown[bookingStatus] += 1;
@@ -1101,6 +1147,7 @@ async function listAllCustomers(_req, res) {
       }),
       prisma.booking.groupBy({
         by: ["customerId"],
+        where: { status: { not: BOOKING_STATUS.CANCELLED } },
         _count: {
           id: true,
         },
@@ -1698,7 +1745,7 @@ async function getUserById(req, res) {
         },
       }),
       prisma.booking.aggregate({
-        where: { customerId: user.id },
+        where: { customerId: user.id, status: { not: BOOKING_STATUS.CANCELLED } },
         _count: true,
         _sum: { totalAmount: true },
       }),
@@ -1740,7 +1787,7 @@ async function getAgentById(req, res) {
         },
       }),
       prisma.booking.aggregate({
-        where: { assignedAgentId: agent.id },
+        where: { assignedAgentId: agent.id, status: { not: BOOKING_STATUS.CANCELLED } },
         _sum: { totalAmount: true, agentPayout: true },
       }),
     ]);
@@ -1783,6 +1830,121 @@ async function getAgentById(req, res) {
   }
 }
 
+// ─── Admin Notification Controllers ───────────────────────────────────────────
+
+async function listAdminNotifications(req, res) {
+  try {
+    const items = await prisma.notification.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    return ok(res, "Admin notifications fetched", { items });
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch notifications", errors: [] });
+  }
+}
+
+async function getAdminUnreadNotificationCount(req, res) {
+  try {
+    const count = await prisma.notification.count({
+      where: { userId: req.user.id, isRead: false },
+    });
+    return ok(res, "Unread count fetched", { count });
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to fetch unread count", errors: [] });
+  }
+}
+
+async function markAdminNotificationRead(req, res) {
+  try {
+    await prisma.notification.update({
+      where: { id: req.params.id },
+      data: { isRead: true },
+    });
+    return ok(res, "Notification marked as read", {});
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to mark notification", errors: [] });
+  }
+}
+
+async function markAllAdminNotificationsRead(req, res) {
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: req.user.id, isRead: false },
+      data: { isRead: true },
+    });
+    return ok(res, "All notifications marked as read", {});
+  } catch (_error) {
+    return res.status(500).json({ success: false, message: "Failed to mark all notifications", errors: [] });
+  }
+}
+
+// ─── Admin Create Booking ──────────────────────────────────────────────────────
+
+const createBookingForCustomerSchema = z.object({
+  customer_email: z.string().email(),
+  package_id: z.string().min(1),
+  travel_date: z.string().min(1),
+  travelers_count: z.number().int().positive(),
+  customer_name: z.string().min(2).optional(),
+  contact_phone: z.string().min(8).optional(),
+  travel_message: z.string().min(2).max(500).optional(),
+});
+
+async function createBookingForCustomer(req, res) {
+  const parsed = createBookingForCustomerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: "Validation failed", errors: parsed.error.issues });
+  }
+
+  const { customer_email, package_id, travel_date, travelers_count, customer_name, contact_phone, travel_message } = parsed.data;
+
+  const travelDate = new Date(travel_date);
+  if (Number.isNaN(travelDate.getTime())) {
+    return res.status(400).json({ success: false, message: "Invalid travel date", errors: [] });
+  }
+
+  try {
+    const [customer, pkg] = await Promise.all([
+      prisma.user.findUnique({ where: { email: customer_email } }),
+      prisma.travelPackage.findFirst({ where: { id: package_id, isActive: true } }),
+    ]);
+
+    if (!customer || customer.role !== "customer") {
+      return res.status(400).json({ success: false, message: "Customer not found or not a customer account", errors: [] });
+    }
+
+    if (!pkg) {
+      return res.status(404).json({ success: false, message: "Package not found or inactive", errors: [] });
+    }
+
+    const totalAmount = Number(pkg.price) * travelers_count;
+
+    const booking = await prisma.booking.create({
+      data: {
+        customerId: customer.id,
+        packageId: pkg.id,
+        customerName: customer_name || customer.name,
+        contactEmail: customer.email,
+        contactPhone: contact_phone,
+        travelMessage: travel_message,
+        travelDate,
+        travelersCount: travelers_count,
+        totalAmount,
+        status: BOOKING_STATUS.CONFIRMED,
+        confirmedAt: new Date(),
+      },
+      include: { package: true, customer: { select: { id: true, name: true, email: true } } },
+    });
+
+    return ok(res, "Booking created successfully", booking, 201);
+  } catch (_error) {
+    console.error("createBookingForCustomer error", _error);
+    return res.status(500).json({ success: false, message: "Failed to create booking", errors: [] });
+  }
+}
+
 module.exports = {
   listAllBookings,
   analyticsOverview,
@@ -1807,4 +1969,9 @@ module.exports = {
   listPackageReviews,
   getUserById,
   getAgentById,
+  listAdminNotifications,
+  getAdminUnreadNotificationCount,
+  markAdminNotificationRead,
+  markAllAdminNotificationsRead,
+  createBookingForCustomer,
 };

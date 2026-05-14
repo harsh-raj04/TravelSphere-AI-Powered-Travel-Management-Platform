@@ -12,7 +12,6 @@ export function StatusBadge({ status, variant = 'default' }) {
       case 'pending':
       case 'in-progress':
       case 'open':
-      case 'initiated':
         return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
       case 'cancelled':
       case 'failed':

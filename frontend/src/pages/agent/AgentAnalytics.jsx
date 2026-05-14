@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { TrendingUp, DollarSign, Users, Package } from 'lucide-react';
+import { TrendingUp, Users, Package } from 'lucide-react';
+
+function RupeeIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h12M6 8h12M6 13l8 8M6 13h3a4 4 0 0 0 0-8" />
+    </svg>
+  );
+}
 import { packagesAPI, agentAPI } from '../../services/api';
 import {
   LineChart,
@@ -45,9 +53,11 @@ export function AgentAnalytics() {
   }, []);
 
   const metrics = useMemo(() => {
-    const totalRevenue = bookings.reduce((sum, booking) => sum + Number(booking.totalAmount || 0), 0);
+    // Agent earns 70% of sale (platform takes 25% commission + 5% GST); cancelled excluded
+    const activeBookings = bookings.filter((b) => b.status !== 'cancelled');
+    const totalRevenue = activeBookings.reduce((sum, booking) => sum + Number(booking.totalAmount || 0) * 0.70, 0);
     const totalBookings = bookings.length;
-    const confirmed = bookings.filter((booking) => booking.status === 'confirmed').length;
+    const confirmed = activeBookings.filter((booking) => booking.status === 'confirmed').length;
     const conversion = totalBookings ? Math.round((confirmed / totalBookings) * 100) : 0;
 
     return {
@@ -61,9 +71,10 @@ export function AgentAnalytics() {
   const monthlySeries = useMemo(() => {
     const map = new Map();
     bookings.forEach((booking) => {
+      if (booking.status === 'cancelled') return;
       const month = new Date(booking.travelDate || Date.now()).toLocaleDateString('en-US', { month: 'short' });
       const existing = map.get(month) || { month, revenue: 0, bookings: 0 };
-      existing.revenue += Number(booking.totalAmount || 0);
+      existing.revenue += Number(booking.totalAmount || 0) * 0.70;
       existing.bookings += 1;
       map.set(month, existing);
     });
@@ -118,15 +129,15 @@ export function AgentAnalytics() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
           <div className="flex items-center justify-between mb-4">
-            <DollarSign className="w-8 h-8" />
+            <RupeeIcon className="w-8 h-8" />
             <div className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded text-sm">
               <TrendingUp className="w-4 h-4" />
               {metrics.conversion}%
             </div>
           </div>
-          <h3 className="text-lg opacity-90 mb-1">Total Revenue</h3>
+          <h3 className="text-lg opacity-90 mb-1">My Earnings</h3>
           <p className="text-3xl font-bold">{formatINR(metrics.totalRevenue)}</p>
-          <p className="text-sm opacity-80 mt-2">Agent portfolio earnings</p>
+          <p className="text-sm opacity-80 mt-2">After platform fee & GST</p>
         </div>
 
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
@@ -211,6 +222,65 @@ export function AgentAnalytics() {
             <Bar dataKey="bookings" fill="#3b82f6" radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Earnings Breakdown */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-gray-200 dark:border-slate-800">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Earnings Breakdown</h2>
+        <p className="text-sm text-gray-600 dark:text-slate-400 mb-6">Per-booking ledger (70% of booking amount, cancelled excluded)</p>
+        {(() => {
+          const activeBookings = bookings
+            .filter((b) => b.status !== 'cancelled')
+            .sort((a, b) => new Date(b.createdAt || b.travelDate) - new Date(a.createdAt || a.travelDate));
+          const totalEarnings = activeBookings.reduce((sum, b) => sum + Number(b.totalAmount || 0) * 0.70, 0);
+
+          if (activeBookings.length === 0) {
+            return <p className="text-sm text-gray-500">No bookings yet.</p>;
+          }
+
+          return (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px]">
+                <thead className="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-300 uppercase">Package</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-300 uppercase">Travel Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-300 uppercase">Travelers</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-300 uppercase">Total Amount</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-slate-300 uppercase">Your Earnings (70%)</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-slate-300 uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                  {activeBookings.map((b) => (
+                    <tr key={b.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{b.package?.title || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-300">
+                        {b.travelDate ? new Date(b.travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-300">{b.travelersCount || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white font-medium">{formatINR(b.totalAmount)}</td>
+                      <td className="px-4 py-3 text-sm text-right font-semibold text-emerald-600 dark:text-emerald-400">{formatINR(Number(b.totalAmount || 0) * 0.70)}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="capitalize px-2 py-1 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">{b.status?.replace(/_/g, ' ') || '—'}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="border-t-2 border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800">
+                  <tr>
+                    <td colSpan={3} className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-white">Total</td>
+                    <td className="px-4 py-3 text-sm text-right font-bold text-gray-900 dark:text-white">
+                      {formatINR(activeBookings.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0))}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right font-bold text-emerald-600 dark:text-emerald-400">{formatINR(totalEarnings)}</td>
+                    <td className="px-4 py-3" />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

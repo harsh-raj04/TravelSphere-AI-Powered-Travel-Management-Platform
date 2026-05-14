@@ -2,6 +2,7 @@ const { z } = require("zod");
 const { BOOKING_STATUS } = require("../constants/statuses");
 const { prisma } = require("../lib/prisma");
 const { ok, fail } = require("../utils/apiResponse");
+const { notify } = require("../services/notificationService");
 
 const createBookingSchema = z.object({
   package_id: z.string().min(1),
@@ -88,24 +89,70 @@ async function createBooking(req, res) {
 
     const totalAmount = Number(pkg.price) * parsed.data.travelers_count;
 
-    const created = await prisma.booking.create({
-      data: {
-        customerId: req.user.id,
-        packageId: pkg.id,
-        customerName: parsed.data.customer_name || customer.name,
-        contactEmail: parsed.data.contact_email || customer.email,
-        contactPhone: parsed.data.contact_phone,
-        travelMessage: parsed.data.travel_message,
-        travelDate,
-        travelersCount: parsed.data.travelers_count,
-        totalAmount,
-        status: BOOKING_STATUS.CONFIRMED,
-        confirmedAt: new Date(),
-      },
-      include: {
-        package: true,
-      },
+    // Check departure seat availability if a matching departure exists
+    const departure = await prisma.packageDeparture.findFirst({
+      where: { packageId: pkg.id, departureDate: travelDate },
     });
+
+    if (departure) {
+      const seatsLeft = departure.availableSeats - (departure.bookedSeats || 0);
+      if (seatsLeft < parsed.data.travelers_count) {
+        return fail(
+          res,
+          `Not enough seats available. Only ${seatsLeft} seat${seatsLeft === 1 ? '' : 's'} left for this departure.`,
+          [],
+          400
+        );
+      }
+    }
+
+    const created = await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.create({
+        data: {
+          customerId: req.user.id,
+          packageId: pkg.id,
+          customerName: parsed.data.customer_name || customer.name,
+          contactEmail: parsed.data.contact_email || customer.email,
+          contactPhone: parsed.data.contact_phone,
+          travelMessage: parsed.data.travel_message,
+          travelDate,
+          travelersCount: parsed.data.travelers_count,
+          totalAmount,
+          status: BOOKING_STATUS.CONFIRMED,
+          confirmedAt: new Date(),
+        },
+        include: { package: true },
+      });
+
+      if (departure) {
+        await tx.packageDeparture.update({
+          where: { id: departure.id },
+          data: { bookedSeats: { increment: parsed.data.travelers_count } },
+        });
+      }
+
+      return booking;
+    });
+
+    // Notify all admins of the new booking
+    try {
+      const admins = await prisma.user.findMany({ where: { role: "admin" }, select: { id: true } });
+      await Promise.all(
+        admins.map((admin) =>
+          notify(admin.id, {
+            type: "new_booking",
+            title: "New Booking",
+            message: `New booking for ${pkg.title} by ${created.customerName}`,
+            entityId: created.id,
+            entityType: "booking",
+            actionUrl: `/admin/bookings/${created.id}`,
+            priority: "normal",
+          })
+        )
+      );
+    } catch (notifyErr) {
+      console.error("[createBooking] admin notify failed:", notifyErr.message);
+    }
 
     return ok(res, "Booking request created successfully", created, 201);
   } catch (_error) {

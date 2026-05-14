@@ -53,6 +53,7 @@ export const packagesAPI = {
   list: (params) => apiClient.get('/packages', { params }),
   getById: (id) => apiClient.get(`/packages/${id}`),
   getDetails: (id) => apiClient.get(`/packages/${id}/details`),
+  getTerms: () => apiClient.get('/packages/terms'),
   create: (data) => apiClient.post('/packages', data),
   update: (id, data) => apiClient.put(`/packages/${id}`, data),
   remove: (id) => apiClient.delete(`/packages/${id}`),
@@ -76,7 +77,7 @@ export const paymentAPI = {
 };
 
 export const agentAPI = {
-  bookings: () => apiClient.get('/bookings/agent'),
+  bookings: (params) => apiClient.get('/bookings/agent', { params }),
   marketplace: () => apiClient.get('/bookings/marketplace'),
   marketplaceDetails: (id) => apiClient.get(`/bookings/marketplace/${id}`),
   applyForTrip: (id, payload) => apiClient.post(`/bookings/${id}/apply`, payload),
@@ -152,6 +153,13 @@ export const adminAPI = {
   adminGetTicket: (id) => apiClient.get(`/admin/tickets/${id}`),
   adminReplyTicket: (id, data) => apiClient.post(`/admin/tickets/${id}/messages`, data),
   adminUpdateTicket: (id, data) => apiClient.patch(`/admin/tickets/${id}`, data),
+  // Admin notifications
+  getNotifications: () => apiClient.get('/admin/notifications'),
+  getUnreadNotificationCount: () => apiClient.get('/admin/notifications/unread-count'),
+  markNotificationRead: (id) => apiClient.patch(`/admin/notifications/${id}/read`),
+  markAllNotificationsRead: () => apiClient.patch('/admin/notifications/mark-all-read'),
+  // Admin create booking
+  createBookingForCustomer: (data) => apiClient.post('/admin/bookings', data),
 };
 
 export default apiClient;

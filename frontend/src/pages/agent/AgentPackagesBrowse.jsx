@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/Badge';
 import { packagesAPI, agentAPI } from '../../services/api';
 import { getImageUrl } from '../../services/packageService';
 import { MapPin, Calendar, Users, IndianRupee, Search, Filter, Eye, Image } from 'lucide-react';
+import { PageSpinner } from '../../components/ui/LoadingSpinner';
 
 const formatINR = (value) =>
   `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -199,9 +200,7 @@ export function AgentPackagesBrowse() {
 
       {/* Packages Grid */}
       {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500" />
-        </div>
+        <PageSpinner />
       ) : filteredPackages.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-600 text-lg">No packages found</p>

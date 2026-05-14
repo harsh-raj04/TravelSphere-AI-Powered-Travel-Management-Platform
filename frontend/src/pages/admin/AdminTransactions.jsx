@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { IndianRupee, AlertCircle, CheckCircle2, Download, XCircle } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 import { StatusBadge } from '../../components/admin/StatusBadge';
+import { PageSpinner } from '../../components/ui/LoadingSpinner';
 
 export function AdminTransactions() {
   const [payments, setPayments] = useState([]);
@@ -39,12 +40,36 @@ export function AdminTransactions() {
     () => payments.reduce((sum, p) => sum + (String(p.status).toLowerCase() === 'success' ? Number(p.amount || 0) : 0), 0),
     [payments]
   );
-  const pendingAmount = useMemo(
-    () => payments.reduce((sum, p) => sum + (String(p.status).toLowerCase() === 'initiated' ? Number(p.amount || 0) : 0), 0),
+  const refundedAmount = useMemo(
+    () => payments.reduce((sum, p) => sum + (String(p.status).toLowerCase() === 'refunded' ? Number(p.amount || 0) : 0), 0),
     [payments]
   );
   const failedCount = payments.filter((p) => String(p.status).toLowerCase() === 'failed').length;
   const completedCount = payments.filter((p) => String(p.status).toLowerCase() === 'success').length;
+
+  const handleDownloadCSV = () => {
+    const headers = ['Transaction ID', 'Booking ID', 'Customer', 'Amount', 'Status', 'Method', 'Date'];
+    const rows = filteredPayments.map((p) => [
+      p.id,
+      p.bookingId || '',
+      p.booking?.customer?.name || p.booking?.customer?.email || '',
+      Number(p.amount || 0).toFixed(2),
+      p.status || '',
+      p.paymentMethod || 'razorpay',
+      p.createdAt ? new Date(p.createdAt).toLocaleString('en-IN') : '',
+    ]);
+    const escape = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [headers.map(escape).join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -53,6 +78,13 @@ export function AdminTransactions() {
           <h1 className="text-3xl font-semibold text-gray-900 dark:text-white mb-2">Payments & Transactions</h1>
           <p className="text-gray-600 dark:text-gray-400">Monitor all payment transactions</p>
         </div>
+        <button
+          onClick={handleDownloadCSV}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          Download CSV
+        </button>
       </div>
 
       {error && (
@@ -63,7 +95,7 @@ export function AdminTransactions() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700"><div className="flex items-center gap-3"><div className="p-3 bg-emerald-500/10 rounded-lg"><IndianRupee className="w-6 h-6 text-emerald-500" /></div><div><p className="text-sm text-gray-600 dark:text-gray-400">Total Received</p><p className="text-2xl font-semibold text-gray-900 dark:text-white">₹{totalAmount.toLocaleString('en-IN')}</p></div></div></div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700"><div className="flex items-center gap-3"><div className="p-3 bg-amber-500/10 rounded-lg"><AlertCircle className="w-6 h-6 text-amber-500" /></div><div><p className="text-sm text-gray-600 dark:text-gray-400">Pending</p><p className="text-2xl font-semibold text-gray-900 dark:text-white">₹{pendingAmount.toLocaleString('en-IN')}</p></div></div></div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700"><div className="flex items-center gap-3"><div className="p-3 bg-blue-500/10 rounded-lg"><AlertCircle className="w-6 h-6 text-blue-500" /></div><div><p className="text-sm text-gray-600 dark:text-gray-400">Refunded</p><p className="text-2xl font-semibold text-gray-900 dark:text-white">₹{refundedAmount.toLocaleString('en-IN')}</p></div></div></div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700"><div className="flex items-center gap-3"><div className="p-3 bg-red-500/10 rounded-lg"><XCircle className="w-6 h-6 text-red-500" /></div><div><p className="text-sm text-gray-600 dark:text-gray-400">Failed Transactions</p><p className="text-2xl font-semibold text-gray-900 dark:text-white">{failedCount}</p></div></div></div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700"><div className="flex items-center gap-3"><div className="p-3 bg-blue-500/10 rounded-lg"><CheckCircle2 className="w-6 h-6 text-blue-500" /></div><div><p className="text-sm text-gray-600 dark:text-gray-400">Completed</p><p className="text-2xl font-semibold text-gray-900 dark:text-white">{completedCount}</p></div></div></div>
       </div>
@@ -72,7 +104,7 @@ export function AdminTransactions() {
         <div className="flex items-center gap-4">
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by status:</label>
           <div className="flex gap-2">
-            {['all', 'success', 'initiated', 'failed', 'refunded'].map((status) => (
+            {['all', 'success', 'failed', 'refunded'].map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
@@ -90,15 +122,12 @@ export function AdminTransactions() {
       </div>
 
       {loading ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto" />
-          <p className="text-gray-500 mt-4">Loading transactions...</p>
-        </div>
+        <PageSpinner />
       ) : (
       <>
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[860px]">
             <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Transaction ID</th>

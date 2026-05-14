@@ -5,6 +5,7 @@ import { StatCard } from '../../components/ui/StatCard';
 import { Button } from '../../components/ui/Button';
 import { agentAPI } from '../../services/api';
 import { ArrowLeft, Calendar, Users, DollarSign } from 'lucide-react';
+import { PageSpinner } from '../../components/ui/LoadingSpinner';
 
 const formatINR = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
@@ -35,11 +36,7 @@ export function AgentBookingDetail() {
     })();
   }, [id]);
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500" />
-    </div>
-  );
+  if (loading) return <PageSpinner />;
 
   if (!booking) return (
     <div className="p-8">

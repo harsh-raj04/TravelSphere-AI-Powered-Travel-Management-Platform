@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/Badge';
 import { packagesAPI, agentAPI } from '../../services/api';
 import { getImageUrl } from '../../services/packageService';
 import { useToast } from '../../components/ui/Toast';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   ArrowLeft,
   MapPin,
@@ -322,7 +323,9 @@ function TermsTab({ packageData }) {
 export function AgentPackageDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const toast = useToast();
+  const agentStatus = user?.agentProfile?.status || 'pending';
   const [packageData, setPackageData] = useState(null);
   const [payoutInfo, setPayoutInfo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -422,7 +425,7 @@ export function AgentPackageDetail() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-teal-500" />
+        <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-200 border-t-emerald-600" />
       </div>
     );
   }
@@ -554,7 +557,14 @@ export function AgentPackageDetail() {
           )}
 
           {/* Opt-in Section */}
-          {!hasApplied ? (
+          {agentStatus !== 'active' ? (
+            <ColorfulCard variant="light">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Account Pending Approval</h3>
+              <p className="text-sm text-gray-600">
+                Your agent account is under review. You can opt in to packages once an admin approves your account.
+              </p>
+            </ColorfulCard>
+          ) : !hasApplied ? (
             <ColorfulCard variant="green">
               <h3 className="text-lg font-bold text-gray-900 mb-2">Interested?</h3>
               <p className="text-sm text-gray-600 mb-4">

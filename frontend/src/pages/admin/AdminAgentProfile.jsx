@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, Phone, Star, IndianRupee, CheckCircle2, Clock, AlertTriangle, XCircle } from 'lucide-react';
 import { adminAPI } from '../../services/api';
+import { PageSpinner } from '../../components/ui/LoadingSpinner';
 
 export function AdminAgentProfile() {
   const { id } = useParams();
@@ -20,7 +21,7 @@ export function AdminAgentProfile() {
   }, [id]);
 
   if (loading) {
-    return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-4 border-gray-300 border-t-teal-600 rounded-full animate-spin" /></div>;
+    return <PageSpinner />;
   }
 
   if (!agent) {

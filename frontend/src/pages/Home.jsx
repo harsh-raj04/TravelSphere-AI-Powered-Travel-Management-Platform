@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, MapPin, Phone, Mail, Search, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
@@ -7,6 +7,83 @@ import { Badge } from '../components/ui/Badge';
 import { packageService, getImageUrl } from '../services/packageService';
 
 const BACKEND_ORIGIN = import.meta.env.VITE_BACKEND_ORIGIN || 'http://localhost:4000';
+
+function DestinationsCarousel({ destinations }) {
+  const scrollRef = useRef(null);
+
+  const scroll = (dir) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir === 'left' ? -340 : 340, behavior: 'smooth' });
+  };
+
+  return (
+    <section className="py-20 bg-teal-50/50 dark:bg-dark-bg-secondary">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-end justify-between mb-10">
+          <div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-2 tracking-tight">
+              Top Destinations
+            </h2>
+            <p className="text-gray-600 dark:text-dark-text-secondary">
+              Most loved destinations by our travellers
+            </p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <button
+              onClick={() => scroll('left')}
+              aria-label="Scroll destinations left"
+              className="p-3 rounded-full bg-white dark:bg-dark-bg-secondary border border-teal-200 dark:border-dark-border text-teal-600 hover:bg-teal-50 dark:hover:bg-dark-bg shadow-sm transition-all"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => scroll('right')}
+              aria-label="Scroll destinations right"
+              className="p-3 rounded-full bg-teal-600 text-white hover:bg-teal-700 shadow-md transition-all"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {destinations.length === 0 ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-6 h-6 text-teal-600 animate-spin" />
+          </div>
+        ) : (
+          <div
+            ref={scrollRef}
+            className="flex gap-5 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4"
+            style={{ scrollSnapType: 'x mandatory' }}
+          >
+            {destinations.map((dest) => (
+              <Link
+                key={dest.name}
+                to={`/packages?destination=${dest.name}`}
+                className="group flex-shrink-0 w-[260px] sm:w-[300px]"
+                style={{ scrollSnapAlign: 'start' }}
+              >
+                <div className="relative h-[280px] sm:h-[320px] rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <img
+                    src={dest.image}
+                    alt={dest.name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <h3 className="text-white font-bold text-xl tracking-tight">{dest.name}</h3>
+                    <p className="text-teal-300 text-sm mt-0.5">{dest.count} package{dest.count !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
 export function Home() {
   const [packages, setPackages] = useState([]);
@@ -255,47 +332,8 @@ export function Home() {
         </div>
       </section>
 
-      {/* Top Destinations */}
-      <section className="py-20 bg-teal-50/50 dark:bg-dark-bg-secondary">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-dark-text-primary mb-3 tracking-tight">
-              Top Destinations
-            </h2>
-            <p className="text-gray-600 dark:text-dark-text-secondary">
-              Most loved destinations by our travelers
-            </p>
-          </div>
-
-          {destinations.length === 0 ? (
-            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
-              <Loader2 className="w-6 h-6 text-teal-600 animate-spin mx-auto mb-2" />
-              Loading destinations...
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-              {destinations.map((dest) => (
-                <Link key={dest.name} to={`/packages?destination=${dest.name}`}>
-                  <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300">
-                    <div className="relative h-40 overflow-hidden">
-                      <img
-                        src={dest.image}
-                        alt={dest.name}
-                        className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <h3 className="text-white font-bold text-sm">{dest.name}</h3>
-                        <p className="text-teal-300 text-xs">{dest.count} package{dest.count !== 1 ? 's' : ''}</p>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+      {/* Top Destinations — horizontal scroll carousel */}
+      <DestinationsCarousel destinations={destinations} />
 
       {/* Package Tabs */}
       <section className="py-20 bg-white dark:bg-dark-bg-primary">
@@ -336,9 +374,9 @@ export function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTabPackages.map((pkg) => (
-                <Link key={pkg.id} to={`/packages/${pkg.id}`}>
-                  <Card hover className="h-full overflow-hidden rounded-2xl">
+              {filteredTabPackages.slice(0, 6).map((pkg) => (
+                <Link key={pkg.id} to={`/packages/${pkg.id}`} className="group block h-full">
+                  <div className="h-full bg-white dark:bg-dark-bg-secondary rounded-2xl overflow-hidden border border-teal-100/60 dark:border-dark-border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                     <div className="relative h-48 overflow-hidden">
                       <img
                         src={getImageUrl(pkg.bannerImage)}
@@ -350,7 +388,7 @@ export function Home() {
                       </Badge>
                     </div>
                     <div className="p-5">
-                      <h3 className="font-bold text-gray-900 dark:text-dark-text-primary text-lg mb-2">
+                      <h3 className="font-bold text-gray-900 dark:text-dark-text-primary text-lg mb-2 tracking-tight">
                         {pkg.title}
                       </h3>
                       <div className="flex items-center gap-1 text-gray-500 dark:text-dark-text-secondary text-sm mb-3">
@@ -360,17 +398,17 @@ export function Home() {
                       <p className="text-gray-600 dark:text-dark-text-secondary text-sm mb-4 line-clamp-2">
                         {pkg.description}
                       </p>
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-dark-border">
+                      <div className="flex items-center justify-between pt-3 border-t border-teal-100/60 dark:border-dark-border">
                         <div>
                           <p className="text-xs text-gray-500 dark:text-dark-text-secondary">Starting from</p>
                           <p className="text-xl font-bold text-teal-600">₹{pkg.price?.toLocaleString()}</p>
                         </div>
-                        <span className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm rounded-lg transition-colors">
+                        <span className="px-4 py-2 bg-teal-600 group-hover:bg-teal-700 text-white text-sm rounded-lg transition-colors">
                           Explore
                         </span>
                       </div>
                     </div>
-                  </Card>
+                  </div>
                 </Link>
               ))}
             </div>

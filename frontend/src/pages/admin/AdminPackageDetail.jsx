@@ -7,6 +7,7 @@ import {
 import { adminAPI } from '../../services/api';
 import { TabNavigation } from '../../components/ui/TabNavigation';
 import { getImageUrl } from '../../services/packageService';
+import { PageSpinner, LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
 export function AdminPackageDetail() {
   const { id } = useParams();
@@ -161,11 +162,7 @@ export function AdminPackageDetail() {
   ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-gray-300 border-t-teal-600 rounded-full animate-spin" />
-      </div>
-    );
+    return <PageSpinner />;
   }
 
   if (!pkg) {
@@ -526,7 +523,7 @@ export function AdminPackageDetail() {
       {activeTab === 'history' && (
         <div className="space-y-6">
           {tabLoading ? (
-            <div className="flex items-center justify-center py-12"><div className="w-6 h-6 border-2 border-gray-300 border-t-teal-600 rounded-full animate-spin" /></div>
+            <div className="flex items-center justify-center py-12"><LoadingSpinner size="sm" /></div>
           ) : tabData.history ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -593,7 +590,7 @@ export function AdminPackageDetail() {
       {activeTab === 'agents' && (
         <div>
           {tabLoading ? (
-            <div className="flex items-center justify-center py-12"><div className="w-6 h-6 border-2 border-gray-300 border-t-teal-600 rounded-full animate-spin" /></div>
+            <div className="flex items-center justify-center py-12"><LoadingSpinner size="sm" /></div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {tabData.agents?.map((item) => (
@@ -627,7 +624,7 @@ export function AdminPackageDetail() {
       {activeTab === 'reviews' && (
         <div className="space-y-4">
           {tabLoading ? (
-            <div className="flex items-center justify-center py-12"><div className="w-6 h-6 border-2 border-gray-300 border-t-teal-600 rounded-full animate-spin" /></div>
+            <div className="flex items-center justify-center py-12"><LoadingSpinner size="sm" /></div>
           ) : tabData.reviews ? (
             <>
               {tabData.reviews.averageRating && (

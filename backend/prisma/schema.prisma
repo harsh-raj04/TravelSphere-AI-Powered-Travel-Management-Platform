@@ -445,3 +445,16 @@ model TicketMessage {
   @@index([ticketId])
   @@map("ticket_messages")
 }
+
+model TermsSection {
+  id        String   @id @default(cuid())
+  order     Int
+  title     String
+  content   String   @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
+  @@map("terms_sections")
+}

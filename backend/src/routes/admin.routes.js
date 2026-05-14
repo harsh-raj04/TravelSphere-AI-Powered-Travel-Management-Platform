@@ -23,6 +23,11 @@ const {
   listPackageReviews,
   getUserById,
   getAgentById,
+  listAdminNotifications,
+  getAdminUnreadNotificationCount,
+  markAdminNotificationRead,
+  markAllAdminNotificationsRead,
+  createBookingForCustomer,
 } = require("../controllers/admin.controller");
 const {
   listWithdrawals,
@@ -44,6 +49,14 @@ const { ROLES } = require("../constants/roles");
 const adminRouter = express.Router();
 
 adminRouter.use(authenticate, authorize(ROLES.ADMIN));
+
+// ─── Admin Notifications ───────────────────────────────────────────────────────
+adminRouter.get("/notifications/unread-count", getAdminUnreadNotificationCount);
+adminRouter.get("/notifications", listAdminNotifications);
+adminRouter.patch("/notifications/mark-all-read", markAllAdminNotificationsRead);
+adminRouter.patch("/notifications/:id/read", markAdminNotificationRead);
+
+adminRouter.post("/bookings", createBookingForCustomer);
 adminRouter.get("/bookings", listAllBookings);
 adminRouter.patch("/bookings/:id/confirm", confirmBooking);
 adminRouter.patch("/bookings/:id/status", updateBookingStatus);

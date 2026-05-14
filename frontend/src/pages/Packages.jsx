@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Clock, Filter, Loader2, Grid3X3, List } from 'lucide-react';
+import { Search, MapPin, Clock, Filter, Loader2, Grid3X3, List, Star } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -55,11 +55,11 @@ export function Packages() {
   ];
 
   return (
-    <div className="min-h-screen bg-teal-50/30 dark:bg-dark-bg-primary">
+    <div className="travel-ui min-h-screen bg-teal-50/30 dark:bg-dark-bg-primary">
       {/* Header */}
       <section className="bg-gradient-to-r from-teal-900 via-teal-800 to-emerald-800 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">Explore Packages</h1>
+          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 tracking-tight">Explore Packages</h1>
           <p className="text-teal-100 text-lg">Discover your perfect travel experience</p>
         </div>
       </section>
@@ -161,25 +161,20 @@ export function Packages() {
 
 function PackageCard({ pkg }) {
   return (
-    <Link to={`/packages/${pkg.id}`}>
-      <Card hover className="h-full overflow-hidden rounded-2xl">
+    <Link to={`/packages/${pkg.id}`} className="group block h-full">
+      <div className="h-full bg-white dark:bg-dark-bg-secondary rounded-2xl overflow-hidden border border-teal-100/60 dark:border-dark-border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
         <div className="relative h-52 overflow-hidden">
           <img
             src={getImageUrl(pkg.bannerImage)}
             alt={pkg.title}
-            className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           />
           <Badge variant="accent" className="absolute top-3 left-3">
             {pkg.durationDays} Days
           </Badge>
-          <div className="absolute bottom-3 right-3">
-            <Badge className="bg-white/90 text-teal-700 font-semibold">
-              ₹{pkg.price?.toLocaleString()}
-            </Badge>
-          </div>
         </div>
         <div className="p-5">
-          <h3 className="font-bold text-gray-900 dark:text-dark-text-primary text-lg mb-2">
+          <h3 className="font-bold text-gray-900 dark:text-dark-text-primary text-lg mb-1 tracking-tight">
             {pkg.title}
           </h3>
           <div className="flex items-center gap-1 text-gray-500 dark:text-dark-text-secondary text-sm mb-3">
@@ -189,28 +184,41 @@ function PackageCard({ pkg }) {
           <p className="text-gray-600 dark:text-dark-text-secondary text-sm mb-4 line-clamp-2">
             {pkg.description}
           </p>
-          <Link
-            to={`/packages/${pkg.id}`}
-            className="block w-full text-center py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors"
-          >
-            View Details
-          </Link>
+          <div className="flex items-center justify-between border-t border-teal-100/60 dark:border-dark-border pt-4">
+            <div>
+              <p className="text-xs text-gray-400 dark:text-dark-text-secondary">Starting from</p>
+              <p className="text-xl font-bold text-teal-600">₹{pkg.price?.toLocaleString()}</p>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              {pkg.rating ? (
+                <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  {pkg.rating.toFixed(1)}
+                </span>
+              ) : (
+                <span className="text-xs text-gray-400">New</span>
+              )}
+              <span className="px-4 py-2 bg-teal-600 group-hover:bg-teal-700 text-white rounded-xl font-medium text-sm transition-colors">
+                View Details
+              </span>
+            </div>
+          </div>
         </div>
-      </Card>
+      </div>
     </Link>
   );
 }
 
 function PackageListItem({ pkg }) {
   return (
-    <Link to={`/packages/${pkg.id}`}>
-      <Card hover className="overflow-hidden rounded-2xl">
+    <Link to={`/packages/${pkg.id}`} className="group block">
+      <div className="overflow-hidden rounded-2xl bg-white dark:bg-dark-bg-secondary border border-teal-100/60 dark:border-dark-border shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300">
         <div className="flex flex-col sm:flex-row">
           <div className="sm:w-64 h-48 sm:h-auto relative overflow-hidden flex-shrink-0">
             <img
               src={getImageUrl(pkg.bannerImage)}
               alt={pkg.title}
-              className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             />
           </div>
           <div className="p-5 flex-1 flex flex-col justify-between">
@@ -243,7 +251,7 @@ function PackageListItem({ pkg }) {
             </div>
           </div>
         </div>
-      </Card>
+      </div>
     </Link>
   );
 }

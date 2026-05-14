@@ -5,6 +5,7 @@ const {
   getPackageDetails,
   getDestinationCounts,
   getFeaturedPackages,
+  getTermsSections,
   createPackage,
   updatePackage,
   deletePackage,
@@ -20,6 +21,7 @@ const packagesRouter = express.Router();
 
 packagesRouter.get("/destination-counts", getDestinationCounts);
 packagesRouter.get("/featured", getFeaturedPackages);
+packagesRouter.get("/terms", getTermsSections);
 packagesRouter.get("/", listPackages);
 packagesRouter.get("/interests/my", authenticate, authorize(ROLES.AGENT), myPackageInterests);
 packagesRouter.get("/:id/details", getPackageDetails);

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { IndianRupee, Star, User2, X } from 'lucide-react';
+import { IndianRupee, Star, User2, X, ChevronLeft, ChevronRight, Search, Users } from 'lucide-react';
 import { adminAPI } from '../../services/api';
+import { PageSpinner } from '../../components/ui/LoadingSpinner';
 
-const PAGE_SIZE = 200;
+const PAGE_SIZE = 25;
 
 const formatINR = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 
@@ -127,6 +128,22 @@ export function AdminAgents() {
     };
   }, [enrichedAgents]);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [agentPage, setAgentPage] = useState(1);
+
+  const filteredAgents = useMemo(() => {
+    if (!searchQuery.trim()) return enrichedAgents;
+    const q = searchQuery.trim().toLowerCase();
+    return enrichedAgents.filter(
+      (a) =>
+        (a.user?.name || a.name || '').toLowerCase().includes(q) ||
+        (a.user?.email || a.email || '').toLowerCase().includes(q)
+    );
+  }, [enrichedAgents, searchQuery]);
+
+  const totalAgentPages = Math.max(1, Math.ceil(filteredAgents.length / PAGE_SIZE));
+  const pagedAgents = filteredAgents.slice((agentPage - 1) * PAGE_SIZE, agentPage * PAGE_SIZE);
+
   const openAgent = (agent) => {
     setSelectedAgent(agent);
     setActiveTab('profile');
@@ -212,9 +229,21 @@ export function AdminAgents() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-gray-600">Loading agents...</p>
+        <PageSpinner />
       ) : (
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200">
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setAgentPage(1); }}
+                placeholder="Search by name or email..."
+                className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px]">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -229,7 +258,22 @@ export function AdminAgents() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {enrichedAgents.map((agent) => (
+                {pagedAgents.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-16 text-center">
+                      <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-gray-600 mb-1">
+                        {searchQuery ? `No agents match "${searchQuery}"` : 'No agents registered yet'}
+                      </p>
+                      {searchQuery && (
+                        <button onClick={() => { setSearchQuery(''); setAgentPage(1); }} className="mt-2 text-sm text-blue-600 hover:underline">
+                          Clear search
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                {pagedAgents.map((agent) => (
                   <tr key={agent.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-900">{agent.name}</p>
@@ -250,6 +294,30 @@ export function AdminAgents() {
               </tbody>
             </table>
           </div>
+          {totalAgentPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                Showing {(agentPage - 1) * PAGE_SIZE + 1}–{Math.min(agentPage * PAGE_SIZE, filteredAgents.length)} of {filteredAgents.length} agents
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setAgentPage((p) => Math.max(1, p - 1))}
+                  disabled={agentPage === 1}
+                  className="p-2 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-sm text-gray-700 px-2">Page {agentPage} of {totalAgentPages}</span>
+                <button
+                  onClick={() => setAgentPage((p) => Math.min(totalAgentPages, p + 1))}
+                  disabled={agentPage === totalAgentPages}
+                  className="p-2 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

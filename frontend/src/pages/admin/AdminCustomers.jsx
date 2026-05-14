@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { UserCircle, TrendingUp, IndianRupee, Calendar } from 'lucide-react';
+import { UserCircle, TrendingUp, IndianRupee, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 import { StatusBadge } from '../../components/admin/StatusBadge';
+
+const PAGE_SIZE = 25;
 
 export function AdminCustomers() {
   const [customers, setCustomers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     (async () => {
@@ -18,6 +21,9 @@ export function AdminCustomers() {
     })();
   }, []);
 
+  // Reset page when search changes
+  useEffect(() => { setPage(1); }, [searchQuery]);
+
   const filteredCustomers = useMemo(
     () =>
       customers.filter(
@@ -27,6 +33,9 @@ export function AdminCustomers() {
       ),
     [customers, searchQuery]
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / PAGE_SIZE));
+  const pagedCustomers = filteredCustomers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const totalCustomers = customers.length;
   const activeCustomers = customers.filter((c) => c.status === 'active').length;
@@ -71,7 +80,7 @@ export function AdminCustomers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredCustomers.map((customer) => (
+              {pagedCustomers.map((customer) => (
                 <tr key={customer.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
                   <td className="px-6 py-4"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center"><span className="text-white font-semibold text-sm">{customer.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}</span></div><div><p className="font-medium text-gray-900 dark:text-white">{customer.name}</p><p className="text-sm text-gray-500 dark:text-gray-400">ID: {customer.id}</p></div></div></td>
                   <td className="px-6 py-4"><div className="text-sm"><p className="text-gray-900 dark:text-white">{customer.email}</p><p className="text-gray-500 dark:text-gray-400">{customer.phone || '-'}</p></div></td>
@@ -92,7 +101,30 @@ export function AdminCustomers() {
         )}
       </div>
 
-      <div className="text-sm text-gray-600 dark:text-gray-400">Showing {filteredCustomers.length} of {customers.length} customers</div>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          Showing {pagedCustomers.length > 0 ? (page - 1) * PAGE_SIZE + 1 : 0}–{Math.min(page * PAGE_SIZE, filteredCustomers.length)} of {filteredCustomers.length} customers
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm text-gray-700 dark:text-gray-300 px-2">Page {page} of {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useContext } from 'react';
 import {
-  DollarSign,
   Package,
   Users,
   TrendingUp,
@@ -9,9 +8,16 @@ import {
   ArrowUpRight,
   CheckCircle,
   CreditCard,
-  MessageSquare,
   XCircle,
 } from 'lucide-react';
+
+function RupeeIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h12M6 8h12M6 13l8 8M6 13h3a4 4 0 0 0 0-8" />
+    </svg>
+  );
+}
 import { useAuth } from '../../contexts/AuthContext';
 import { BookingEventContext } from '../../contexts/BookingEventContext';
 import { packagesAPI, agentAPI } from '../../services/api';
@@ -55,66 +61,147 @@ function StatCard({ title, value, change, icon: Icon, iconGradient }) {
   );
 }
 
-// Static chart data for visual display
-const chartData = [
-  { label: 'Dec', value: 85000 },
-  { label: 'Jan', value: 120000 },
-  { label: 'Feb', value: 95000 },
-  { label: 'Mar', value: 180000 },
-  { label: 'Apr', value: 145000 },
-  { label: 'May', value: 210000 },
+
+function timeAgo(date) {
+  const diff = Date.now() - new Date(date).getTime();
+  const hrs = Math.floor(diff / 3600000);
+  if (hrs < 1) return 'Just now';
+  if (hrs < 24) return `${hrs} hour${hrs !== 1 ? 's' : ''} ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days} day${days !== 1 ? 's' : ''} ago`;
+  return `${Math.floor(days / 7)} week${Math.floor(days / 7) !== 1 ? 's' : ''} ago`;
+}
+
+function buildActivityItems(bookings) {
+  return [...bookings]
+    .sort((a, b) => new Date(b.bookingDate || b.createdAt) - new Date(a.bookingDate || a.createdAt))
+    .slice(0, 5)
+    .map(booking => {
+      const pkg = booking.package?.title || 'Package';
+      const when = timeAgo(booking.bookingDate || booking.createdAt);
+      if (booking.status === 'confirmed') {
+        return { text: `New booking confirmed — ${pkg}`, time: when, bg: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400', Icon: CheckCircle };
+      }
+      if (booking.status === 'cancelled') {
+        return { text: `Booking cancelled — ${pkg}`, time: when, bg: 'bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400', Icon: XCircle };
+      }
+      if (booking.status === 'completed') {
+        return { text: `Trip completed — ${pkg}`, time: when, bg: 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400', Icon: CheckCircle };
+      }
+      return { text: `Booking ${booking.status} — ${pkg}`, time: when, bg: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400', Icon: CreditCard };
+    });
+}
+
+const AGENT_PERIODS = [
+  { key: 'week', label: 'Week' },
+  { key: 'month', label: 'Month' },
+  { key: 'year', label: 'Year' },
 ];
 
-// Static activity feed data
-const activityItems = [
-  {
-    text: 'New booking confirmed — Kashmir Grand Tour',
-    time: '2 hours ago',
-    bg: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
-    Icon: CheckCircle,
-  },
-  {
-    text: 'Payment received — ₹45,000',
-    time: '5 hours ago',
-    bg: 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400',
-    Icon: CreditCard,
-  },
-  {
-    text: 'Customer query from Priya Sharma',
-    time: '1 day ago',
-    bg: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
-    Icon: MessageSquare,
-  },
-  {
-    text: 'Booking cancelled — Goa Beach Paradise',
-    time: '2 days ago',
-    bg: 'bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400',
-    Icon: XCircle,
-  },
-];
+function buildAgentChartData(bookings, period) {
+  if (period === 'week') {
+    // Last 7 days, daily
+    const dayMap = new Map();
+    for (const b of bookings) {
+      if (b.status === 'cancelled') continue;
+      const key = new Date(b.bookingDate || b.createdAt).toISOString().slice(0, 10);
+      dayMap.set(key, (dayMap.get(key) || 0) + Number(b.totalAmount || 0) * 0.70);
+    }
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      days.push({ label: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), value: dayMap.get(key) || 0 });
+    }
+    return days;
+  }
 
-function RevenueChart({ data }) {
-  const max = Math.max(...data.map(d => d.value));
+  if (period === 'year') {
+    // Last 12 months, monthly
+    const monthMap = new Map();
+    for (const b of bookings) {
+      if (b.status === 'cancelled') continue;
+      const key = new Date(b.bookingDate || b.createdAt).toISOString().slice(0, 7);
+      monthMap.set(key, (monthMap.get(key) || 0) + Number(b.totalAmount || 0) * 0.70);
+    }
+    const months = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - i);
+      const key = d.toISOString().slice(0, 7);
+      months.push({ label: d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }), value: monthMap.get(key) || 0 });
+    }
+    return months;
+  }
+
+  // Default: last 6 weeks (month view)
+  const weekMap = new Map();
+  for (const b of bookings) {
+    if (b.status === 'cancelled') continue;
+    const d = new Date(b.bookingDate || b.createdAt);
+    const dow = d.getDay();
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+    const key = monday.toISOString().slice(0, 10);
+    weekMap.set(key, (weekMap.get(key) || 0) + Number(b.totalAmount || 0) * 0.70);
+  }
+  const weeks = [];
+  for (let i = 5; i >= 0; i--) {
+    const now = new Date();
+    const dow = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1) - i * 7);
+    const key = monday.toISOString().slice(0, 10);
+    weeks.push({ label: monday.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), value: weekMap.get(key) || 0 });
+  }
+  return weeks;
+}
+
+function RevenueChart({ bookings }) {
+  const [period, setPeriod] = useState('month');
+
+  const data = useMemo(() => buildAgentChartData(bookings, period), [bookings, period]);
+
+  const hasData = data.some(d => d.value > 0);
+  const max = Math.max(...data.map(d => d.value), 1);
   const min = Math.min(...data.map(d => d.value));
   const width = 600, height = 220;
   const pad = { top: 20, bottom: 30, left: 30, right: 10 };
   const innerW = width - pad.left - pad.right;
   const innerH = height - pad.top - pad.bottom;
-  const stepX = innerW / (data.length - 1);
+  const stepX = data.length > 1 ? innerW / (data.length - 1) : innerW;
+  const midY = pad.top + innerH / 2;
   const pts = data.map((d, i) => ({
     x: pad.left + i * stepX,
-    y: pad.top + innerH - ((d.value - min) / (max - min || 1)) * innerH,
+    // Single non-zero point or all-zero: render at midline so there's a visible dot
+    y: !hasData ? midY : pad.top + innerH - ((d.value - min) / (max - min || 1)) * innerH,
     ...d,
   }));
-  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  const areaPath = `${linePath} L ${pts[pts.length - 1].x} ${pad.top + innerH} L ${pts[0].x} ${pad.top + innerH} Z`;
+  // Only draw path when there are ≥2 distinct x positions (i.e. not a single-point)
+  const linePath = data.length > 1 ? pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') : '';
+  const areaPath = linePath
+    ? `${linePath} L ${pts[pts.length - 1].x} ${pad.top + innerH} L ${pts[0].x} ${pad.top + innerH} Z`
+    : '';
 
   return (
     <div className="bg-white dark:bg-dark-bg-secondary rounded-xl p-6 border border-teal-100/60 dark:border-dark-border">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="font-bold text-[#022C22] dark:text-dark-text-primary">Revenue trend</h3>
-          <p className="text-xs text-teal-700/60 mt-0.5">Last 6 months · in ₹</p>
+          <p className="text-xs text-teal-700/60 mt-0.5">Agent earnings in ₹</p>
+        </div>
+        <div className="flex rounded-lg border border-teal-200 dark:border-dark-border overflow-hidden text-xs">
+          {AGENT_PERIODS.map(p => (
+            <button
+              key={p.key}
+              onClick={() => setPeriod(p.key)}
+              className={`px-3 py-1.5 font-medium transition-colors ${period === p.key ? 'bg-teal-600 text-white' : 'text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20'}`}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-48">
@@ -129,7 +216,7 @@ function RevenueChart({ data }) {
             y1={pad.top + innerH * t} y2={pad.top + innerH * t}
             stroke="#CCFBF1" strokeWidth="1" />
         ))}
-        <path d={areaPath} fill="url(#rev-grad-agent)" />
+        {areaPath && <path d={areaPath} fill="url(#rev-grad-agent)" />}
         <path d={linePath} fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         {pts.map((p, i) => (
           <circle key={i} cx={p.x} cy={p.y} r="4" fill="white" stroke="#0F766E" strokeWidth="2" />
@@ -149,7 +236,9 @@ function ActivityFeed({ items }) {
         <h3 className="font-bold text-[#022C22] dark:text-dark-text-primary">Recent Activity</h3>
       </div>
       <div className="space-y-3">
-        {items.map((it, i) => {
+        {items.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-dark-text-secondary">No activity yet.</p>
+        ) : items.map((it, i) => {
           const Icon = it.Icon;
           return (
             <div key={i} className="flex items-start gap-3">
@@ -183,7 +272,7 @@ export function AgentDashboard() {
       try {
         const [pkgRes, bookingRes] = await Promise.all([
           packagesAPI.list({ page: 1, limit: 100 }),
-          agentAPI.bookings(),
+          agentAPI.bookings({ limit: 500 }),
         ]);
 
         const allPackages = pkgRes.data?.data?.items || [];
@@ -224,7 +313,8 @@ export function AgentDashboard() {
   }, [user?.id, on]);
 
   const stats = useMemo(() => {
-    const totalRevenue = bookings.reduce((acc, booking) => acc + Number(booking.totalAmount || 0), 0);
+    // Agent earns 70% of sale (platform takes 25% commission + 5% GST); cancelled bookings excluded
+    const totalRevenue = bookings.reduce((acc, booking) => booking.status === 'cancelled' ? acc : acc + Number(booking.totalAmount || 0) * 0.70, 0);
     const confirmed = bookings.filter((booking) => booking.status === 'confirmed').length;
     const conversionRate = bookings.length ? Math.round((confirmed / bookings.length) * 100) : 0;
 
@@ -237,6 +327,7 @@ export function AgentDashboard() {
   }, [myPackages, bookings]);
 
   const recentBookings = useMemo(() => bookings.slice(0, 6), [bookings]);
+
 
   if (loading) {
     return <div className="p-8 text-gray-600 dark:text-dark-text-secondary">Loading dashboard...</div>;
@@ -256,10 +347,10 @@ export function AgentDashboard() {
       {/* Row 1: KPI Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Total Revenue"
+          title="My Earnings"
           value={formatINR(stats.revenue)}
           change="18.2%"
-          icon={DollarSign}
+          icon={RupeeIcon}
           iconGradient="from-green-500 to-emerald-600"
         />
         <StatCard
@@ -288,10 +379,10 @@ export function AgentDashboard() {
       {/* Row 2: Revenue Chart + Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <RevenueChart data={chartData} />
+          <RevenueChart bookings={bookings} />
         </div>
         <div className="lg:col-span-1">
-          <ActivityFeed items={activityItems} />
+          <ActivityFeed items={buildActivityItems(bookings)} />
         </div>
       </div>
 

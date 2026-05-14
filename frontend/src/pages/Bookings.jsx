@@ -93,7 +93,16 @@ export function Bookings() {
                       {item.package?.destination || 'Destination'} • {new Date(item.travelDate).toLocaleDateString()}
                     </p>
                   </div>
-                  <Badge variant={getStatusVariant(item.status)}>{getStatusLabel(item.status)}</Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge variant={getStatusVariant(item.status)}>{getStatusLabel(item.status)}</Badge>
+                    {item.status === 'cancelled' && (
+                      item.transaction?.status === 'refunded' ? (
+                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Refund Processed</span>
+                      ) : (
+                        <span className="text-xs text-gray-500 italic">Refund may be processed</span>
+                      )
+                    )}
+                  </div>
                 </div>
                 <p className="mt-3 text-sm text-light-text-secondary dark:text-dark-text-secondary">
                   Travelers: {item.travelersCount}

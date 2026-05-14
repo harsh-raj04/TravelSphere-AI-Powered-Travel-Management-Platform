@@ -491,12 +491,27 @@ async function getDestinationCounts(req, res) {
   }
 }
 
+async function getTermsSections(req, res) {
+  try {
+    const terms = await prisma.termsSection.findMany({
+      where: { isActive: true },
+      orderBy: { order: 'asc' },
+      select: { id: true, order: true, title: true, content: true },
+    });
+    return ok(res, 'Terms fetched successfully', terms);
+  } catch (_error) {
+    console.error('Error fetching terms:', _error);
+    return fail(res, 'Failed to fetch terms', [], 500);
+  }
+}
+
 module.exports = {
   listPackages,
   getPackageById,
   getPackageDetails,
   getDestinationCounts,
   getFeaturedPackages,
+  getTermsSections,
   createPackage,
   updatePackage,
   deletePackage,
