@@ -25,6 +25,10 @@ coverage/
 .claude/
 **/.claude/
 
+# CommandCode local config
+.commandcode/
+**/.commandcode/
+
 # Private design reference
 My UI/
 Travel Management Agent UI/
