@@ -162,4 +162,10 @@ export const adminAPI = {
   createBookingForCustomer: (data) => apiClient.post('/admin/bookings', data),
 };
 
+export const customerAPI = {
+  getProfile: () => apiClient.get('/customer/profile'),
+  updateProfile: (data) => apiClient.patch('/customer/profile', data),
+  changePassword: (data) => apiClient.patch('/customer/password', data),
+};
+
 export default apiClient;

@@ -69,14 +69,25 @@ enum TicketPriority {
 }
 
 model User {
-  id             String          @id @default(cuid())
-  name           String
-  email          String          @unique
-  passwordHash   String
-  role           Role
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  agentProfile   AgentProfile?
+  id                String          @id @default(cuid())
+  name              String
+  email             String          @unique
+  passwordHash      String
+  role              Role
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  phone             String?
+  dateOfBirth       DateTime?
+  gender            String?
+  city              String?
+  state             String?
+  languages         Json?
+  travelPreferences Json?
+  emergencyContact  Json?
+  notificationPrefs Json?
+  privacySettings   Json?
+  referralCode      String?         @unique
+  agentProfile      AgentProfile?
   bookings       Booking[]
   notifications  Notification[]
   supportTickets SupportTicket[]
