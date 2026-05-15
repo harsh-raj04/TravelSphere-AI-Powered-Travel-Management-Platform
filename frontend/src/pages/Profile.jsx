@@ -1064,7 +1064,7 @@ export function Profile() {
       try {
         const [profileRes, bookingsRes] = await Promise.all([customerAPI.getProfile(), bookingsAPI.myBookings()]);
         setProfile(profileRes.data.data.profile);
-        setBookings(bookingsRes.data.data.bookings ?? []);
+        setBookings(bookingsRes.data.data.items ?? []);
       } catch {
         setToast({ message: 'Failed to load profile', type: 'error' });
       } finally {
