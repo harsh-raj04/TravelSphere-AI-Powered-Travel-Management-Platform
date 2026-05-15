@@ -1367,6 +1367,7 @@ const updatePackageSchema = z.object({
   durationDays: z.number().int().positive().optional(),
   price: z.number().positive().optional(),
   category: z.string().optional(),
+  tripStyle: z.string().optional().nullable(),
   bannerImage: z.string().optional().nullable(),
   isActive: z.boolean().optional(),
   featuredRank: z.number().int().positive().optional().nullable(),

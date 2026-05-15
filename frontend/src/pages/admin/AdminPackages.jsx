@@ -14,6 +14,7 @@ const blankDraft = () => ({
   price: '',
   description: '',
   category: 'group_tours',
+  tripStyle: '',
   bannerImage: '',
   isActive: true,
   itineraries: [],
@@ -156,6 +157,7 @@ export function AdminPackages() {
         durationDays: form.durationDays,
         price: priceVal,
         category: form.category,
+        tripStyle: form.tripStyle || undefined,
         bannerImage: form.bannerImage || undefined,
         itineraries: form.itineraries.map((it) => ({
           dayNumber: it.dayNumber,
@@ -552,12 +554,25 @@ export function AdminPackages() {
                   <input type="number" min="1" step="0.01" value={form.price} onChange={(e) => updateDraftField('price', e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white" placeholder="12999" required />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tour Category</label>
                   <select value={form.category} onChange={(e) => updateDraftField('category', e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white">
                     <option value="group_tours">Group Tour</option>
-                    <option value="weekend_trips">Weekend Trip</option>
                     <option value="family_tours">Family Tour</option>
+                    <option value="weekend_trips">Weekend Trip</option>
                     <option value="pilgrimage">Pilgrimage</option>
+                    <option value="personal_tours">Solo Tour</option>
+                    <option value="couple_tours">Honeymoon / Couple</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Trip Style <span className="text-gray-400 font-normal">(nature)</span></label>
+                  <select value={form.tripStyle} onChange={(e) => updateDraftField('tripStyle', e.target.value)} className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-white">
+                    <option value="">— Select style —</option>
+                    <option value="beach">🏖️ Beach</option>
+                    <option value="mountain">⛰️ Mountains</option>
+                    <option value="adventure">🌊 Adventure</option>
+                    <option value="calm">🧘 Calm & Wellness</option>
+                    <option value="heritage">🏛️ Heritage</option>
                   </select>
                 </div>
                 <div>

@@ -4,6 +4,7 @@ const {
   getPackageById,
   getPackageDetails,
   getDestinationCounts,
+  getSearchCount,
   getFeaturedPackages,
   getTermsSections,
   createPackage,
@@ -20,6 +21,7 @@ const { ROLES } = require("../constants/roles");
 const packagesRouter = express.Router();
 
 packagesRouter.get("/destination-counts", getDestinationCounts);
+packagesRouter.get("/search-count", getSearchCount);
 packagesRouter.get("/featured", getFeaturedPackages);
 packagesRouter.get("/terms", getTermsSections);
 packagesRouter.get("/", listPackages);

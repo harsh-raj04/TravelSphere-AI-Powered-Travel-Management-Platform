@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { BookingEventProvider } from './contexts/BookingEventContext';
 import { useAuth } from './contexts/AuthContext';
@@ -39,6 +39,7 @@ import { BlogPage } from './pages/BlogPage';
 import { PressPage } from './pages/PressPage';
 import { CareersPage } from './pages/CareersPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
+import { Support } from './pages/Support';
 
 import { getHomeRouteForRole, isRoleAllowedForVariant } from './utils/roleRouting';
 
@@ -84,9 +85,16 @@ function PageLoader() {
   );
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
+
 function AppLayout({ children }) {
   return (
     <div className="travel-ui min-h-screen flex flex-col bg-[#F0FDFA] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <ScrollToTop />
       <Navbar />
       <main className="flex-1">
         {children}
@@ -209,6 +217,14 @@ function AppRoutes() {
         element={
           <RoleRoute allowedRoles={['customer']}>
             <AppLayout><Profile /></AppLayout>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/support"
+        element={
+          <RoleRoute allowedRoles={['customer']}>
+            <AppLayout><Support /></AppLayout>
           </RoleRoute>
         }
       />

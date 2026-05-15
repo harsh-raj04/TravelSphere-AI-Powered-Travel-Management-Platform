@@ -8,6 +8,12 @@ const QUICK_ACTIONS = [
   'Cancellation policy',
 ];
 
+const AUTO_GREETINGS = [
+  "Hi there! 👋 Where do you want to travel?",
+  "Hello! 🌏 Planning a trip? I can help you find the perfect package.",
+  "Hey! ✈️ Looking for your next adventure? Ask me anything!",
+];
+
 function getAutoReply(text) {
   const t = text.toLowerCase();
   if (t.includes('book') || t.includes('how to book'))
@@ -36,13 +42,29 @@ export function ChatbotWidget() {
   const [messages, setMessages] = useState([
     {
       role: 'bot',
-      text: "Hi! I'm Explore, your AI travel assistant ✈️ How can I help you plan your next adventure?",
+      text: "Hi! I'm Wanderly, your AI travel assistant ✈️ How can I help you plan your next adventure?",
     },
   ]);
   const [typing, setTyping] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
+  const [autoPrompt, setAutoPrompt] = useState(null);
   const endRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Auto-show greeting bubble after 10 seconds if chat is not open
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!open) {
+        setAutoPrompt(AUTO_GREETINGS[Math.floor(Math.random() * AUTO_GREETINGS.length)]);
+      }
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Hide auto-prompt once user opens chat
+  useEffect(() => {
+    if (open) setAutoPrompt(null);
+  }, [open]);
 
   useEffect(() => {
     if (open && !minimized) {
@@ -74,6 +96,37 @@ export function ChatbotWidget() {
 
   return (
     <>
+      {/* Auto-greeting bubble */}
+      {autoPrompt && !open && (
+        <div className="fixed bottom-24 right-6 z-50 w-[270px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700/60 p-4 animate-slide-in">
+          <button
+            onClick={() => setAutoPrompt(null)}
+            className="absolute top-2.5 right-2.5 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition text-slate-400"
+            aria-label="Dismiss"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-teal-500 to-teal-700 rounded-full flex items-center justify-center flex-shrink-0 shadow-md shadow-teal-300/30">
+              <Compass className="w-4.5 h-4.5 text-white" style={{ width: '1.1rem', height: '1.1rem' }} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-none">Wanderly</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full" /> AI Travel Assistant
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed mb-3">{autoPrompt}</p>
+          <button
+            onClick={() => { setOpen(true); setMinimized(false); setAutoPrompt(null); }}
+            className="w-full py-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white text-sm font-semibold rounded-xl transition"
+          >
+            Chat with Wanderly →
+          </button>
+        </div>
+      )}
+
       {/* Chat window */}
       {open && !minimized && (
         <div className="fixed bottom-24 right-6 z-50 w-[340px] sm:w-[360px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700/60 flex flex-col overflow-hidden">
@@ -84,7 +137,7 @@ export function ChatbotWidget() {
                 <Compass className="w-4 h-4 text-white" />
               </div>
               <div>
-                <p className="text-white font-semibold text-sm leading-none">Explore</p>
+                <p className="text-white font-bold text-sm leading-none">Wanderly</p>
                 <p className="text-teal-100 text-xs mt-0.5">AI Travel Assistant</p>
               </div>
               <span className="ml-1 flex items-center gap-1 text-xs text-teal-200">
@@ -180,7 +233,7 @@ export function ChatbotWidget() {
 
           <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800/50 text-center flex-shrink-0">
             <p className="text-xs text-slate-400">
-              Powered by <span className="text-teal-500 font-medium">Explore AI</span> · TravelSphere
+              Powered by <span className="text-teal-500 font-medium">Wanderly AI</span> · TravelSphere
             </p>
           </div>
         </div>
@@ -195,9 +248,10 @@ export function ChatbotWidget() {
             setOpen(true);
             setMinimized(false);
             setHasUnread(false);
+            setAutoPrompt(null);
           }
         }}
-        aria-label="Open Explore AI travel assistant"
+        aria-label="Open Wanderly AI travel assistant"
         className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-br from-teal-500 to-teal-700 rounded-full shadow-lg shadow-teal-400/30 hover:scale-110 hover:shadow-xl hover:shadow-teal-400/40 transition-all duration-200 flex items-center justify-center"
       >
         <span className="absolute inset-0 rounded-full bg-teal-500 animate-ping opacity-20" />

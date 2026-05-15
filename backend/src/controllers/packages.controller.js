@@ -9,6 +9,7 @@ const packageSchema = z.object({
   price: z.number().positive(),
   description: z.string().min(10),
   category: z.string().optional(),
+  tripStyle: z.string().optional(),
   bannerImage: z.string().optional(),
   itineraries: z.array(z.object({
     dayNumber: z.number().int().positive(),
@@ -179,6 +180,7 @@ async function createPackage(req, res) {
         price: data.price,
         description: data.description,
         category: data.category || null,
+        tripStyle: data.tripStyle || null,
         bannerImage: data.bannerImage || null,
         itineraries: data.itineraries?.length ? data.itineraries : undefined,
         pricingOptions: data.pricingOptions?.length ? data.pricingOptions : undefined,
@@ -491,6 +493,43 @@ async function getDestinationCounts(req, res) {
   }
 }
 
+async function getSearchCount(req, res) {
+  try {
+    const { destinations, budgets, categories } = req.query;
+    const where = { isActive: true };
+
+    if (destinations) {
+      const destArr = destinations.split(',').map(d => d.trim()).filter(Boolean);
+      if (destArr.length) where.destination = { in: destArr };
+    }
+
+    if (budgets) {
+      const budgetParts = budgets.split(',').filter(Boolean);
+      if (budgetParts.length) {
+        const budgetOr = budgetParts.map(b => {
+          const [minStr, maxStr] = b.split('-');
+          const min = Number(minStr);
+          const max = maxStr === 'above' ? null : Number(maxStr);
+          return max === null ? { price: { gte: min } } : { price: { gte: min, lte: max } };
+        });
+        if (!where.AND) where.AND = [];
+        where.AND.push({ OR: budgetOr });
+      }
+    }
+
+    if (categories) {
+      const catArr = categories.split(',').filter(Boolean);
+      if (catArr.length) where.category = { in: catArr };
+    }
+
+    const count = await prisma.travelPackage.count({ where });
+    return ok(res, 'Count fetched', { count });
+  } catch (err) {
+    console.error('getSearchCount:', err);
+    return fail(res, 'Failed to get count', [], 500);
+  }
+}
+
 async function getTermsSections(req, res) {
   try {
     const terms = await prisma.termsSection.findMany({
@@ -510,6 +549,7 @@ module.exports = {
   getPackageById,
   getPackageDetails,
   getDestinationCounts,
+  getSearchCount,
   getFeaturedPackages,
   getTermsSections,
   createPackage,

@@ -131,6 +131,7 @@ model TravelPackage {
   description           String
   bannerImage           String?
   category              String    @default("group_tours") // group_tours, personal_tours, couple_tours, etc.
+  tripStyle             String?   // beach, mountain, adventure, calm, heritage
   isActive              Boolean   @default(true)
   featuredRank          Int?
   rating                Float?

@@ -5,7 +5,7 @@ import { Button } from './ui/Button';
 import {
   Menu, X, Sun, Moon, Sparkles, Compass, CreditCard, User,
   Shield, LayoutDashboard, ChevronDown, MessageSquare,
-  Wand2, Users, MapPin, LogOut, Calendar, FileText, Info, Home, Grid3X3,
+  Wand2, Users, MapPin, LogOut, Calendar, FileText, Info, Home, Grid3X3, HelpCircle,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -156,17 +156,17 @@ export function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-[70px] gap-3">
             {/* Logo */}
-            <Link to="/" aria-label="TravelSphere home" className="flex items-center gap-2 flex-shrink-0">
-              <div className="w-10 h-10 bg-gradient-to-br from-teal-600 to-teal-700 rounded-xl flex items-center justify-center shadow-lg shadow-teal-200/50">
-                <span className="text-white font-bold text-lg">T</span>
+            <Link to="/" aria-label="TravelSphere home" className="flex items-center gap-2.5 flex-shrink-0">
+              <div className="w-11 h-11 bg-gradient-to-br from-teal-600 to-teal-700 rounded-xl flex items-center justify-center shadow-lg shadow-teal-200/50">
+                <span className="text-white font-bold text-xl">T</span>
               </div>
-              <span className="font-bold text-xl bg-gradient-to-r from-teal-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent hidden sm:inline">
+              <span className="font-bold text-2xl bg-gradient-to-r from-teal-600 via-teal-500 to-emerald-500 bg-clip-text text-transparent hidden sm:inline">
                 TravelSphere
               </span>
             </Link>
 
             {/* Desktop Nav */}
-            <div className="hidden lg:flex items-center gap-1 flex-1 min-w-0">
+            <div className="hidden lg:flex items-center justify-center gap-1 flex-1 min-w-0">
               {/* Agent / Admin nav */}
               {(isAgent || isAdmin) && staffItems.map((item) => {
                 const Icon = item.icon;
@@ -184,7 +184,7 @@ export function Navbar() {
 
               {/* Customer / Public nav */}
               {(isCustomer || isPublic) && (
-                <div className="flex items-center gap-0.5 flex-1 min-w-0">
+                <div className="flex items-center gap-1">
                   <Link to="/" className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all flex-shrink-0 ${activeCls('/')}`}>
                     <Home className="w-4 h-4" />
                     Home
@@ -281,6 +281,7 @@ export function Navbar() {
                       <DropItem to="/profile" onClick={() => setProfileOpen(false)} icon={User}>My Profile</DropItem>
                       <DropItem to="/bookings" onClick={() => setProfileOpen(false)} icon={Calendar}>My Bookings</DropItem>
                       <DropItem to="/my-account/requests" onClick={() => setProfileOpen(false)} icon={FileText}>My Requests</DropItem>
+                      <DropItem to="/support" onClick={() => setProfileOpen(false)} icon={HelpCircle}>Support</DropItem>
                       <div className="border-t border-slate-100 dark:border-slate-700/60 mt-1 pt-1">
                         <button
                           onClick={handleLogout}
@@ -454,6 +455,13 @@ export function Navbar() {
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-600 text-sm font-medium hover:bg-teal-100 dark:hover:bg-teal-900/30 transition mb-2"
                   >
                     <Grid3X3 className="w-4 h-4" /> Dashboard
+                  </Link>
+                  <Link
+                    to="/support"
+                    onClick={() => setIsOpen(false)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition mb-2"
+                  >
+                    <HelpCircle className="w-4 h-4" /> Support
                   </Link>
                   <button
                     onClick={handleLogout}

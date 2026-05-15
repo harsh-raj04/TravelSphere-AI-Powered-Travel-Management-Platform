@@ -54,6 +54,7 @@ export const packagesAPI = {
   getById: (id) => apiClient.get(`/packages/${id}`),
   getDetails: (id) => apiClient.get(`/packages/${id}/details`),
   getTerms: () => apiClient.get('/packages/terms'),
+  searchCount: (params) => apiClient.get('/packages/search-count', { params }),
   create: (data) => apiClient.post('/packages', data),
   update: (id, data) => apiClient.put(`/packages/${id}`, data),
   remove: (id) => apiClient.delete(`/packages/${id}`),
@@ -160,6 +161,14 @@ export const adminAPI = {
   markAllNotificationsRead: () => apiClient.patch('/admin/notifications/mark-all-read'),
   // Admin create booking
   createBookingForCustomer: (data) => apiClient.post('/admin/bookings', data),
+};
+
+export const supportAPI = {
+  createTicket: (data) => apiClient.post('/tickets', data),
+  getMyTickets: () => apiClient.get('/tickets'),
+  getTicket: (id) => apiClient.get(`/tickets/${id}`),
+  addMessage: (id, message) => apiClient.post(`/tickets/${id}/messages`, { message }),
+  closeTicket: (id) => apiClient.patch(`/tickets/${id}/status`, { status: 'resolved' }),
 };
 
 export const customerAPI = {

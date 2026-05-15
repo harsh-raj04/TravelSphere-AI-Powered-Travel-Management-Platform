@@ -102,6 +102,12 @@ body {
   }
 }
 
+/* ── Ken Burns zoom for hero carousel ── */
+@keyframes kenBurns {
+  from { transform: scale(1); }
+  to   { transform: scale(1.12); }
+}
+
 /* ── Custom animations ── */
 @keyframes slide-in {
   from { transform: translateX(100%); opacity: 0; }
