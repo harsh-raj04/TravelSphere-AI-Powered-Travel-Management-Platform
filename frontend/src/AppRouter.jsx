@@ -117,7 +117,10 @@ function AppRoutes() {
         return <Navigate to={variantLoginRoute} replace />;
       }
 
-      return <Navigate to={getHomeRouteForRole(user.role)} replace />;
+      // Agents and admins go to their dashboards; customers stay on the home page
+      if (user.role === 'agent' || user.role === 'admin') {
+        return <Navigate to={getHomeRouteForRole(user.role)} replace />;
+      }
     }
 
     if (variant === 'agent') return <AgentHome />;
