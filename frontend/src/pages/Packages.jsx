@@ -21,6 +21,15 @@ export function Packages() {
     loadPackages();
   }, []);
 
+  // Sync filters when URL params change (e.g. clicking navbar category links)
+  useEffect(() => {
+    setFilters({
+      search: searchParams.get('search') || '',
+      category: searchParams.get('category') || '',
+      destination: searchParams.get('destination') || '',
+    });
+  }, [searchParams]);
+
   const loadPackages = async () => {
     try {
       const data = await packageService.getAll();

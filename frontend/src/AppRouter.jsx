@@ -9,7 +9,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { RoleRoute } from './components/RoleRoute';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
-import { WhatsAppButton } from './components/WhatsAppButton';
+import { ChatbotWidget } from './components/ChatbotWidget';
 import { AgentLayout } from './components/agent/AgentLayout';
 import { AdminLayout } from './components/admin/AdminLayout';
 
@@ -92,7 +92,7 @@ function AppLayout({ children }) {
         {children}
       </main>
       <Footer />
-      <WhatsAppButton />
+      <ChatbotWidget />
     </div>
   );
 }

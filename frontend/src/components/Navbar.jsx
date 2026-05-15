@@ -4,16 +4,16 @@ import { useTheme } from '../theme/ThemeProvider';
 import { Button } from './ui/Button';
 import {
   Menu, X, Sun, Moon, Sparkles, Compass, CreditCard, User,
-  Shield, LayoutDashboard, ChevronDown, Search, MessageSquare,
+  Shield, LayoutDashboard, ChevronDown, MessageSquare,
   Wand2, Users, MapPin, LogOut, Calendar, FileText, Info, Home,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 const PACKAGE_CATEGORIES = [
-  { label: 'Adventure', path: '/packages?category=adventure' },
-  { label: 'Leisure', path: '/packages?category=leisure' },
-  { label: 'Honeymoon', path: '/packages?category=honeymoon' },
-  { label: 'Family', path: '/packages?category=family' },
+  { label: 'Group Tours', path: '/packages?category=group_tours' },
+  { label: 'Family Tours', path: '/packages?category=family_tours' },
+  { label: 'Weekend Trips', path: '/packages?category=weekend_trips' },
+  { label: 'Pilgrimage', path: '/packages?category=pilgrimage' },
 ];
 
 const LOCATION_ROOMS = [
@@ -59,8 +59,10 @@ function NavDropdown({ label, icon: Icon, children }) {
         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1.5 min-w-[13rem] max-h-80 overflow-y-auto bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700/60 py-1.5 z-50">
-          {children}
+        <div className="absolute top-full left-0 pt-2 z-50">
+          <div className="min-w-[13rem] max-h-80 overflow-y-auto bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700/60 py-1.5">
+            {children}
+          </div>
         </div>
       )}
     </div>
@@ -77,39 +79,6 @@ function DropItem({ to, onClick, icon: Icon, children }) {
       {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />}
       {children}
     </Link>
-  );
-}
-
-function SearchBar({ className = '' }) {
-  const [query, setQuery] = useState('');
-  const [focused, setFocused] = useState(false);
-  const navigate = useNavigate();
-
-  function handleSearch(e) {
-    e.preventDefault();
-    if (query.trim()) {
-      navigate(`/packages?search=${encodeURIComponent(query.trim())}`);
-      setQuery('');
-    }
-  }
-
-  return (
-    <form onSubmit={handleSearch} className={`relative ${className}`}>
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        placeholder="Search destinations..."
-        className={`pl-9 pr-3 py-1.5 rounded-lg text-sm border transition-all duration-200 bg-slate-50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 outline-none ${
-          focused
-            ? 'border-teal-400 ring-2 ring-teal-100 dark:ring-teal-900/40 w-48'
-            : 'border-slate-200 dark:border-slate-700 w-36'
-        }`}
-      />
-      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-    </form>
   );
 }
 
@@ -216,8 +185,6 @@ export function Navbar() {
               {/* Customer / Public nav */}
               {(isCustomer || isPublic) && (
                 <div className="flex items-center gap-0.5 flex-1 min-w-0">
-                  <SearchBar className="mr-1 flex-shrink-0" />
-
                   <Link to="/" className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all flex-shrink-0 ${activeCls('/')}`}>
                     <Home className="w-4 h-4" />
                     Home
@@ -391,11 +358,6 @@ export function Navbar() {
               {/* Customer / Public mobile nav */}
               {(isCustomer || isPublic) && (
                 <>
-                  {/* Search */}
-                  <div className="px-2 py-2 mb-1">
-                    <SearchBar className="w-full" />
-                  </div>
-
                   <Link
                     to="/"
                     onClick={() => setIsOpen(false)}
