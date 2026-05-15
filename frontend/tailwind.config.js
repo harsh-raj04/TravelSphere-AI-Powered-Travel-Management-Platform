@@ -95,6 +95,20 @@ export default {
           '50%': { transform: 'translateY(-10px)' },
         },
       },
+      fontSize: {
+        // Each size stepped up one notch from Tailwind defaults.
+        // Combined with html { font-size: 18px } this gives ~30-40% larger text
+        // vs the original defaults, making all UI comfortably readable.
+        'xs':   ['0.833rem',  { lineHeight: '1.25rem' }],  // ~15px  (default 12px)
+        'sm':   ['0.944rem',  { lineHeight: '1.5rem'  }],  // ~17px  (default 14px)
+        'base': ['1.056rem',  { lineHeight: '1.75rem' }],  // ~19px  (default 16px)
+        'lg':   ['1.167rem',  { lineHeight: '1.875rem'}],  // ~21px  (default 18px)
+        'xl':   ['1.333rem',  { lineHeight: '1.875rem'}],  // ~24px  (default 20px)
+        '2xl':  ['1.667rem',  { lineHeight: '2rem'    }],  // ~30px  (default 24px)
+        '3xl':  ['2rem',      { lineHeight: '2.25rem' }],  // ~36px  (default 30px)
+        '4xl':  ['2.5rem',    { lineHeight: '2.5rem'  }],  // ~45px  (default 36px)
+        '5xl':  ['3rem',      { lineHeight: '1'       }],  // ~54px  (default 48px)
+      },
       transitionDuration: {
         250: '250ms',
         350: '350ms',

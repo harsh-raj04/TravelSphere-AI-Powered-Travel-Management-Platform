@@ -43,6 +43,7 @@
 
 html {
   scroll-behavior: smooth;
+  font-size: 18px; /* scale all rem-based Tailwind sizes up ~12.5% globally */
 }
 
 body {
