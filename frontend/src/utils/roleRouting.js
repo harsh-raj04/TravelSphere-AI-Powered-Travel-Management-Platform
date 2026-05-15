@@ -1,5 +1,5 @@
 const ROLE_HOME_ROUTES = {
-  customer: '/',
+  customer: '/home',
   agent: '/agent/dashboard',
   admin: '/admin/dashboard',
 };

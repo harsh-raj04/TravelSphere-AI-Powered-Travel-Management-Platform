@@ -5,7 +5,7 @@ import { Button } from './ui/Button';
 import {
   Menu, X, Sun, Moon, Sparkles, Compass, CreditCard, User,
   Shield, LayoutDashboard, ChevronDown, MessageSquare,
-  Wand2, Users, MapPin, LogOut, Calendar, FileText, Info, Home,
+  Wand2, Users, MapPin, LogOut, Calendar, FileText, Info, Home, Grid3X3,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -277,6 +277,7 @@ export function Navbar() {
                         <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{user.name || 'Traveler'}</p>
                         <p className="text-xs text-slate-500 mt-0.5 truncate">{user.email}</p>
                       </div>
+                      <DropItem to="/home" onClick={() => setProfileOpen(false)} icon={Grid3X3}>Dashboard</DropItem>
                       <DropItem to="/profile" onClick={() => setProfileOpen(false)} icon={User}>My Profile</DropItem>
                       <DropItem to="/bookings" onClick={() => setProfileOpen(false)} icon={Calendar}>My Bookings</DropItem>
                       <DropItem to="/my-account/requests" onClick={() => setProfileOpen(false)} icon={FileText}>My Requests</DropItem>
@@ -447,6 +448,13 @@ export function Navbar() {
                       <p className="text-xs text-slate-500 truncate">{user.email}</p>
                     </div>
                   </div>
+                  <Link
+                    to="/home"
+                    onClick={() => setIsOpen(false)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-600 text-sm font-medium hover:bg-teal-100 dark:hover:bg-teal-900/30 transition mb-2"
+                  >
+                    <Grid3X3 className="w-4 h-4" /> Dashboard
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 text-sm font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition"
