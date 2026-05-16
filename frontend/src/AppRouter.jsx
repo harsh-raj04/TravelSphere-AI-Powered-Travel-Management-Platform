@@ -10,6 +10,7 @@ import { RoleRoute } from './components/RoleRoute';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { ChatbotWidget } from './components/ChatbotWidget';
+import { WhatsAppButton } from './components/WhatsAppButton';
 import { AgentLayout } from './components/agent/AgentLayout';
 import { AdminLayout } from './components/admin/AdminLayout';
 
@@ -40,6 +41,9 @@ import { PressPage } from './pages/PressPage';
 import { CareersPage } from './pages/CareersPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { Support } from './pages/Support';
+import { SitemapPage } from './pages/SitemapPage';
+import { CustomizePackage } from './pages/CustomizePackage';
+import { MyRequests } from './pages/MyRequests';
 
 import { getHomeRouteForRole, isRoleAllowedForVariant } from './utils/roleRouting';
 
@@ -53,6 +57,7 @@ const AgentBookingsNew = lazy(() => import('./pages/agent/AgentBookingsNew').the
 const AgentBookingDetail = lazy(() => import('./pages/agent/AgentBookingDetail').then(m => ({ default: m.AgentBookingDetail })));
 const AgentAnalytics = lazy(() => import('./pages/agent/AgentAnalytics').then(m => ({ default: m.AgentAnalytics })));
 const AgentPayments = lazy(() => import('./pages/agent/AgentPayments').then(m => ({ default: m.AgentPayments })));
+const AgentMarketplace = lazy(() => import('./pages/agent/AgentMarketplace').then(m => ({ default: m.AgentMarketplace })));
 const AgentProfile = lazy(() => import('./pages/agent/AgentProfile').then(m => ({ default: m.AgentProfile })));
 const AgentSettings = lazy(() => import('./pages/agent/AgentSettings').then(m => ({ default: m.AgentSettings })));
 const AgentNotifications = lazy(() => import('./pages/agent/AgentNotifications').then(m => ({ default: m.AgentNotifications })));
@@ -75,6 +80,7 @@ const AdminWithdrawals = lazy(() => import('./pages/admin/AdminWithdrawals').the
 const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics').then(m => ({ default: m.AdminAnalytics })));
 const AdminSupport = lazy(() => import('./pages/admin/AdminSupport').then(m => ({ default: m.AdminSupport })));
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
+const AdminCustomRequests = lazy(() => import('./pages/admin/AdminCustomRequests').then(m => ({ default: m.AdminCustomRequests })));
 
 // Suspense fallback spinner
 function PageLoader() {
@@ -100,6 +106,7 @@ function AppLayout({ children }) {
         {children}
       </main>
       <Footer />
+      <WhatsAppButton />
       <ChatbotWidget />
     </div>
   );
@@ -286,6 +293,16 @@ function AppRoutes() {
           <RoleRoute allowedRoles={['agent']}>
             <Suspense fallback={<PageLoader />}>
               <AgentLayout><AgentAnalytics /></AgentLayout>
+            </Suspense>
+          </RoleRoute>
+        }
+      />
+      <Route
+        path="/agent/marketplace"
+        element={
+          <RoleRoute allowedRoles={['agent']}>
+            <Suspense fallback={<PageLoader />}>
+              <AgentLayout><AgentMarketplace /></AgentLayout>
             </Suspense>
           </RoleRoute>
         }
@@ -503,6 +520,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/custom-requests"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminCustomRequests /></AdminLayout>
+            </Suspense>
+          </RoleRoute>
+        }
+      />
+      <Route
         path="/packages"
         element={
           variant === 'customer'
@@ -528,12 +555,13 @@ function AppRoutes() {
       <Route path="/blog" element={<AppLayout><BlogPage /></AppLayout>} />
       <Route path="/press" element={<AppLayout><PressPage /></AppLayout>} />
       <Route path="/careers" element={<AppLayout><CareersPage /></AppLayout>} />
+      <Route path="/sitemap" element={<AppLayout><SitemapPage /></AppLayout>} />
 
-      {/* Phase stubs — full implementation in Phase 2, 3, 4 */}
-      <Route
-        path="/customize-package"
-        element={<AppLayout><ComingSoonPage title="Customize Your Package" subtitle="Our custom package request system is launching soon. In the meantime, browse our curated packages." /></AppLayout>}
-      />
+      {/* Custom package request wizard (public + optional auth) */}
+      <Route path="/customize-package" element={<AppLayout><CustomizePackage /></AppLayout>} />
+
+      {/* My Requests — customer only */}
+      <Route path="/my-account/requests" element={<RoleRoute allowedRoles={['customer']}><AppLayout><MyRequests /></AppLayout></RoleRoute>} />
       <Route
         path="/trip-planner"
         element={<AppLayout><ComingSoonPage title="AI Trip Planner" subtitle="Our AI-powered trip planning assistant is coming soon. It will help you build the perfect itinerary in minutes." /></AppLayout>}

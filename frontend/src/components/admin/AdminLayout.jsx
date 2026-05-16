@@ -18,6 +18,7 @@ import {
   Sun,
   X,
   CheckCheck,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -33,6 +34,7 @@ const navItems = [
   { icon: CreditCard, label: 'Transactions', path: '/admin/transactions' },
   { icon: ArrowDownLeft, label: 'Withdrawals', path: '/admin/withdrawals' },
   { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
+  { icon: ClipboardList, label: 'Custom Requests', path: '/admin/custom-requests' },
   { icon: MessageSquare, label: 'Support', path: '/admin/support' },
   { icon: Settings, label: 'Settings', path: '/admin/settings' },
 ];

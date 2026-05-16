@@ -9,6 +9,7 @@ const { agentRouter } = require("./agent.routes");
 const { ticketsRouter } = require("./tickets.routes");
 const { newsletterRouter } = require("./newsletter.routes");
 const { customerRouter } = require("./customer.routes");
+const { customRequestsRouter } = require("./customRequests.routes");
 
 const apiRouter = express.Router();
 
@@ -22,5 +23,6 @@ apiRouter.use("/agent", agentRouter);
 apiRouter.use("/tickets", ticketsRouter);
 apiRouter.use("/newsletter", newsletterRouter);
 apiRouter.use("/customer", customerRouter);
+apiRouter.use("/custom-requests", customRequestsRouter);
 
 module.exports = { apiRouter };

@@ -181,6 +181,7 @@ async function myBookings(req, res) {
       orderBy: { createdAt: "desc" },
       include: {
         package: true,
+        customRequest: { select: { id: true, destination: true, requestNumber: true } },
         assignedAgent: {
           include: {
             user: {
@@ -223,6 +224,7 @@ async function agentBookings(req, res) {
       include: {
         package: true,
         transaction: true,
+        customRequest: { select: { id: true, destination: true, requestNumber: true, adults: true, children: true, duration: true, budget: true, tripType: true } },
       },
     });
 
@@ -235,9 +237,12 @@ async function agentBookings(req, res) {
 
     const items = rows.map((booking) => {
       const canViewCustomerContact = visibleStatuses.includes(booking.status);
+      const breakdown = financialBreakdown(booking.totalAmount);
 
       return {
         ...booking,
+        agentPayout: breakdown.agent_payout,
+        financials: breakdown,
         customer: {
           name: booking.customerName,
           contactEmail: canViewCustomerContact ? booking.contactEmail : null,
@@ -252,6 +257,17 @@ async function agentBookings(req, res) {
     });
   } catch (_error) {
     return fail(res, "Failed to fetch agent bookings", [], 500);
+  }
+}
+
+async function marketplaceCount(req, res) {
+  try {
+    const count = await prisma.booking.count({
+      where: { status: BOOKING_STATUS.OPEN_FOR_AGENTS, assignedAgentId: null },
+    });
+    return ok(res, "Marketplace count", { count });
+  } catch (_error) {
+    return fail(res, "Failed to fetch count", [], 500);
   }
 }
 
@@ -273,14 +289,10 @@ async function marketplaceBookings(req, res) {
       orderBy: { createdAt: "desc" },
       include: {
         package: true,
+        customRequest: { select: { id: true, destination: true, requestNumber: true, adults: true, children: true, duration: true, budget: true, tripType: true } },
         applications: {
           where: { agentId: agentProfile.id },
-          select: {
-            id: true,
-            status: true,
-            message: true,
-            createdAt: true,
-          },
+          select: { id: true, status: true, message: true, createdAt: true },
         },
       },
     });
@@ -320,14 +332,10 @@ async function marketplaceBookingDetails(req, res) {
       where: { id: req.params.id },
       include: {
         package: true,
+        customRequest: { select: { id: true, destination: true, requestNumber: true, adults: true, children: true, duration: true, budget: true, tripType: true, specialRequests: true } },
         applications: {
           where: { agentId: agentProfile.id },
-          select: {
-            id: true,
-            status: true,
-            message: true,
-            createdAt: true,
-          },
+          select: { id: true, status: true, message: true, createdAt: true },
         },
       },
     });
@@ -389,15 +397,50 @@ async function applyForBooking(req, res) {
       return fail(res, "You have already applied for this booking", [], 409);
     }
 
-    const created = await prisma.agentApplication.create({
-      data: {
-        bookingId: booking.id,
-        agentId: agentProfile.id,
-        message: parsed.data.message,
-      },
+    // Check if this is the first application — if so, auto-assign
+    const existingCount = await prisma.agentApplication.count({
+      where: { bookingId: booking.id },
     });
 
-    return ok(res, "Application submitted successfully", created, 201);
+    const result = await prisma.$transaction(async (tx) => {
+      const application = await tx.agentApplication.create({
+        data: {
+          bookingId: booking.id,
+          agentId: agentProfile.id,
+          message: parsed.data.message,
+          status: existingCount === 0 ? "selected" : "applied",
+          ...(existingCount === 0 ? { selectedAt: new Date() } : {}),
+        },
+      });
+
+      if (existingCount === 0) {
+        await tx.booking.update({
+          where: { id: booking.id },
+          data: {
+            assignedAgentId: agentProfile.id,
+            status: BOOKING_STATUS.ASSIGNED,
+          },
+        });
+        // If this is a custom booking, advance the request to agent_assigned
+        if (booking.customRequestId) {
+          await tx.customPackageRequest.update({
+            where: { id: booking.customRequestId },
+            data:  { status: 'agent_assigned' },
+          });
+        }
+      }
+
+      return { application, autoAssigned: existingCount === 0 };
+    });
+
+    return ok(
+      res,
+      result.autoAssigned
+        ? "You've been automatically assigned to this booking!"
+        : "Application submitted successfully",
+      result.application,
+      201
+    );
   } catch (_error) {
     return fail(res, "Failed to submit application", [], 500);
   }
@@ -727,6 +770,7 @@ module.exports = {
   agentBookings,
   marketplaceBookings,
   marketplaceBookingDetails,
+  marketplaceCount,
   applyForBooking,
   myApplications,
   updateBookingStatus,

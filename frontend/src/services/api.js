@@ -79,6 +79,7 @@ export const paymentAPI = {
 
 export const agentAPI = {
   bookings: (params) => apiClient.get('/bookings/agent', { params }),
+  marketplaceCount: () => apiClient.get('/bookings/marketplace/count'),
   marketplace: () => apiClient.get('/bookings/marketplace'),
   marketplaceDetails: (id) => apiClient.get(`/bookings/marketplace/${id}`),
   applyForTrip: (id, payload) => apiClient.post(`/bookings/${id}/apply`, payload),
@@ -175,6 +176,23 @@ export const customerAPI = {
   getProfile: () => apiClient.get('/customer/profile'),
   updateProfile: (data) => apiClient.patch('/customer/profile', data),
   changePassword: (data) => apiClient.patch('/customer/password', data),
+};
+
+export const customRequestsAPI = {
+  // Customer
+  submit:          (data) => apiClient.post('/custom-requests', data),
+  getMyRequests:   ()     => apiClient.get('/custom-requests/my'),
+  respond:         (id, action, customerNote) => apiClient.patch(`/custom-requests/${id}/respond`, { action, customerNote }),
+  getMessages:     (id)   => apiClient.get(`/custom-requests/${id}/messages`),
+  addMessage:      (id, message) => apiClient.post(`/custom-requests/${id}/messages`, { message }),
+  createOrder:     (id)   => apiClient.post(`/custom-requests/${id}/create-order`),
+  verifyPayment:   (id, data) => apiClient.post(`/custom-requests/${id}/verify-payment`, data),
+  // Admin
+  getAll:             (params) => apiClient.get('/custom-requests', { params }),
+  setReviewing:       (id)     => apiClient.patch(`/custom-requests/${id}/reviewing`),
+  postToMarketplace:  (id)     => apiClient.post(`/custom-requests/${id}/post-to-marketplace`),
+  sendQuote:          (id, data) => apiClient.post(`/custom-requests/${id}/send-quote`, data),
+  updateNote:         (id, adminNote) => apiClient.patch(`/custom-requests/${id}`, { adminNote }),
 };
 
 export default apiClient;

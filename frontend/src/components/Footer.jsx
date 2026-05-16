@@ -12,7 +12,8 @@ function NewsletterForm() {
     if (!email.trim()) return;
     setStatus('loading');
     try {
-      const res = await fetch('/api/newsletter/subscribe', {
+      const BACKEND = import.meta.env.VITE_BACKEND_ORIGIN || 'http://localhost:4000';
+      const res = await fetch(`${BACKEND}/api/v1/newsletter/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),

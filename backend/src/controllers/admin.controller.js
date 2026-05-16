@@ -3,6 +3,14 @@ const { ok } = require("../utils/apiResponse");
 const { prisma } = require("../lib/prisma");
 const { BOOKING_STATUS } = require("../constants/statuses");
 
+function financialBreakdown(totalAmount) {
+  const total = Number(totalAmount || 0);
+  const commission = Number((total * 0.25).toFixed(2));
+  const gst = Number((total * 0.05).toFixed(2));
+  const agentPayout = Number((total - commission - gst).toFixed(2));
+  return { total, commission, gst, agentPayout, adminMargin: commission };
+}
+
 const adminBookingStatusSchema = z.object({
   status: z.enum([
     BOOKING_STATUS.CONFIRMED,
@@ -232,15 +240,14 @@ async function updateBookingStatus(req, res) {
         return res.status(400).json({ success: false, message: "agent_id is required when assigning a booking", errors: [] });
       }
 
-      const optedIn = await prisma.packageInterest.findFirst({
-        where: {
-          packageId: booking.packageId,
-          agentId,
-        },
-      });
-
-      if (!optedIn) {
-        return res.status(400).json({ success: false, message: "Selected agent has not opted in for this package", errors: [] });
+      // Custom package bookings (packageId null) skip the opt-in requirement
+      if (booking.packageId) {
+        const optedIn = await prisma.packageInterest.findFirst({
+          where: { packageId: booking.packageId, agentId },
+        });
+        if (!optedIn) {
+          return res.status(400).json({ success: false, message: "Selected agent has not opted in for this package", errors: [] });
+        }
       }
 
       updateData.assignedAgent = { connect: { id: agentId } };
@@ -485,6 +492,7 @@ async function listAllBookings(req, res) {
             },
           },
           transaction: true,
+          customRequest: { select: { id: true, destination: true, requestNumber: true } },
         },
       }),
       prisma.booking.count({ where }),
@@ -559,6 +567,45 @@ async function listBookingApplications(req, res) {
     const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found", errors: [] });
+    }
+
+    // For custom bookings (no package), return actual AgentApplication records
+    if (!booking.packageId) {
+      const applications = await prisma.agentApplication.findMany({
+        where: { bookingId: booking.id },
+        include: {
+          agent: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const items = applications.map((app) => ({
+        id: app.id,
+        type: "application",
+        agentId: app.agentId,
+        message: app.message,
+        status: app.status,
+        createdAt: app.createdAt,
+        agentProfile: {
+          id: app.agent.id,
+          name: app.agent.user.name,
+          email: app.agent.user.email,
+          phone: app.agent.contactNumber,
+          city: app.agent.agencyName,
+          expertise: app.agent.bio,
+          rating: Number(app.agent.agentRating || 4.5).toFixed(2),
+          ratingPercent: Number((Number(app.agent.agentRating || 4.5) * 20).toFixed(0)),
+          tripAssignedCount: app.agent.tripAssignedCount,
+          tripAcceptedCount: app.agent.tripAcceptedCount,
+          tripRejectedCount: app.agent.tripRejectedCount,
+        },
+      }));
+
+      return ok(res, "Booking applications fetched successfully", { bookingId: booking.id, items, isCustomBooking: true });
     }
 
     const [interests, allBookings] = await Promise.all([
@@ -757,6 +804,41 @@ async function listPackageInterests(req, res) {
 
 async function selectBookingApplication(req, res) {
   try {
+    const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+    if (!booking) return res.status(404).json({ success: false, message: "Booking not found", errors: [] });
+
+    // Custom booking — select from AgentApplication records
+    if (!booking.packageId) {
+      const application = await prisma.agentApplication.findUnique({
+        where: { id: req.params.applicationId },
+        include: { agent: true },
+      });
+      if (!application || application.bookingId !== booking.id) {
+        return res.status(404).json({ success: false, message: "Application not found", errors: [] });
+      }
+
+      const financials = financialBreakdown(Number(booking.totalAmount || 0));
+      const result = await prisma.$transaction(async (tx) => {
+        await tx.agentApplication.updateMany({
+          where: { bookingId: booking.id, id: { not: application.id } },
+          data: { status: "rejected" },
+        });
+        await tx.agentApplication.update({ where: { id: application.id }, data: { status: "selected" } });
+        return tx.booking.update({
+          where: { id: booking.id },
+          data: {
+            assignedAgentId: application.agentId,
+            agentPayout: financials.payout,
+            adminMargin: Number((financials.commission + financials.gst).toFixed(2)),
+            status: BOOKING_STATUS.ASSIGNED,
+            confirmedAt: booking.confirmedAt || new Date(),
+            publishedAt: booking.publishedAt || new Date(),
+          },
+        });
+      });
+      return ok(res, "Agent selected for custom booking", { booking: result });
+    }
+
     const interest = await prisma.packageInterest.findUnique({
       where: { id: req.params.applicationId },
       include: {
@@ -765,11 +847,7 @@ async function selectBookingApplication(req, res) {
       },
     });
 
-    const booking = await prisma.booking.findUnique({
-      where: { id: req.params.id },
-    });
-
-    if (!interest || !booking || booking.packageId !== interest.packageId) {
+    if (!interest || booking.packageId !== interest.packageId) {
       return res.status(404).json({ success: false, message: "Application not found", errors: [] });
     }
 
@@ -853,28 +931,20 @@ async function analyticsOverview(_req, res) {
         include: {
           assignedAgent: {
             include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
+              user: { select: { id: true, name: true } },
             },
           },
           package: {
             include: {
               agent: {
                 include: {
-                  user: {
-                    select: {
-                      id: true,
-                      name: true,
-                    },
-                  },
+                  user: { select: { id: true, name: true } },
                 },
               },
             },
           },
+          customRequest: { select: { id: true, destination: true } },
+          transaction: { select: { status: true } },
         },
       }),
       prisma.travelPackage.findMany({
@@ -884,9 +954,9 @@ async function analyticsOverview(_req, res) {
 
     const totalBookings = bookings.length;
     const activeBookings = bookings.filter((b) => b.status !== BOOKING_STATUS.CANCELLED);
-    const totalRevenue = activeBookings.reduce((sum, booking) => sum + Number(booking.totalAmount), 0);
-    const totalAgentPayout = activeBookings.reduce((sum, booking) => sum + Number(booking.agentPayout || 0), 0);
-    const totalAdminMargin = activeBookings.reduce((sum, booking) => sum + Number(booking.adminMargin || 0), 0);
+    const totalRevenue = activeBookings.reduce((sum, b) => sum + Number(b.totalAmount), 0);
+    const totalAgentPayout = activeBookings.reduce((sum, b) => sum + financialBreakdown(b.totalAmount).agentPayout, 0);
+    const totalAdminMargin = activeBookings.reduce((sum, b) => sum + financialBreakdown(b.totalAmount).adminMargin, 0);
 
     const agentMap = new Map();
     const packageMap = new Map();
@@ -913,10 +983,10 @@ async function analyticsOverview(_req, res) {
     };
 
     for (const booking of bookings) {
-      const agentId = booking.assignedAgentId || booking.package.agentId;
-      const agentName = booking.assignedAgent?.user?.name || booking.package.agent?.user?.name || "Unassigned";
-      const packageId = booking.package.id;
-      const packageTitle = booking.package.title;
+      const agentId = booking.assignedAgentId || booking.package?.agentId;
+      const agentName = booking.assignedAgent?.user?.name || booking.package?.agent?.user?.name || "Unassigned";
+      const packageId = booking.package?.id || `custom_${booking.customRequestId}`;
+      const packageTitle = booking.package?.title || (booking.customRequestId ? `Custom Trip` : "Unknown");
       const dateKey = booking.bookingDate.toISOString().slice(0, 10);
       const bookingStatus = String(booking.status || "").toLowerCase();
       const paymentStatus = String(booking.transaction?.status || "").toLowerCase();

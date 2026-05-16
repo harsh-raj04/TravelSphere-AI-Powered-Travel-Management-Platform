@@ -5,6 +5,7 @@ const {
   agentBookings,
   marketplaceBookings,
   marketplaceBookingDetails,
+  marketplaceCount,
   applyForBooking,
   myApplications,
   updateBookingStatus,
@@ -20,6 +21,7 @@ const bookingsRouter = express.Router();
 bookingsRouter.post("/", authenticate, authorize(ROLES.CUSTOMER), createBooking);
 bookingsRouter.get("/my", authenticate, authorize(ROLES.CUSTOMER), myBookings);
 bookingsRouter.get("/agent", authenticate, authorize(ROLES.AGENT), agentBookings);
+bookingsRouter.get("/marketplace/count", authenticate, authorize(ROLES.AGENT), marketplaceCount);
 bookingsRouter.get("/marketplace", authenticate, authorize(ROLES.AGENT), marketplaceBookings);
 bookingsRouter.get("/marketplace/:id", authenticate, authorize(ROLES.AGENT), marketplaceBookingDetails);
 bookingsRouter.post("/:id/apply", authenticate, authorize(ROLES.AGENT), applyForBooking);

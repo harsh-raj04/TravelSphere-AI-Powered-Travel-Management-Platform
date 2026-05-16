@@ -92,6 +92,7 @@ model User {
   notifications  Notification[]
   supportTickets SupportTicket[]
   ticketMessages TicketMessage[] @relation("TicketMessageSender")
+  customPackageRequests CustomPackageRequest[]
 
   @@index([role])
   @@map("users")
@@ -154,9 +155,10 @@ model TravelPackage {
 
 model Booking {
   id            String        @id @default(cuid())
-  customerId    String
-  packageId     String
-  customerName  String?
+  customerId       String
+  packageId        String?
+  customRequestId  String?
+  customerName     String?
   contactEmail  String?
   contactPhone  String?
   travelMessage String?
@@ -189,9 +191,10 @@ model Booking {
   closedAt      DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  customer      User          @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  package       TravelPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
-  assignedAgent AgentProfile? @relation("AssignedAgentBookings", fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  customer      User                  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  package       TravelPackage?        @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  customRequest CustomPackageRequest? @relation(fields: [customRequestId], references: [id], onDelete: SetNull)
+  assignedAgent AgentProfile?         @relation("AssignedAgentBookings", fields: [assignedAgentId], references: [id], onDelete: SetNull)
   transaction   Transaction?
   applications  AgentApplication[]
 
@@ -480,4 +483,55 @@ model NewsletterSubscriber {
 
   @@index([email])
   @@map("newsletter_subscribers")
+}
+
+model CustomPackageRequest {
+  id              String       @id @default(cuid())
+  requestNumber   String       @unique
+  userId          String?
+  user            User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name            String
+  email           String
+  phone           String?
+  destination     String
+  departureDate   String?
+  duration        Int?
+  adults          Int          @default(1)
+  children        Int          @default(0)
+  budget          String?
+  tripType        String?
+  accommodation   String?
+  mealPlan        String?
+  transport       String?
+  interests       Json?
+  specialRequests String?
+  status          String       @default("pending")
+  adminNote       String?
+  itinerary       String?
+  quotedPrice     Decimal?     @db.Decimal(10, 2)
+  customerNote    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  bookingId         String?
+  messages          CustomPackageMessage[]
+  bookings          Booking[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("custom_package_requests")
+}
+
+model CustomPackageMessage {
+  id         String               @id @default(cuid())
+  requestId  String
+  request    CustomPackageRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  senderRole String               // 'admin' | 'customer'
+  message    String
+  createdAt  DateTime             @default(now())
+
+  @@index([requestId])
+  @@map("custom_package_messages")
 }

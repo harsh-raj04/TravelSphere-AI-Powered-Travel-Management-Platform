@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Clock,
   X,
+  Store,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../ui/Toast';
@@ -25,12 +26,13 @@ import { agentAPI } from '../../services/api';
 
 // ─── Navigation items ──────────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { name: 'Dashboard',  href: '/agent/dashboard',  icon: LayoutDashboard },
-  { name: 'Packages',   href: '/agent/packages',   icon: Package, badge: '23' },
-  { name: 'Bookings',   href: '/agent/bookings',   icon: Calendar },
-  { name: 'Analytics',  href: '/agent/analytics',  icon: BarChart3 },
-  { name: 'Payments',   href: '/agent/payments',   icon: CreditCard, badge: 'New', badgeColor: 'teal' },
-  { name: 'Support',    href: '/agent/support',    icon: LifeBuoy },
+  { name: 'Dashboard',   href: '/agent/dashboard',   icon: LayoutDashboard },
+  { name: 'Packages',    href: '/agent/packages',    icon: Package, badge: '23' },
+  { name: 'Marketplace', href: '/agent/marketplace', icon: Store },
+  { name: 'Bookings',    href: '/agent/bookings',    icon: Calendar },
+  { name: 'Analytics',   href: '/agent/analytics',   icon: BarChart3 },
+  { name: 'Payments',    href: '/agent/payments',    icon: CreditCard, badge: 'New', badgeColor: 'teal' },
+  { name: 'Support',     href: '/agent/support',     icon: LifeBuoy },
 ];
 
 // ─── Profile Dropdown ──────────────────────────────────────────────────────────
@@ -369,6 +371,51 @@ export function AgentLayout({ children }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const addToast = useToast();
+  const [marketplaceOpen, setMarketplaceOpen] = useState(0);
+  const prevCountRef = useRef(null);
+
+  // Poll marketplace count every 30s; fire browser notification on increase
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchCount = async () => {
+      try {
+        const res = await agentAPI.marketplaceCount();
+        const count = res.data?.data?.count ?? 0;
+        if (cancelled) return;
+
+        if (prevCountRef.current !== null && count > prevCountRef.current) {
+          const diff = count - prevCountRef.current;
+          if (Notification.permission === 'granted') {
+            new Notification('TravelSphere — New Booking!', {
+              body: `${diff} new trip${diff > 1 ? 's' : ''} available in the marketplace`,
+              icon: '/favicon.ico',
+            });
+          }
+          addToast(`${diff} new booking${diff > 1 ? 's' : ''} in the marketplace!`, 'success');
+        }
+
+        prevCountRef.current = count;
+        setMarketplaceOpen(count);
+      } catch (_) {}
+    };
+
+    // Request notification permission once
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  // Inject live count into the Marketplace nav item
+  const navItems = NAV_ITEMS.map((item) =>
+    item.href === '/agent/marketplace' && marketplaceOpen > 0
+      ? { ...item, badge: String(marketplaceOpen), badgeColor: 'emerald' }
+      : item
+  );
 
   const handleLogout = () => {
     logout();
@@ -401,7 +448,7 @@ export function AgentLayout({ children }) {
         {/* Nav */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-teal-700/60">Workspace</p>
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavItem
               key={item.name}
               item={item}

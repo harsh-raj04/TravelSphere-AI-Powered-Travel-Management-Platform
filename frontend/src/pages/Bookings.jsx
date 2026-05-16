@@ -646,8 +646,12 @@ function FeedbackModal({ booking, onClose, onSubmit }) {
           <div className="flex items-center gap-3">
             <img src={getImageUrl(booking.package?.bannerImage)} alt="" className="w-14 h-14 rounded-xl object-cover" />
             <div>
-              <p className="font-semibold text-slate-900 dark:text-white text-sm">{booking.package?.title}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{booking.package?.destination} · {formatDate(booking.travelDate)}</p>
+              <p className="font-semibold text-slate-900 dark:text-white text-sm">
+                {booking.package?.title || (booking.customRequest ? `Custom — ${booking.customRequest.destination}` : 'Custom Package')}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {booking.package?.destination || booking.customRequest?.destination} · {formatDate(booking.travelDate)}
+              </p>
             </div>
           </div>
 

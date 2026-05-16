@@ -65,10 +65,12 @@ function SkeletonCard() {
 // ─── BookingCard ──────────────────────────────────────────────────────────────
 
 function BookingCard({ booking, onAccept, onReject, onView }) {
-  const canAccept = booking.status === 'assigned';
+  // Custom bookings in 'assigned' state = agent selected but customer hasn't paid yet
+  const isAwaitingPayment = booking.status === 'assigned' && !!booking.customRequestId && !booking.confirmedAt;
+  const canAccept  = booking.status === 'assigned' && !isAwaitingPayment;
   const isInProgress = booking.status === 'in_progress' || booking.status === 'accepted';
-  const canComplete = isInProgress;
-  const isCancelled = booking.status === 'cancelled';
+  const canComplete  = isInProgress;
+  const isCancelled  = booking.status === 'cancelled';
   const cfg = STATUS_CONFIG[booking.status] || STATUS_CONFIG.cancelled;
 
   return (
@@ -78,12 +80,12 @@ function BookingCard({ booking, onAccept, onReject, onView }) {
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-bold text-gray-900 truncate mb-1.5">
-              {booking.package?.title}
+              {booking.package?.title || (booking.customRequest ? `Custom — ${booking.customRequest.destination}` : 'Custom Package')}
             </h3>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
               <span className="flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                {booking.package?.destination || 'Destination TBD'}
+                {booking.package?.destination || booking.customRequest?.destination || 'Destination TBD'}
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-gray-400" />
@@ -101,19 +103,28 @@ function BookingCard({ booking, onAccept, onReject, onView }) {
         </div>
 
         {/* Payout / Total row */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-purple-50 border border-purple-100 rounded-xl p-3">
-            <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1">Your Payout</p>
-            <p className="text-xl font-bold text-purple-700">{formatINR(booking.agentPayout)}</p>
+        {isAwaitingPayment ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-2 text-sm text-amber-800">
+            <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />
+            <span>
+              <strong>Awaiting customer payment</strong> — you've been assigned to this trip. The quote is being finalised. Payout details will appear once the customer pays.
+            </span>
           </div>
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
-            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-1">Total Package</p>
-            <p className="text-xl font-bold text-blue-700">{formatINR(booking.totalAmount)}</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-purple-50 border border-purple-100 rounded-xl p-3">
+              <p className="text-[10px] font-bold text-purple-500 uppercase tracking-wider mb-1">Your Payout</p>
+              <p className="text-xl font-bold text-purple-700">{formatINR(booking.agentPayout)}</p>
+            </div>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+              <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-1">Total Package</p>
+              <p className="text-xl font-bold text-blue-700">{formatINR(booking.totalAmount)}</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Inline actions row */}
-        {!canAccept && onView && (
+        {!canAccept && !isAwaitingPayment && onView && (
           <div className="flex items-center justify-end gap-3 mt-3">
             {canComplete && (
               <button
@@ -134,8 +145,8 @@ function BookingCard({ booking, onAccept, onReject, onView }) {
           </div>
         )}
 
-        {/* Accept / Decline — only for assigned bookings, stays below */}
-        {canAccept && (
+        {/* Accept / Decline — only for standard assigned bookings (custom awaits payment separately) */}
+        {canAccept && !isAwaitingPayment && (
           <div className="flex gap-2.5 mt-3">
             <button
               onClick={() => onAccept(booking)}
@@ -581,7 +592,7 @@ export function AgentBookingsNew() {
             <div className="space-y-3">
               <div>
                 <p className="text-xs text-gray-500">Package</p>
-                <p className="text-sm font-semibold text-gray-900">{selectedBooking.package?.title}</p>
+                <p className="text-sm font-semibold text-gray-900">{selectedBooking.package?.title || (selectedBooking.customRequest ? `Custom — ${selectedBooking.customRequest.destination}` : 'Custom Package')}</p>
               </div>
               <div className="flex items-center gap-3">
                 <Calendar className="w-5 h-5 text-gray-400" />

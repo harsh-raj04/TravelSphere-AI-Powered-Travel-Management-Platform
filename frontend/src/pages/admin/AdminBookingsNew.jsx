@@ -269,13 +269,15 @@ export function AdminBookingsNew() {
                   <div className="flex items-start gap-4">
                     {/* Package Info */}
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 mb-2">{booking.package?.title}</h3>
-                      
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">
+                        {booking.package?.title || (booking.customRequest ? `Custom — ${booking.customRequest.destination}` : 'Custom Package')}
+                      </h3>
+
                       {/* Meta Info */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                          <span className="text-sm text-gray-600">{booking.package?.destination}</span>
+                          <span className="text-sm text-gray-600">{booking.package?.destination || booking.customRequest?.destination}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-gray-600 flex-shrink-0" />
