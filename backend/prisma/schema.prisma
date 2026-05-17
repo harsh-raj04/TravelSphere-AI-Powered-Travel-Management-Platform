@@ -93,6 +93,7 @@ model User {
   supportTickets SupportTicket[]
   ticketMessages TicketMessage[] @relation("TicketMessageSender")
   customPackageRequests CustomPackageRequest[]
+  aiChatConversations   AIChatConversation[]
 
   @@index([role])
   @@map("users")
@@ -534,4 +535,26 @@ model CustomPackageMessage {
 
   @@index([requestId])
   @@map("custom_package_messages")
+}
+
+model AIChatConversation {
+  id              String    @id @default(cuid())
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId       String    @unique
+  type            String    @default("trip-planner") // 'trip-planner' | 'homepage-widget'
+  title           String?
+  messages        Json      @default("[]")
+  messageCount    Int       @default(0)
+  leadToBooking   Boolean   @default(false)
+  bookingId       String?
+  startedAt       DateTime  @default(now())
+  lastMessageAt   DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([type])
+  @@map("ai_chat_conversations")
 }

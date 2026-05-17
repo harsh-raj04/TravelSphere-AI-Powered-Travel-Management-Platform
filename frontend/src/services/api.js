@@ -195,4 +195,12 @@ export const customRequestsAPI = {
   updateNote:         (id, adminNote) => apiClient.patch(`/custom-requests/${id}`, { adminNote }),
 };
 
+export const aiAPI = {
+  getMyConversations: () => apiClient.get('/ai/my-conversations'),
+  getConversation: (sessionId) => apiClient.get(`/ai/conversations/${sessionId}`),
+  submitFeedback: (sessionId, messageIndex, feedback) =>
+    apiClient.patch(`/ai/conversations/${sessionId}/feedback`, { messageIndex, feedback }),
+  getAnalytics: () => apiClient.get('/ai/analytics'),
+};
+
 export default apiClient;

@@ -44,6 +44,7 @@ import { Support } from './pages/Support';
 import { SitemapPage } from './pages/SitemapPage';
 import { CustomizePackage } from './pages/CustomizePackage';
 import { MyRequests } from './pages/MyRequests';
+import TripPlanner from './pages/TripPlanner';
 
 import { getHomeRouteForRole, isRoleAllowedForVariant } from './utils/roleRouting';
 
@@ -81,6 +82,7 @@ const AdminAnalytics = lazy(() => import('./pages/admin/AdminAnalytics').then(m 
 const AdminSupport = lazy(() => import('./pages/admin/AdminSupport').then(m => ({ default: m.AdminSupport })));
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
 const AdminCustomRequests = lazy(() => import('./pages/admin/AdminCustomRequests').then(m => ({ default: m.AdminCustomRequests })));
+const AdminAIAnalytics = lazy(() => import('./pages/admin/AdminAIAnalytics').then(m => ({ default: m.AdminAIAnalytics })));
 
 // Suspense fallback spinner
 function PageLoader() {
@@ -97,7 +99,7 @@ function ScrollToTop() {
   return null;
 }
 
-function AppLayout({ children }) {
+function AppLayout({ children, noFooter = false }) {
   return (
     <div className="travel-ui min-h-screen flex flex-col bg-[#F0FDFA] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <ScrollToTop />
@@ -105,7 +107,7 @@ function AppLayout({ children }) {
       <main className="flex-1">
         {children}
       </main>
-      <Footer />
+      {!noFooter && <Footer />}
       <WhatsAppButton />
       <ChatbotWidget />
     </div>
@@ -500,6 +502,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/ai-analytics"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminAIAnalytics /></AdminLayout>
+            </Suspense>
+          </RoleRoute>
+        }
+      />
+      <Route
         path="/admin/support"
         element={
           <RoleRoute allowedRoles={['admin']}>
@@ -562,10 +574,7 @@ function AppRoutes() {
 
       {/* My Requests — customer only */}
       <Route path="/my-account/requests" element={<RoleRoute allowedRoles={['customer']}><AppLayout><MyRequests /></AppLayout></RoleRoute>} />
-      <Route
-        path="/trip-planner"
-        element={<AppLayout><ComingSoonPage title="AI Trip Planner" subtitle="Our AI-powered trip planning assistant is coming soon. It will help you build the perfect itinerary in minutes." /></AppLayout>}
-      />
+      <Route path="/trip-planner" element={<AppLayout noFooter><TripPlanner /></AppLayout>} />
       <Route
         path="/community/*"
         element={<AppLayout><ComingSoonPage title="Community Chat" subtitle="The TravelSphere community chat is coming soon. Connect with fellow travelers and share experiences." /></AppLayout>}
