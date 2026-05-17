@@ -1,6 +1,11 @@
-const { env } = require("./config/env");
-const { app } = require("./app");
+const http = require('http');
+const { env } = require('./config/env');
+const { app } = require('./app');
+const { initSocket } = require('./socket');
 
-app.listen(env.PORT, () => {
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(env.PORT, () => {
   console.log(`TravelSphere backend running on port ${env.PORT}`);
 });

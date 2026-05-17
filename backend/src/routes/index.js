@@ -11,6 +11,7 @@ const { newsletterRouter } = require("./newsletter.routes");
 const { customerRouter } = require("./customer.routes");
 const { customRequestsRouter } = require("./customRequests.routes");
 const { aiRouter } = require("./ai.routes");
+const { chatRouter } = require("./chat.routes");
 
 const apiRouter = express.Router();
 
@@ -26,5 +27,6 @@ apiRouter.use("/newsletter", newsletterRouter);
 apiRouter.use("/customer", customerRouter);
 apiRouter.use("/custom-requests", customRequestsRouter);
 apiRouter.use("/ai", aiRouter);
+apiRouter.use("/chat", chatRouter);
 
 module.exports = { apiRouter };

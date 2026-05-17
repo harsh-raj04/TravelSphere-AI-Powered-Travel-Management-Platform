@@ -94,6 +94,9 @@ model User {
   ticketMessages TicketMessage[] @relation("TicketMessageSender")
   customPackageRequests CustomPackageRequest[]
   aiChatConversations   AIChatConversation[]
+  chatProfile           UserChatProfile?
+  createdChatRooms      ChatRoom[]
+  sentChatMessages      ChatMessage[]
 
   @@index([role])
   @@map("users")
@@ -557,4 +560,121 @@ model AIChatConversation {
   @@index([sessionId])
   @@index([type])
   @@map("ai_chat_conversations")
+}
+
+// ─── Phase 4: Community Chat ───────────────────────────────────────────────────
+
+model UserChatProfile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName          String   @unique
+  avatar               String?
+  bio                  String?
+  isOnline             Boolean  @default(false)
+  lastSeen             DateTime @default(now())
+  status               String   @default("available")
+  allowPrivateMessages Boolean  @default(true)
+  showOnlineStatus     Boolean  @default(true)
+  isBanned             Boolean  @default(false)
+  banReason            String?
+  banExpiresAt         DateTime?
+  messagesSent         Int      @default(0)
+  reputationScore      Int      @default(0)
+  warnings             Json     @default("[]")
+  notificationPrefs    Json?
+  blockedUserIds       String[] @default([])
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  sentMessages ChatMessage[]
+  memberships  ChatRoomMember[]
+
+  @@index([userId])
+  @@map("user_chat_profiles")
+}
+
+model ChatRoom {
+  id               String   @id @default(cuid())
+  type             String   // public|location|group|private
+  name             String
+  slug             String   @unique
+  description      String?
+  image            String?
+  location         String?
+  isActive         Boolean  @default(true)
+  isPublic         Boolean  @default(true)
+  maxParticipants  Int?
+  allowInvites     Boolean  @default(true)
+  allowFileUploads Boolean  @default(true)
+  allowLinks       Boolean  @default(true)
+  createdById      String?
+  createdBy        User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+  lastActivityAt   DateTime @default(now())
+  messageCount     Int      @default(0)
+  pinnedMessageIds String[] @default([])
+
+  messages ChatMessage[]
+  members  ChatRoomMember[]
+
+  @@index([slug])
+  @@index([type])
+  @@map("chat_rooms")
+}
+
+model ChatRoomMember {
+  id           String          @id @default(cuid())
+  roomId       String
+  room         ChatRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  profileId    String
+  profile      UserChatProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  role         String          @default("member")
+  joinedAt     DateTime        @default(now())
+  lastReadAt   DateTime        @default(now())
+  mutedUntil   DateTime?
+  isBanned     Boolean         @default(false)
+  banReason    String?
+  banExpiresAt DateTime?
+
+  @@unique([roomId, profileId])
+  @@index([roomId])
+  @@index([profileId])
+  @@map("chat_room_members")
+}
+
+model ChatMessage {
+  id           String          @id @default(cuid())
+  roomId       String
+  room         ChatRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId     String
+  sender       UserChatProfile @relation(fields: [senderId], references: [id])
+  userId       String?
+  user         User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  senderName   String
+  senderAvatar String?
+  messageType  String          @default("text")
+  content      String
+  replyToId    String?
+  replyTo      ChatMessage?    @relation("Replies", fields: [replyToId], references: [id])
+  replies      ChatMessage[]   @relation("Replies")
+  mentions     String[]        @default([])
+  reactions    Json            @default("[]")
+  attachments  Json            @default("[]")
+  isEdited     Boolean         @default(false)
+  editedAt     DateTime?
+  isDeleted    Boolean         @default(false)
+  deletedAt    DateTime?
+  deletedBy    String?
+  isFlagged    Boolean         @default(false)
+  flaggedBy    Json            @default("[]")
+  isPinned     Boolean         @default(false)
+  pinnedBy     String?
+  pinnedAt     DateTime?
+  createdAt    DateTime        @default(now())
+
+  @@index([roomId, createdAt])
+  @@index([senderId])
+  @@index([isFlagged])
+  @@map("chat_messages")
 }

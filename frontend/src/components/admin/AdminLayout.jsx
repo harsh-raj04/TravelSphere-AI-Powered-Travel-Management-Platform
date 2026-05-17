@@ -20,6 +20,7 @@ import {
   CheckCheck,
   ClipboardList,
   Sparkles,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -37,6 +38,7 @@ const navItems = [
   { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
   { icon: ClipboardList, label: 'Custom Requests', path: '/admin/custom-requests' },
   { icon: Sparkles, label: 'AI Analytics', path: '/admin/ai-analytics' },
+  { icon: Shield, label: 'Chat Moderation', path: '/admin/chat-moderation' },
   { icon: MessageSquare, label: 'Support', path: '/admin/support' },
   { icon: Settings, label: 'Settings', path: '/admin/settings' },
 ];

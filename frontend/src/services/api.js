@@ -195,6 +195,45 @@ export const customRequestsAPI = {
   updateNote:         (id, adminNote) => apiClient.patch(`/custom-requests/${id}`, { adminNote }),
 };
 
+export const chatAPI = {
+  // Profile
+  getMyProfile: () => apiClient.get('/chat/profile'),
+  createProfile: (data) => apiClient.post('/chat/profile', data),
+  updateProfile: (data) => apiClient.patch('/chat/profile', data),
+  // Rooms
+  getRooms: () => apiClient.get('/chat/rooms'),
+  getRoomBySlug: (slug) => apiClient.get(`/chat/rooms/${slug}`),
+  joinRoom: (roomId) => apiClient.post(`/chat/rooms/${roomId}/join`),
+  // Groups
+  createGroup: (data) => apiClient.post('/chat/groups', data),
+  getMyGroups: () => apiClient.get('/chat/my-groups'),
+  inviteToGroup: (roomId, targetProfileId) => apiClient.post(`/chat/groups/${roomId}/invite`, { targetProfileId }),
+  // Messages
+  getMessages: (roomId, page = 1) => apiClient.get(`/chat/rooms/${roomId}/messages`, { params: { page } }),
+  deleteMessage: (messageId) => apiClient.delete(`/chat/messages/${messageId}`),
+  flagMessage: (messageId, reason) => apiClient.post(`/chat/messages/${messageId}/flag`, { reason }),
+  // Online
+  getOnlineUsers: (roomId) => apiClient.get(`/chat/rooms/${roomId}/online`),
+  // Private
+  getConversations: () => apiClient.get('/chat/conversations'),
+  startPrivateChat: (targetProfileId) => apiClient.post('/chat/conversations/start', { targetProfileId }),
+  // Block
+  blockUser: (targetProfileId) => apiClient.post(`/chat/block/${targetProfileId}`),
+  unblockUser: (targetProfileId) => apiClient.delete(`/chat/block/${targetProfileId}`),
+  // Admin
+  adminStats: () => apiClient.get('/chat/admin/stats'),
+  adminFlagged: (page = 1) => apiClient.get('/chat/admin/flagged', { params: { page } }),
+  adminUsers: (params) => apiClient.get('/chat/admin/users', { params }),
+  adminGroups: () => apiClient.get('/chat/admin/groups'),
+  adminRoomMessages: (roomId, page = 1) => apiClient.get(`/chat/admin/rooms/${roomId}/messages`, { params: { page } }),
+  adminDeleteMessage: (messageId) => apiClient.delete(`/chat/admin/messages/${messageId}`),
+  adminDismissFlag: (messageId) => apiClient.post(`/chat/admin/messages/${messageId}/dismiss-flag`),
+  adminBanUser: (profileId, data) => apiClient.post(`/chat/admin/users/${profileId}/ban`, data),
+  adminUnbanUser: (profileId) => apiClient.post(`/chat/admin/users/${profileId}/unban`),
+  adminWarnUser: (profileId, reason) => apiClient.post(`/chat/admin/users/${profileId}/warn`, { reason }),
+  adminDisbandGroup: (roomId) => apiClient.delete(`/chat/admin/groups/${roomId}`),
+};
+
 export const aiAPI = {
   getMyConversations: () => apiClient.get('/ai/my-conversations'),
   getConversation: (sessionId) => apiClient.get(`/ai/conversations/${sessionId}`),

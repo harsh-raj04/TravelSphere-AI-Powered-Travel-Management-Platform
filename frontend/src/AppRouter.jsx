@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { BookingEventProvider } from './contexts/BookingEventContext';
+import { ChatProvider } from './contexts/ChatContext';
 import { useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { ToastProvider } from './components/ui/Toast';
@@ -45,6 +46,10 @@ import { SitemapPage } from './pages/SitemapPage';
 import { CustomizePackage } from './pages/CustomizePackage';
 import { MyRequests } from './pages/MyRequests';
 import TripPlanner from './pages/TripPlanner';
+import { CommunityExplore } from './pages/community/CommunityExplore';
+import { ChatProfileSetup } from './pages/community/ChatProfileSetup';
+import { ChatRoom } from './pages/community/ChatRoom';
+import { PrivateMessages } from './pages/community/PrivateMessages';
 
 import { getHomeRouteForRole, isRoleAllowedForVariant } from './utils/roleRouting';
 
@@ -83,6 +88,7 @@ const AdminSupport = lazy(() => import('./pages/admin/AdminSupport').then(m => (
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings').then(m => ({ default: m.AdminSettings })));
 const AdminCustomRequests = lazy(() => import('./pages/admin/AdminCustomRequests').then(m => ({ default: m.AdminCustomRequests })));
 const AdminAIAnalytics = lazy(() => import('./pages/admin/AdminAIAnalytics').then(m => ({ default: m.AdminAIAnalytics })));
+const AdminChatModeration = lazy(() => import('./pages/admin/AdminChatModeration').then(m => ({ default: m.AdminChatModeration })));
 
 // Suspense fallback spinner
 function PageLoader() {
@@ -542,6 +548,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/chat-moderation"
+        element={
+          <RoleRoute allowedRoles={['admin']}>
+            <Suspense fallback={<PageLoader />}>
+              <AdminLayout><AdminChatModeration /></AdminLayout>
+            </Suspense>
+          </RoleRoute>
+        }
+      />
+      <Route
         path="/packages"
         element={
           variant === 'customer'
@@ -575,10 +591,14 @@ function AppRoutes() {
       {/* My Requests — customer only */}
       <Route path="/my-account/requests" element={<RoleRoute allowedRoles={['customer']}><AppLayout><MyRequests /></AppLayout></RoleRoute>} />
       <Route path="/trip-planner" element={<AppLayout noFooter><TripPlanner /></AppLayout>} />
-      <Route
-        path="/community/*"
-        element={<AppLayout><ComingSoonPage title="Community Chat" subtitle="The TravelSphere community chat is coming soon. Connect with fellow travelers and share experiences." /></AppLayout>}
-      />
+      {/* Community routes */}
+      <Route path="/community" element={<AppLayout noFooter><CommunityExplore /></AppLayout>} />
+      <Route path="/community/setup" element={<RoleRoute allowedRoles={['customer']}><AppLayout noFooter><ChatProfileSetup /></AppLayout></RoleRoute>} />
+      <Route path="/community/public-chat" element={<RoleRoute allowedRoles={['customer']}><AppLayout noFooter><ChatRoom /></AppLayout></RoleRoute>} />
+      <Route path="/community/location/:slug" element={<RoleRoute allowedRoles={['customer']}><AppLayout noFooter><ChatRoom /></AppLayout></RoleRoute>} />
+      <Route path="/community/group/:roomId" element={<RoleRoute allowedRoles={['customer']}><AppLayout noFooter><ChatRoom roomType="group" /></AppLayout></RoleRoute>} />
+      <Route path="/community/messages" element={<RoleRoute allowedRoles={['customer']}><AppLayout noFooter><PrivateMessages /></AppLayout></RoleRoute>} />
+      <Route path="/community/messages/:roomId" element={<RoleRoute allowedRoles={['customer']}><AppLayout noFooter><PrivateMessages /></AppLayout></RoleRoute>} />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
@@ -590,11 +610,13 @@ export default function App() {
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
-          <ToastProvider>
-            <BookingEventProvider>
-              <AppRoutes />
-            </BookingEventProvider>
-          </ToastProvider>
+          <ChatProvider>
+            <ToastProvider>
+              <BookingEventProvider>
+                <AppRoutes />
+              </BookingEventProvider>
+            </ToastProvider>
+          </ChatProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>
