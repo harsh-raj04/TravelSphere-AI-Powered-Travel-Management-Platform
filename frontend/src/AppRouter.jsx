@@ -11,7 +11,6 @@ import { RoleRoute } from './components/RoleRoute';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { ChatbotWidget } from './components/ChatbotWidget';
-import { WhatsAppButton } from './components/WhatsAppButton';
 import { AgentLayout } from './components/agent/AgentLayout';
 import { AdminLayout } from './components/admin/AdminLayout';
 
@@ -114,8 +113,7 @@ function AppLayout({ children, noFooter = false }) {
         {children}
       </main>
       {!noFooter && <Footer />}
-      <WhatsAppButton />
-      <ChatbotWidget />
+<ChatbotWidget />
     </div>
   );
 }

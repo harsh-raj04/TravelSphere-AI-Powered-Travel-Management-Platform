@@ -45,6 +45,8 @@ apiClient.interceptors.response.use(
 
 export const authAPI = {
   register: (data) => apiClient.post('/auth/register', data),
+  sendRegistrationOtp: (email) => apiClient.post('/auth/send-registration-otp', { email }),
+  verifyAndRegister: (data) => apiClient.post('/auth/verify-and-register', data),
   login: (data) => apiClient.post('/auth/login', data),
   me: () => apiClient.get('/auth/me'),
 };

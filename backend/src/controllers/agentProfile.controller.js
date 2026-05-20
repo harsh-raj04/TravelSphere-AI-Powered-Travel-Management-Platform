@@ -145,7 +145,7 @@ async function requestEmailChange(req, res) {
     try {
       await sendEmailOtp(newEmail, otp);
     } catch (awsErr) {
-      console.error("[OTP] SES send failed:", awsErr);
+      console.error("[OTP] Email send failed:", awsErr.message);
       return fail(res, "Failed to send OTP email. Please try again.", [], 502);
     }
 
