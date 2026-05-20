@@ -50,28 +50,54 @@ const KNOWN_DESTINATIONS = [
   'Darjeeling', 'Sikkim', 'Meghalaya', 'Spiti', 'Kedarnath', 'Char Dham',
 ];
 
-// Parse [SHOW_PACKAGES:{...}] tags from AI response (permissive regex)
-function parseShowPackagesTag(content) {
-  // Allow optional space after colon, handle multi-line JSON gracefully
-  const regex = /\[SHOW_PACKAGES:\s*(\{[\s\S]*?\})\]/g;
-  let match;
+// Parse packages:display and custom:request blocks from AI response
+function parseAIResponse(content) {
   let packageQuery = null;
+  let customRequestTrigger = null;
   let cleanContent = content;
+  let match;
 
-  while ((match = regex.exec(content)) !== null) {
+  // packages:display block (new format)
+  const pkgRegex = /```packages:display\s*([\s\S]*?)```/g;
+  while ((match = pkgRegex.exec(content)) !== null) {
     try {
-      packageQuery = JSON.parse(match[1]);
+      packageQuery = JSON.parse(match[1].trim());
       cleanContent = cleanContent.replace(match[0], '').trim();
     } catch {}
   }
 
-  return { cleanContent, packageQuery };
+  // custom:request block
+  const crRegex = /```custom:request\s*([\s\S]*?)```/g;
+  while ((match = crRegex.exec(content)) !== null) {
+    try {
+      customRequestTrigger = JSON.parse(match[1].trim());
+      cleanContent = cleanContent.replace(match[0], '').trim();
+    } catch {}
+  }
+
+  // Legacy fallback: [SHOW_PACKAGES:{...}]
+  if (!packageQuery) {
+    const legacyRegex = /\[SHOW_PACKAGES:\s*(\{[\s\S]*?\})\]/g;
+    while ((match = legacyRegex.exec(content)) !== null) {
+      try {
+        packageQuery = JSON.parse(match[1]);
+        cleanContent = cleanContent.replace(match[0], '').trim();
+      } catch {}
+    }
+  }
+
+  return { cleanContent, packageQuery, customRequestTrigger };
 }
 
-// Strip tags during streaming so they don't flash raw text
+// Strip all AI display blocks during streaming so they don't flash as raw text
 function stripTagsForDisplay(content) {
-  let out = content.replace(/\[SHOW_PACKAGES:\s*\{[\s\S]*?\}\]/g, '');
-  // Hide partial tag still being streamed
+  let out = content
+    .replace(/```packages:display[\s\S]*?```/g, '')
+    .replace(/```custom:request[\s\S]*?```/g, '')
+    .replace(/\[SHOW_PACKAGES:\s*\{[\s\S]*?\}\]/g, '');
+  // Hide partial blocks still being streamed (opening fence, no closing fence yet)
+  out = out.replace(/```packages:display[\s\S]*$/, '');
+  out = out.replace(/```custom:request[\s\S]*$/, '');
   out = out.replace(/\[SHOW_PACKAGES:[\s\S]*$/, '');
   return out.trim();
 }
@@ -479,87 +505,144 @@ function BookingWidget({ pkg, user, onClose, onSuccess }) {
   );
 }
 
-// ─── Custom Request Widget ─────────────────────────────────────────────────────
-function CustomRequestWidget({ user, onClose, onSuccess }) {
-  const [step, setStep] = useState(user ? 1 : 0);
+// ─── Custom Request Form (8-step) ─────────────────────────────────────────────
+const INTEREST_OPTIONS = [
+  { icon: '🏔️', label: 'Adventure' },
+  { icon: '😌', label: 'Relaxation' },
+  { icon: '🎭', label: 'Culture' },
+  { icon: '🦁', label: 'Wildlife' },
+  { icon: '🏖️', label: 'Beaches' },
+  { icon: '⛰️', label: 'Mountains' },
+  { icon: '🕉️', label: 'Spiritual' },
+  { icon: '🍽️', label: 'Food & Culinary' },
+];
+const BUDGET_OPTIONS = [
+  { label: '₹10,000 – ₹25,000', value: '10000-25000' },
+  { label: '₹25,000 – ₹50,000', value: '25000-50000' },
+  { label: '₹50,000 – ₹1,00,000', value: '50000-100000' },
+  { label: 'Above ₹1,00,000', value: '100000+' },
+];
+const ACCOMMODATION_OPTIONS = [
+  { icon: '🏠', label: 'Budget', desc: 'Hostels, guesthouses' },
+  { icon: '🏨', label: 'Mid-range', desc: '3-star hotels' },
+  { icon: '✨', label: 'Premium', desc: '4-star hotels' },
+  { icon: '💎', label: 'Luxury', desc: '5-star resorts' },
+];
+const FORM_STEPS = ['destination', 'duration', 'budget', 'travelers', 'interests', 'activities', 'accommodation', 'contact'];
+
+function CustomRequestForm({ trigger, user, onClose, onSuccess }) {
+  const getInitialStep = () => {
+    if (!user) return 'login';
+    if (trigger?.destination) return 'duration';
+    return 'destination';
+  };
+
+  const [step, setStep] = useState(getInitialStep);
   const [form, setForm] = useState({
-    destination: '',
-    departureDate: '',
-    duration: 5,
+    destination: trigger?.destination || '',
+    duration: null,
+    budget: '',
     adults: 2,
     children: 0,
-    budget: '',
-    tripType: '',
-    specialRequests: '',
+    interests: [],
+    activities: '',
+    accommodation: '',
     name: user?.name || '',
     email: user?.email || '',
     phone: '',
   });
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const minDate = new Date().toISOString().split('T')[0];
+
+  const progressSteps = trigger?.destination
+    ? FORM_STEPS.filter(s => s !== 'destination')
+    : FORM_STEPS;
+  const currentIdx = progressSteps.indexOf(step);
+  const progress = currentIdx >= 0
+    ? Math.round(((currentIdx + 1) / progressSteps.length) * 100)
+    : 0;
+
+  function nextStep(current) {
+    const idx = progressSteps.indexOf(current);
+    if (idx < progressSteps.length - 1) setStep(progressSteps[idx + 1]);
+  }
+
+  function prevStep(current) {
+    const idx = progressSteps.indexOf(current);
+    if (idx > 0) setStep(progressSteps[idx - 1]);
+  }
+
+  function toggleInterest(label) {
+    set('interests', form.interests.includes(label)
+      ? form.interests.filter(i => i !== label)
+      : [...form.interests, label]);
+  }
 
   async function submit() {
     if (!form.name.trim() || !form.email.trim()) { setError('Name and email are required.'); return; }
-    setLoading(true);
-    setError('');
+    setSubmitting(true); setError('');
     try {
+      const budgetParts = form.budget.split('-');
       await customRequestsAPI.submit({
-        name: form.name.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim() || undefined,
-        destination: form.destination.trim(),
-        departureDate: form.departureDate || undefined,
-        duration: Number(form.duration) || undefined,
-        adults: Number(form.adults) || 1,
-        children: Number(form.children) || 0,
-        budget: form.budget || undefined,
-        tripType: form.tripType || undefined,
-        specialRequests: form.specialRequests.trim() || undefined,
+        name:            form.name.trim(),
+        email:           form.email.trim(),
+        phone:           form.phone.trim() || undefined,
+        destination:     form.destination.trim(),
+        duration:        form.duration || undefined,
+        adults:          form.adults,
+        children:        form.children,
+        budget:          form.budget || undefined,
+        accommodation:   form.accommodation || undefined,
+        interests:       form.interests.length ? form.interests : undefined,
+        specialRequests: form.activities.trim() || undefined,
       });
-      onSuccess('custom_request');
+      setSubmitted(true);
+      onSuccess?.('custom_request');
     } catch (e) {
-      setError(e.response?.data?.message || 'Submission failed. Please try again.');
+      setError(e?.response?.data?.message || 'Submission failed. Please try again.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
-  const Counter = ({ label, value, onChange, min = 0, max = 20 }) => (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-      <div className="flex items-center gap-2">
-        <button onClick={() => onChange(Math.max(min, value - 1))}
-          className="w-8 h-8 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-teal-400 font-bold transition text-sm">
-          −
-        </button>
-        <span className="text-lg font-bold text-gray-900 w-8 text-center">{value}</span>
-        <button onClick={() => onChange(Math.min(max, value + 1))}
-          className="w-8 h-8 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-teal-400 font-bold transition text-sm">
-          +
-        </button>
-      </div>
-    </div>
-  );
+  const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 transition';
+  const btnPrimary = 'w-full py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition';
+  const btnBack = 'flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition';
 
   return (
     <div className="bg-white border border-teal-200 rounded-2xl shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-teal-50 border-b border-teal-100">
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-teal-50 to-emerald-50 border-b border-teal-100">
         <div>
-          <p className="font-bold text-gray-900 text-sm">✨ Custom Package Request</p>
-          <p className="text-xs text-gray-500">We'll plan your dream trip & send a quote</p>
+          <p className="font-bold text-gray-900 text-sm">🎨 Custom Trip Request</p>
+          <p className="text-xs text-gray-500">Tell us your preferences — we'll design the perfect trip</p>
         </div>
-        <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600">
-          <X className="w-4 h-4" />
-        </button>
+        {onClose && (
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 flex-shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
+      {/* Progress bar */}
+      {!['login', 'destination'].includes(step) && !submitted && (
+        <div className="px-4 pt-3">
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }} />
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Step {currentIdx + 1} of {progressSteps.length}</p>
+        </div>
+      )}
+
       <div className="p-4">
-        {step === 0 && (
-          <div className="text-center py-3">
+
+        {/* ── Login gate ── */}
+        {step === 'login' && (
+          <div className="text-center py-4">
             <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <User className="w-6 h-6 text-teal-600" />
             </div>
@@ -572,90 +655,209 @@ function CustomRequestWidget({ user, onClose, onSuccess }) {
           </div>
         )}
 
-        {step === 1 && (
-          <>
-            <p className="text-xs font-semibold text-teal-600 uppercase tracking-wider mb-3">Step 1 of 2 · Trip Details</p>
-
-            <label className="block text-xs font-medium text-gray-600 mb-1">Where do you want to go? <span className="text-red-400">*</span></label>
+        {/* ── Step 1: Destination ── */}
+        {step === 'destination' && (
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">📍 Where would you like to go?</h3>
+            <p className="text-xs text-gray-500 mb-3">Any Indian destination — state, city, or region</p>
             <input value={form.destination} onChange={e => set('destination', e.target.value)}
-              placeholder="e.g. Kashmir, Kerala, Rajasthan, Goa..."
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-teal-300" />
-
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Travel Date</label>
-                <input type="date" value={form.departureDate} onChange={e => set('departureDate', e.target.value)} min={minDate}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Duration (days)</label>
-                <input type="number" value={form.duration} onChange={e => set('duration', Number(e.target.value))} min={1} max={30}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" />
-              </div>
-            </div>
-
-            <div className="flex gap-6 mb-3">
-              <Counter label="Adults" value={form.adults} onChange={v => set('adults', v)} min={1} />
-              <Counter label="Children" value={form.children} onChange={v => set('children', v)} min={0} />
-            </div>
-
-            <label className="block text-xs font-medium text-gray-600 mb-1">Budget per person</label>
-            <select value={form.budget} onChange={e => set('budget', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-teal-300 bg-white">
-              <option value="">Select budget range</option>
-              <option value="budget">Budget (under ₹10,000)</option>
-              <option value="mid">Mid-range (₹10,000–₹25,000)</option>
-              <option value="premium">Premium (₹25,000–₹50,000)</option>
-              <option value="luxury">Luxury (₹50,000+)</option>
-            </select>
-
-            <label className="block text-xs font-medium text-gray-600 mb-1">Trip Type</label>
-            <select value={form.tripType} onChange={e => set('tripType', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-teal-300 bg-white">
-              <option value="">Any type</option>
-              <option value="honeymoon">Honeymoon</option>
-              <option value="family">Family Vacation</option>
-              <option value="adventure">Adventure</option>
-              <option value="group">Group Tour</option>
-              <option value="solo">Solo Travel</option>
-              <option value="pilgrimage">Pilgrimage</option>
-            </select>
-
-            <button onClick={() => setStep(2)} disabled={!form.destination.trim()}
-              className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition">
-              Next: Your Details →
+              placeholder="e.g. Meghalaya, Arunachal Pradesh, Spiti Valley"
+              className={`${inputCls} mb-3`} autoFocus />
+            <button onClick={() => nextStep('destination')} disabled={!form.destination.trim()}
+              className={btnPrimary}>
+              Continue →
             </button>
-          </>
+          </div>
         )}
 
-        {step === 2 && (
-          <>
-            <p className="text-xs font-semibold text-teal-600 uppercase tracking-wider mb-3">Step 2 of 2 · Contact Details</p>
-
-            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Full name *"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-teal-300" />
-            <input value={form.email} onChange={e => set('email', e.target.value)} type="email" placeholder="Email address *"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-teal-300" />
-            <input value={form.phone} onChange={e => set('phone', e.target.value)} type="tel" placeholder="Phone number (optional)"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-teal-300" />
-            <textarea value={form.specialRequests} onChange={e => set('specialRequests', e.target.value)} rows={2}
-              placeholder="Special requirements — dietary needs, mobility, preferred hotels..."
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-teal-300" />
-
-            {error && <p className="text-xs text-red-500 mb-3">⚠ {error}</p>}
-
+        {/* ── Step 2: Duration ── */}
+        {step === 'duration' && (
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">🗓️ How many days?</h3>
+            <p className="text-xs text-gray-500 mb-3">Between 1–30 days</p>
+            <input type="number" value={form.duration || ''} min={1} max={30}
+              onChange={e => set('duration', parseInt(e.target.value) || null)}
+              placeholder="e.g. 7" className={`${inputCls} mb-3`} autoFocus />
             <div className="flex gap-2">
-              <button onClick={() => setStep(1)}
-                className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition">
-                ← Back
-              </button>
-              <button onClick={submit} disabled={!form.name.trim() || !form.email.trim() || loading}
-                className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition">
-                {loading ? 'Submitting…' : 'Submit Request'}
+              {!trigger?.destination && (
+                <button onClick={() => prevStep('duration')} className={btnBack}>← Back</button>
+              )}
+              <button onClick={() => nextStep('duration')} disabled={!form.duration || form.duration < 1}
+                className={`${btnPrimary} flex-1`}>
+                Continue →
               </button>
             </div>
-          </>
+          </div>
         )}
+
+        {/* ── Step 3: Budget ── */}
+        {step === 'budget' && (
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">💰 Budget per person?</h3>
+            <p className="text-xs text-gray-500 mb-3">Approximate range to personalize your packages</p>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              {BUDGET_OPTIONS.map(opt => (
+                <button key={opt.value}
+                  onClick={() => { set('budget', opt.value); setTimeout(() => nextStep('budget'), 200); }}
+                  className={`px-3 py-3 rounded-xl border-2 text-sm font-medium transition text-left
+                    ${form.budget === opt.value
+                      ? 'border-teal-500 bg-teal-50 text-teal-700'
+                      : 'border-gray-200 hover:border-teal-300 text-gray-700'}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => prevStep('budget')} className={btnBack}>← Back</button>
+          </div>
+        )}
+
+        {/* ── Step 4: Travelers ── */}
+        {step === 'travelers' && (
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-3">👥 How many travelers?</h3>
+            <div className="space-y-3 mb-4">
+              {[
+                { label: 'Adults', sublabel: '12+ years', key: 'adults', min: 1 },
+                { label: 'Children', sublabel: '2–12 years', key: 'children', min: 0 },
+              ].map(({ label, sublabel, key, min }) => (
+                <div key={key} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{label}</p>
+                    <p className="text-xs text-gray-500">{sublabel}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => set(key, Math.max(min, form[key] - 1))}
+                      className="w-8 h-8 rounded-lg border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-teal-400 hover:text-teal-600 font-bold transition text-sm">
+                      −
+                    </button>
+                    <span className="text-lg font-bold text-gray-900 w-6 text-center">{form[key]}</span>
+                    <button onClick={() => set(key, form[key] + 1)}
+                      className="w-8 h-8 rounded-lg border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-teal-400 hover:text-teal-600 font-bold transition text-sm">
+                      +
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => prevStep('travelers')} className={btnBack}>← Back</button>
+              <button onClick={() => nextStep('travelers')} className={`${btnPrimary} flex-1`}>Continue →</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 5: Interests ── */}
+        {step === 'interests' && (
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">✨ What interests you?</h3>
+            <p className="text-xs text-gray-500 mb-3">Select all that apply</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {INTEREST_OPTIONS.map(({ icon, label }) => (
+                <button key={label} onClick={() => toggleInterest(label)}
+                  className={`flex items-center gap-2 px-3 py-3 rounded-xl border-2 text-sm font-medium transition
+                    ${form.interests.includes(label)
+                      ? 'border-teal-500 bg-teal-50 text-teal-700'
+                      : 'border-gray-200 hover:border-teal-300 text-gray-700'}`}>
+                  <span className="text-xl">{icon}</span>
+                  <span className="text-left leading-tight">{label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => prevStep('interests')} className={btnBack}>← Back</button>
+              <button onClick={() => nextStep('interests')} disabled={form.interests.length === 0}
+                className={`${btnPrimary} flex-1`}>
+                Continue →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 6: Activities ── */}
+        {step === 'activities' && (
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">🎯 Any specific activities?</h3>
+            <p className="text-xs text-gray-500 mb-3">Optional — skip if you want us to suggest</p>
+            <textarea value={form.activities} onChange={e => set('activities', e.target.value)} rows={3}
+              placeholder="e.g. Scuba diving, trekking, yoga retreat, monastery visits, river rafting..."
+              className={`${inputCls} resize-none mb-3`} />
+            <div className="flex gap-2">
+              <button onClick={() => prevStep('activities')} className={btnBack}>← Back</button>
+              <button onClick={() => nextStep('activities')} className={`${btnPrimary} flex-1`}>
+                {form.activities.trim() ? 'Continue →' : 'Skip →'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 7: Accommodation ── */}
+        {step === 'accommodation' && (
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-3">🏨 Accommodation preference?</h3>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              {ACCOMMODATION_OPTIONS.map(opt => (
+                <button key={opt.label}
+                  onClick={() => { set('accommodation', opt.label); setTimeout(() => nextStep('accommodation'), 200); }}
+                  className={`flex flex-col items-center gap-1 px-3 py-4 rounded-xl border-2 transition
+                    ${form.accommodation === opt.label
+                      ? 'border-teal-500 bg-teal-50'
+                      : 'border-gray-200 hover:border-teal-300'}`}>
+                  <span className="text-3xl">{opt.icon}</span>
+                  <span className="text-sm font-semibold text-gray-800">{opt.label}</span>
+                  <span className="text-xs text-gray-500">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => prevStep('accommodation')} className={btnBack}>← Back</button>
+          </div>
+        )}
+
+        {/* ── Step 8: Contact ── */}
+        {step === 'contact' && (
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-3">📱 How can we reach you?</h3>
+            <div className="space-y-2.5 mb-3">
+              <input value={form.name} onChange={e => set('name', e.target.value)}
+                placeholder="Full name *" className={inputCls} />
+              <input value={form.email} onChange={e => set('email', e.target.value)}
+                type="email" placeholder="Email address *" className={inputCls} />
+              <input value={form.phone} onChange={e => set('phone', e.target.value)}
+                type="tel" placeholder="Phone number (optional)" className={inputCls} />
+            </div>
+            {error && <p className="text-xs text-red-500 mb-3">⚠ {error}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => prevStep('contact')} className={btnBack}>← Back</button>
+              <button onClick={submit}
+                disabled={!form.name.trim() || !form.email.trim() || submitting}
+                className={`${btnPrimary} flex-1`}>
+                {submitting ? 'Submitting…' : '✨ Submit Request'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Success ── */}
+        {submitted && (
+          <div className="text-center py-4">
+            <div className="text-5xl mb-3">✅</div>
+            <h3 className="text-base font-bold text-gray-900 mb-2">Request Submitted!</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Your custom{form.destination ? ` ${form.destination}` : ''} trip request has been received.
+              Our travel experts will design a personalized itinerary and contact you within 24 hours.
+            </p>
+            <div className="bg-teal-50 rounded-xl p-3 text-left mb-3">
+              <p className="text-xs font-semibold text-teal-700 mb-1">What happens next?</p>
+              <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
+                <li>Our team reviews your requirements (2–4 hours)</li>
+                <li>We design a custom itinerary with pricing</li>
+                <li>You receive it via email to review</li>
+                <li>Approve, adjust, then book!</li>
+              </ol>
+            </div>
+            <p className="text-xs text-gray-400">Track it in <strong>My Account → Custom Requests</strong></p>
+          </div>
+        )}
+
       </div>
     </div>
   );
@@ -750,7 +952,12 @@ function WidgetRow({ message, user, onClose, onSuccess }) {
           <BookingWidget pkg={message.pkg} user={user} onClose={onClose} onSuccess={onSuccess} />
         )}
         {message.widget === 'custom_request' && (
-          <CustomRequestWidget user={user} onClose={onClose} onSuccess={onSuccess} />
+          <CustomRequestForm
+            trigger={message.trigger || { trigger: 'user_requested', destination: null }}
+            user={user}
+            onClose={onClose}
+            onSuccess={onSuccess}
+          />
         )}
       </div>
     </div>
@@ -758,7 +965,7 @@ function WidgetRow({ message, user, onClose, onSuccess }) {
 }
 
 // ─── Message bubble ────────────────────────────────────────────────────────────
-function MessageBubble({ message, index, onFeedback, onRegenerate, onQuickReply, onDirectAction, onBookPackage }) {
+function MessageBubble({ message, index, user, onFeedback, onRegenerate, onQuickReply, onDirectAction, onBookPackage, onCustomRequestComplete }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
@@ -799,12 +1006,27 @@ function MessageBubble({ message, index, onFeedback, onRegenerate, onQuickReply,
           )}
         </div>
 
-        {/* Package cards + quick replies — only on completed assistant messages */}
+        {/* Package cards + custom request form + quick replies — only on completed assistant messages */}
         {!isUser && !message.isStreaming && message.content && (
           <>
             {message.packages?.length > 0 && (
               <div id={`pkgs-${index}`} className="w-full">
                 <PackageCards packages={message.packages} navigate={navigate} onBook={onBookPackage} />
+              </div>
+            )}
+            {message.customRequestTrigger && !message.customRequestCompleted && (
+              <div className="w-full mt-3">
+                <CustomRequestForm
+                  trigger={message.customRequestTrigger}
+                  user={user}
+                  onSuccess={() => onCustomRequestComplete?.(index)}
+                />
+              </div>
+            )}
+            {message.customRequestCompleted && (
+              <div className="w-full mt-3 p-3 bg-teal-50 border border-teal-200 rounded-xl text-center">
+                <p className="text-sm text-teal-700 font-medium">✅ Custom trip request submitted! We'll reach out within 24 hours.</p>
+                <a href="/dashboard/custom-requests" className="text-xs text-teal-600 underline mt-1 inline-block">View My Requests →</a>
               </div>
             )}
             {message.quickReplies?.length > 0 && (
@@ -1011,9 +1233,16 @@ export default function TripPlanner() {
       setSessionId(sid);
       setTimeout(() => scrollToBottom(true), 50);
 
-      // Re-fetch packages for messages that had package cards (stored metadata)
+      // Re-fetch packages and restore custom request triggers from stored metadata
       msgs.forEach((msg, index) => {
         if (msg.role !== 'assistant') return;
+
+        // Restore custom request trigger (don't re-show completed ones)
+        if (msg.customRequestTrigger && !msg.customRequestCompleted) {
+          setMessages((prev) => prev.map((m, i) =>
+            i === index ? { ...m, customRequestTrigger: msg.customRequestTrigger } : m
+          ));
+        }
 
         let dest = null;
         if (msg.packageQuery?.destination) {
@@ -1030,6 +1259,13 @@ export default function TripPlanner() {
             if (pkgs.length > 0) {
               setMessages((prev) =>
                 prev.map((m, i) => i === index ? { ...m, packages: pkgs.slice(0, msg.packageQuery ? 6 : 3) } : m)
+              );
+            } else if (msg.packageQuery && !msg.customRequestTrigger && !msg.customRequestCompleted) {
+              setMessages((prev) =>
+                prev.map((m, i) => i === index
+                  ? { ...m, customRequestTrigger: { trigger: 'no_packages', destination: dest } }
+                  : m
+                )
               );
             }
           })
@@ -1072,8 +1308,15 @@ export default function TripPlanner() {
 
   function handleDirectAction(reply) {
     if (reply.startsWith('✨')) {
-      injectWidget('custom_request');
+      injectWidget('custom_request', { trigger: { trigger: 'user_requested', destination: null } });
     }
+  }
+
+  function handleCustomRequestComplete(index) {
+    setMessages((prev) => prev.map((m, i) =>
+      i === index ? { ...m, customRequestCompleted: true, customRequestTrigger: null } : m
+    ));
+    setTimeout(() => scrollToBottom(true), 100);
   }
 
   function handleBookPackage(pkg) {
@@ -1152,38 +1395,64 @@ export default function TripPlanner() {
             } else if (parsed.type === 'done') {
               if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
 
-              // Parse [SHOW_PACKAGES:...] tag from full response
-              const { cleanContent, packageQuery } = parseShowPackagesTag(accumulated);
+              // Parse all AI response blocks
+              const { cleanContent, packageQuery, customRequestTrigger } = parseAIResponse(accumulated);
               const isItinerary = isItineraryResponse(cleanContent);
               const hasPackageQuery = !!packageQuery;
-              const quickReplies = (isItinerary || hasPackageQuery) ? ITINERARY_QUICK_REPLIES : DEFAULT_QUICK_REPLIES;
+              const hasCustomRequest = !!customRequestTrigger;
+              const quickReplies = (isItinerary || hasPackageQuery || hasCustomRequest)
+                ? ITINERARY_QUICK_REPLIES : DEFAULT_QUICK_REPLIES;
 
               setMessages((prev) => {
                 const updated = [...prev];
-                updated[updated.length - 1] = { role: 'assistant', content: cleanContent, isStreaming: false, quickReplies };
+                updated[updated.length - 1] = {
+                  role: 'assistant',
+                  content: cleanContent,
+                  isStreaming: false,
+                  quickReplies,
+                  ...(customRequestTrigger ? { customRequestTrigger } : {}),
+                };
                 return updated;
               });
 
-              // Fetch packages: AI triggered via [SHOW_PACKAGES:...] OR itinerary detected
-              const dest = packageQuery?.destination || (isItinerary ? extractDestination(msg) : null);
-              if (dest) {
-                const listParams = { destination: dest, limit: hasPackageQuery ? 6 : 3 };
-                if (packageQuery?.duration) listParams.duration = packageQuery.duration;
-                packagesAPI.list(listParams)
-                  .then((r) => {
-                    const pkgs = r.data?.data?.items || [];
-                    if (pkgs.length > 0) {
-                      setMessages((prev) => {
-                        const updated = [...prev];
-                        updated[updated.length - 1] = {
-                          ...updated[updated.length - 1],
-                          packages: pkgs.slice(0, hasPackageQuery ? 6 : 3),
-                        };
-                        return updated;
-                      });
-                    }
-                  })
-                  .catch(() => {});
+              // Fetch packages when AI triggered packages:display OR itinerary detected
+              if (!hasCustomRequest) {
+                const dest = packageQuery?.destination || (isItinerary ? extractDestination(msg) : null);
+                if (dest) {
+                  const listParams = { destination: dest, limit: hasPackageQuery ? 6 : 3 };
+                  if (packageQuery?.duration) listParams.duration = packageQuery.duration;
+                  if (packageQuery?.maxBudget) listParams.maxBudget = packageQuery.maxBudget;
+                  if (packageQuery?.minBudget) listParams.minBudget = packageQuery.minBudget;
+                  packagesAPI.list(listParams)
+                    .then((r) => {
+                      const pkgs = r.data?.data?.items || [];
+                      if (pkgs.length > 0) {
+                        setMessages((prev) => {
+                          const updated = [...prev];
+                          updated[updated.length - 1] = {
+                            ...updated[updated.length - 1],
+                            packages: pkgs.slice(0, hasPackageQuery ? 6 : 3),
+                          };
+                          return updated;
+                        });
+                      } else if (hasPackageQuery) {
+                        // No packages found for this query — surface custom request form
+                        setMessages((prev) => {
+                          const updated = [...prev];
+                          const lastMsg = updated[updated.length - 1];
+                          // Drop "📦 View matching packages" chip since there are no packages
+                          const filteredReplies = (lastMsg.quickReplies || []).filter(r => !r.startsWith('📦'));
+                          updated[updated.length - 1] = {
+                            ...lastMsg,
+                            customRequestTrigger: { trigger: 'no_packages', destination: dest },
+                            quickReplies: filteredReplies,
+                          };
+                          return updated;
+                        });
+                      }
+                    })
+                    .catch(() => {});
+                }
               }
             } else if (parsed.type === 'error') {
               if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
@@ -1346,11 +1615,13 @@ export default function TripPlanner() {
                     key={i}
                     message={msg}
                     index={i}
+                    user={user}
                     onFeedback={handleFeedback}
                     onRegenerate={msg.role === 'assistant' ? () => handleRegenerate(i) : null}
                     onQuickReply={sendMessage}
                     onDirectAction={handleDirectAction}
                     onBookPackage={handleBookPackage}
+                    onCustomRequestComplete={handleCustomRequestComplete}
                   />
                 );
               })}
